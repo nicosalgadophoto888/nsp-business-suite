@@ -309,20 +309,117 @@ function LeadsView({ leads, setLeads }) {
   );
 }
 
-function ProposalsView({ proposals }) {
+function AddProposalModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ clientName: "", clientEmail: "", serviceType: "Wedding", package: "", total: "", status: "Draft" });
+  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+  var selectStyle = Object.assign({}, inputStyle, { appearance: "auto" });
+
+  var packages = {
+    Wedding: ["Legacy \u2014 Full Day ($5,000)", "Signature \u2014 Half Day ($3,500)", "Essentials \u2014 Ceremony Only ($2,000)"],
+    "Family Portrait": ["Premium \u2014 Extended Session ($1,500)", "Standard \u2014 1 Hour ($800)", "Mini \u2014 30 Minutes ($400)"],
+    "Corporate Headshots": ["Premium \u2014 The Authority ($3,720)", "Standard \u2014 The Professional ($2,200)", "Basic \u2014 The Starter ($1,200)"],
+    "Personal Branding": ["Signature \u2014 The Identity ($3,250)", "Standard \u2014 The Spotlight ($2,000)", "Starter \u2014 The Intro ($1,000)"],
+    "Event Coverage": ["Full Day \u2014 Premium ($4,500)", "Half Day \u2014 Standard ($2,500)", "Highlights \u2014 Basic ($1,500)"],
+  };
+
+  var currentPackages = packages[form.serviceType] || [];
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}>
+      <div onClick={function(e) { e.stopPropagation(); }} style={{ width: "100%", maxWidth: 560, background: G.card, border: "1px solid " + G.border, borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid " + G.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontSize: 24 }}>New Proposal</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: G.textMuted, fontSize: 24, cursor: "pointer" }}>{"\u00D7"}</button>
+        </div>
+        <div style={{ padding: 24, display: "grid", gap: 14 }}>
+          <input placeholder="Client Name" value={form.clientName} onChange={function(e) { set("clientName", e.target.value); }} style={inputStyle} />
+          <input placeholder="Client Email" value={form.clientEmail} onChange={function(e) { set("clientEmail", e.target.value); }} style={inputStyle} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Service type</div>
+              <select value={form.serviceType} onChange={function(e) { set("serviceType", e.target.value); set("package", ""); set("total", ""); }} style={selectStyle}>
+                <option value="Wedding">Wedding</option>
+                <option value="Family Portrait">Family Portrait</option>
+                <option value="Corporate Headshots">Corporate Headshots</option>
+                <option value="Personal Branding">Personal Branding</option>
+                <option value="Event Coverage">Event Coverage</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Status</div>
+              <select value={form.status} onChange={function(e) { set("status", e.target.value); }} style={selectStyle}>
+                <option value="Draft">Draft</option>
+                <option value="Sent">Sent</option>
+                <option value="Viewed">Viewed</option>
+                <option value="Accepted">Accepted</option>
+                <option value="Declined">Declined</option>
+              </select>
+            </div>
+          </div>
+          {currentPackages.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 6 }}>Select a package</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {currentPackages.map(function(pkg) {
+                  var match = pkg.match(/\([\$]?([\d,]+)\)/);
+                  var price = match ? match[1].replace(",", "") : "";
+                  var selected = form.package === pkg.split(" (")[0];
+                  return (
+                    <button key={pkg} onClick={function() { set("package", pkg.split(" (")[0]); set("total", price); }} style={{
+                      textAlign: "left", padding: "12px 14px", borderRadius: 6, cursor: "pointer",
+                      background: selected ? G.goldDim + "33" : G.surface,
+                      border: "1px solid " + (selected ? G.gold : G.border),
+                      color: selected ? G.gold : G.text,
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{pkg.split(" (")[0]}</div>
+                      <div style={{ fontSize: 12, color: selected ? G.goldLight : G.textMuted, marginTop: 2 }}>{"$" + Number(price).toLocaleString()}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Custom amount (or edit package price)</div>
+            <input type="number" placeholder="Total Amount" value={form.total} onChange={function(e) { set("total", e.target.value); }} style={inputStyle} />
+          </div>
+        </div>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid " + G.border, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={function() {
+            if (!form.clientName.trim()) return;
+            onSave(Object.assign({}, form, { id: Date.now(), total: Number(form.total) || 0, createdAt: today() }));
+            onClose();
+          }}>Create Proposal</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProposalsView({ proposals, setProposals }) {
+  const [adding, setAdding] = useState(false);
   var total = proposals.reduce(function(a, p) { return a + Number(p.total || 0); }, 0);
   var accepted = proposals.filter(function(p) { return p.status === "Accepted"; }).reduce(function(a, p) { return a + Number(p.total || 0); }, 0);
   var accCount = proposals.filter(function(p) { return p.status === "Accepted"; }).length;
   var rate = proposals.length ? Math.round((accCount / proposals.length) * 100) : 0;
+
+  var handleSave = async function(proposal) {
+    var saved = await sbInsert("proposals", proposal);
+    if (saved) setProposals(function(prev) { return prev.concat([saved]); });
+    else setProposals(function(prev) { return [proposal].concat(prev); });
+  };
+
   return (
     <>
-      <SectionTitle title="Proposals" subtitle={proposals.length + " proposals"} />
+      <SectionTitle title="Proposals" subtitle={proposals.length + " proposals"} actions={<Btn onClick={function() { setAdding(true); }}>+ New Proposal</Btn>} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label="Total Proposed" value={fmt$(total)} sub="All proposals" />
         <StatCard label="Accepted Value" value={fmt$(accepted)} sub="Accepted" accent={G.green} />
         <StatCard label="Acceptance Rate" value={rate + "%"} sub="Overall" accent={G.gold} />
       </div>
       <ListCards items={proposals.map(function(p) { return { title: p.clientName, sub: p.serviceType + " \u00B7 " + p.package, right: fmt$(p.total), badge: p.status }; })} />
+      {adding && <AddProposalModal onClose={function() { setAdding(false); }} onSave={handleSave} />}
     </>
   );
 }
@@ -727,7 +824,7 @@ export default function NSPBusinessSuite() {
   var content = null;
   switch (page) {
     case "leads": content = <LeadsView leads={leads} setLeads={setLeads} />; break;
-    case "proposals": content = <ProposalsView proposals={proposals} />; break;
+    case "proposals": content = <ProposalsView proposals={proposals} setProposals={setProposals} />; break;
     case "contracts": content = <ContractsView contracts={contracts} />; break;
     case "invoicing": content = <InvoicesView invoices={invoices} />; break;
     case "schedule": content = <ScheduleView sessions={sessions} />; break;
