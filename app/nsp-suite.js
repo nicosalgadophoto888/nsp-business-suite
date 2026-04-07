@@ -4,128 +4,103 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 const G = {
-  bg: "#070707",
-  surface: "#0f0f0f",
-  card: "#131313",
-  border: "#222222",
-  gold: "#c9a96e",
-  goldLight: "#dfc28e",
-  goldDim: "#7a6030",
-  text: "#ede9e3",
-  textMuted: "#7a7772",
-  textDim: "#3e3c3a",
-  green: "#5aab7a",
-  greenBg: "#0a1a10",
-  red: "#c95f5f",
-  redBg: "#1a0a0a",
-  blue: "#6a9fd8",
-  blueBg: "#0a1220",
-  amber: "#d4955a",
-  amberBg: "#1a1008",
-  purple: "#9b7fe0",
-  purpleBg: "#0d0a1a",
-  sidebar: "#0a0a0a",
+  bg: "#070707", surface: "#0f0f0f", card: "#131313", border: "#222222",
+  gold: "#c9a96e", goldLight: "#dfc28e", goldDim: "#7a6030",
+  text: "#ede9e3", textMuted: "#7a7772", textDim: "#3e3c3a",
+  green: "#5aab7a", greenBg: "#0a1a10", red: "#c95f5f", redBg: "#1a0a0a",
+  blue: "#6a9fd8", blueBg: "#0a1220", amber: "#d4955a", amberBg: "#1a1008",
+  purple: "#9b7fe0", purpleBg: "#0d0a1a", sidebar: "#0a0a0a",
 };
 
 const STATUS_META = {
-  New: { color: G.blue, bg: G.blueBg },
-  Contacted: { color: G.amber, bg: G.amberBg },
-  "Proposal Sent": { color: G.purple, bg: G.purpleBg },
-  Booked: { color: G.green, bg: G.greenBg },
-  Lost: { color: G.red, bg: G.redBg },
-  Draft: { color: G.textMuted, bg: G.surface },
-  Sent: { color: G.amber, bg: G.amberBg },
-  Viewed: { color: G.blue, bg: G.blueBg },
-  Accepted: { color: G.green, bg: G.greenBg },
-  Declined: { color: G.red, bg: G.redBg },
-  Signed: { color: G.green, bg: G.greenBg },
-  Paid: { color: G.green, bg: G.greenBg },
-  Pending: { color: G.amber, bg: G.amberBg },
-  Overdue: { color: G.red, bg: G.redBg },
-  Confirmed: { color: G.green, bg: G.greenBg },
-  Tentative: { color: G.amber, bg: G.amberBg },
+  New: { color: G.blue, bg: G.blueBg }, Contacted: { color: G.amber, bg: G.amberBg },
+  "Proposal Sent": { color: G.purple, bg: G.purpleBg }, Booked: { color: G.green, bg: G.greenBg },
+  Lost: { color: G.red, bg: G.redBg }, Draft: { color: G.textMuted, bg: G.surface },
+  Sent: { color: G.amber, bg: G.amberBg }, Viewed: { color: G.blue, bg: G.blueBg },
+  Accepted: { color: G.green, bg: G.greenBg }, Declined: { color: G.red, bg: G.redBg },
+  Signed: { color: G.green, bg: G.greenBg }, Paid: { color: G.green, bg: G.greenBg },
+  Pending: { color: G.amber, bg: G.amberBg }, Overdue: { color: G.red, bg: G.redBg },
+  Confirmed: { color: G.green, bg: G.greenBg }, Tentative: { color: G.amber, bg: G.amberBg },
+  Active: { color: G.green, bg: G.greenBg }, Inactive: { color: G.textMuted, bg: G.surface },
 };
 
-const fmt$ = (n) => "$" + Number(n || 0).toLocaleString();
-const fmtDate = (d) =>
-  d
-    ? new Date(`${d}T12:00:00`).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "\u2014";
-const today = () => new Date().toISOString().split("T")[0];
+var fmt$ = function(n) { return "$" + Number(n || 0).toLocaleString(); };
+var fmtDate = function(d) {
+  return d ? new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "\u2014";
+};
+var today = function() { return new Date().toISOString().split("T")[0]; };
 
-/* camelCase <-> snake_case helpers */
 function snakeToCamel(obj) {
   if (!obj) return obj;
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    const ck = k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
-    out[ck] = v;
-  }
+  var out = {};
+  for (var k of Object.keys(obj)) { out[k.replace(/_([a-z])/g, function(_, c) { return c.toUpperCase(); })] = obj[k]; }
   return out;
 }
 function camelToSnake(obj) {
   if (!obj) return obj;
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    const sk = k.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
-    out[sk] = v;
-  }
+  var out = {};
+  for (var k of Object.keys(obj)) { out[k.replace(/[A-Z]/g, function(c) { return "_" + c.toLowerCase(); })] = obj[k]; }
   return out;
 }
 
-/* Supabase CRUD helpers */
 async function sbFetch(table) {
   if (!supabase) return null;
-  const { data, error } = await supabase.from(table).select("*").order("id", { ascending: true });
-  if (error) { console.error("sbFetch " + table + ":", error); return null; }
-  return data.map(snakeToCamel);
+  var r = await supabase.from(table).select("*").order("id", { ascending: true });
+  if (r.error) { console.error("sbFetch " + table, r.error); return null; }
+  return r.data.map(snakeToCamel);
 }
-
 async function sbInsert(table, row) {
   if (!supabase) return null;
-  const snaked = camelToSnake(row);
-  delete snaked.id;
-  const { data, error } = await supabase.from(table).insert(snaked).select().single();
-  if (error) { console.error("sbInsert " + table + ":", error); return null; }
-  return snakeToCamel(data);
+  var snaked = camelToSnake(row); delete snaked.id;
+  var r = await supabase.from(table).insert(snaked).select().single();
+  if (r.error) { console.error("sbInsert " + table, r.error); return null; }
+  return snakeToCamel(r.data);
+}
+async function sbUpdate(table, id, updates) {
+  if (!supabase) return false;
+  var r = await supabase.from(table).update(camelToSnake(updates)).eq("id", id);
+  if (r.error) { console.error("sbUpdate " + table, r.error); return false; }
+  return true;
+}
+async function sbDelete(table, id) {
+  if (!supabase) return false;
+  var r = await supabase.from(table).delete().eq("id", id);
+  if (r.error) { console.error("sbDelete " + table, r.error); return false; }
+  return true;
 }
 
-/* SEED DATA (fallback when Supabase not connected) */
-const SEED_LEADS = [
+/* SEED DATA */
+var SEED_LEADS = [
   { id: 1, name: "Sarah & Tyler Mitchell", email: "sarah@email.com", phone: "248-555-0142", type: "Wedding", eventDate: "2026-08-15", budget: 5000, status: "New", source: "Website", notes: "Interested in Legacy package.", createdAt: "2026-03-28" },
   { id: 2, name: "James & Priya Okafor", email: "priya.okafor@gmail.com", phone: "313-555-0287", type: "Family Portrait", eventDate: "2026-05-10", budget: 1200, status: "Proposal Sent", source: "Referral", notes: "Outdoor session. 2 kids.", createdAt: "2026-04-01" },
   { id: 3, name: "Detroit Metro Hospital", email: "hr@dmh.com", phone: "313-555-0400", type: "Corporate Headshots", eventDate: "2026-04-22", budget: 3800, status: "Booked", source: "LinkedIn", notes: "18 executives. Half-day.", createdAt: "2026-03-15" },
   { id: 4, name: "Aaliyah Fontaine", email: "aaliyah@fontainepr.com", phone: "248-555-0911", type: "Personal Branding", eventDate: "2026-05-18", budget: 2200, status: "Contacted", source: "Instagram", notes: "PR consultant. Editorial feel.", createdAt: "2026-04-03" },
   { id: 5, name: "Grand Ballroom at MGM", email: "events@mgmgrand.com", phone: "313-555-0700", type: "Event Coverage", eventDate: "2026-06-07", budget: 4500, status: "Lost", source: "Website", notes: "Annual gala. Keep on radar.", createdAt: "2026-02-20" },
 ];
-const SEED_PROPOSALS = [
+var SEED_PROPOSALS = [
   { id: 1, clientName: "Detroit Metro Hospital", clientEmail: "hr@dmh.com", serviceType: "Headshots", package: "Premium \u2014 The Authority", total: 3720, status: "Accepted", createdAt: "2026-03-18" },
   { id: 2, clientName: "Aaliyah Fontaine", clientEmail: "aaliyah@fontainepr.com", serviceType: "Personal Branding", package: "Signature \u2014 The Identity", total: 3250, status: "Sent", createdAt: "2026-04-03" },
 ];
-const SEED_CONTRACTS = [
+var SEED_CONTRACTS = [
   { id: 1, clientName: "Detroit Metro Hospital", clientEmail: "hr@dmh.com", serviceType: "Headshots", sessionDate: "2026-04-22", sessionLocation: "Detroit Metro Hospital", totalAmount: 3720, retainerAmount: 1860, status: "Signed", createdAt: "2026-03-18", signerName: "Marcus Webb" },
 ];
-const SEED_INVOICES = [
+var SEED_INVOICES = [
   { id: 1, invoiceNumber: "NSP-2026-001", clientName: "Detroit Metro Hospital", serviceType: "Headshots", description: "Retainer \u2014 50% of Corporate Headshots Package", amount: 1860, status: "Paid", dueDate: "2026-03-25", paidDate: "2026-03-22" },
   { id: 2, invoiceNumber: "NSP-2026-002", clientName: "Detroit Metro Hospital", serviceType: "Headshots", description: "Balance \u2014 50% of Corporate Headshots Package", amount: 1860, status: "Pending", dueDate: "2026-04-21" },
 ];
-const SEED_SESSIONS = [
+var SEED_SESSIONS = [
   { id: 1, client: "Detroit Metro Hospital", email: "hr@dmh.com", serviceType: "Corporate Headshots", date: "2026-04-22", time: "9:00 AM", location: "Detroit Metro Hospital, Detroit", status: "Confirmed" },
   { id: 2, client: "Aaliyah Fontaine", email: "aaliyah@fontainepr.com", serviceType: "Personal Branding", date: "2026-05-18", time: "11:00 AM", location: "NSP Studio, West Bloomfield", status: "Tentative" },
 ];
-const SEED_PROMOS = [
+var SEED_PROMOS = [
   { id: 1, name: "Spring Mini Sessions", code: "SPRING2026", discount: 15, type: "percent", validFrom: "2026-04-01", validTo: "2026-05-31", description: "15% off all spring mini sessions", active: true, timesUsed: 3 },
   { id: 2, name: "Referral Bonus", code: "REFER100", discount: 100, type: "fixed", validFrom: "2026-01-01", validTo: "2026-12-31", description: "$100 off for referred clients", active: true, timesUsed: 7 },
 ];
 
-/* ====== SHARED UI COMPONENTS ====== */
+/* ====== UI COMPONENTS ====== */
 
 function Badge({ status }) {
-  const meta = STATUS_META[status] || { color: G.textMuted, bg: G.surface };
+  var meta = STATUS_META[status] || { color: G.textMuted, bg: G.surface };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: meta.bg, color: meta.color, border: "1px solid " + meta.color + "33", borderRadius: 999, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: meta.color }} />
@@ -133,7 +108,6 @@ function Badge({ status }) {
     </span>
   );
 }
-
 function StatCard({ label, value, sub, accent }) {
   return (
     <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "16px 20px" }}>
@@ -143,21 +117,20 @@ function StatCard({ label, value, sub, accent }) {
     </div>
   );
 }
-
-function Btn({ children, onClick, variant, disabled }) {
-  const styles = {
+function Btn({ children, onClick, variant, disabled, small }) {
+  var styles = {
     primary: { background: G.gold, color: "#080808", border: "1px solid " + G.gold },
     ghost: { background: "transparent", color: G.textMuted, border: "1px solid " + G.border },
     outline: { background: "transparent", color: G.gold, border: "1px solid " + G.goldDim },
     danger: { background: "transparent", color: G.red, border: "1px solid " + G.red },
+    success: { background: G.green, color: "#080808", border: "1px solid " + G.green },
   };
   return (
-    <button disabled={disabled} onClick={onClick} style={{ padding: "10px 16px", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, ...(styles[variant || "primary"]) }}>
+    <button disabled={disabled} onClick={onClick} style={{ padding: small ? "6px 10px" : "10px 16px", borderRadius: 6, fontWeight: 600, fontSize: small ? 11 : 13, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, ...(styles[variant || "primary"]) }}>
       {children}
     </button>
   );
 }
-
 function SectionTitle({ title, subtitle, actions }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
@@ -169,20 +142,20 @@ function SectionTitle({ title, subtitle, actions }) {
     </div>
   );
 }
-
 function ListCards({ items, badgeMap }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {items.map(function(item, i) {
         return (
           <div key={i} style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "16px 18px", display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ color: G.text, fontWeight: 600, fontSize: 14 }}>{item.title}</div>
               <div style={{ color: G.textMuted, fontSize: 12, marginTop: 4 }}>{item.sub}</div>
             </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
               {item.badge && <Badge status={item.badge} />}
-              {item.right && <div style={{ color: G.gold, fontWeight: 600, marginTop: 8 }}>{item.right}</div>}
+              {item.right && <div style={{ color: G.gold, fontWeight: 600 }}>{item.right}</div>}
+              {item.actions && <div style={{ display: "flex", gap: 6, marginTop: 4 }}>{item.actions}</div>}
             </div>
           </div>
         );
@@ -195,60 +168,270 @@ function ListCards({ items, badgeMap }) {
 }
 
 var inputStyle = { background: G.surface, color: G.text, border: "1px solid " + G.border, borderRadius: 6, padding: "10px 12px", width: "100%", boxSizing: "border-box" };
+var selectStyle = Object.assign({}, inputStyle, { appearance: "auto" });
 
-/* ====== ADD LEAD MODAL ====== */
+/* ====== MODALS ====== */
 
-function AddLeadModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", type: "Wedding", eventDate: "", budget: "", status: "New", source: "Website", notes: "" });
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
-
+function ModalWrap({ onClose, title, children, footer }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}>
-      <div onClick={function(e) { e.stopPropagation(); }} style={{ width: "100%", maxWidth: 560, background: G.card, border: "1px solid " + G.border, borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid " + G.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontSize: 24 }}>New Inquiry</div>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000, overflowY: "auto" }}>
+      <div onClick={function(e) { e.stopPropagation(); }} style={{ width: "100%", maxWidth: 600, background: G.card, border: "1px solid " + G.border, borderRadius: 10, overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid " + G.border, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          <div style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontSize: 24 }}>{title}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: G.textMuted, fontSize: 24, cursor: "pointer" }}>{"\u00D7"}</button>
         </div>
-        <div style={{ padding: 24, display: "grid", gap: 14 }}>
-          <input placeholder="Full Name" value={form.name} onChange={function(e) { set("name", e.target.value); }} style={inputStyle} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <input placeholder="Email" value={form.email} onChange={function(e) { set("email", e.target.value); }} style={inputStyle} />
-            <input placeholder="Phone" value={form.phone} onChange={function(e) { set("phone", e.target.value); }} style={inputStyle} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <input placeholder="Type" value={form.type} onChange={function(e) { set("type", e.target.value); }} style={inputStyle} />
-            <input placeholder="Source" value={form.source} onChange={function(e) { set("source", e.target.value); }} style={inputStyle} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <input type="date" value={form.eventDate} onChange={function(e) { set("eventDate", e.target.value); }} style={inputStyle} />
-            <input type="number" placeholder="Budget" value={form.budget} onChange={function(e) { set("budget", e.target.value); }} style={inputStyle} />
-          </div>
-          <textarea placeholder="Notes" value={form.notes} onChange={function(e) { set("notes", e.target.value); }} style={Object.assign({}, inputStyle, { minHeight: 90 })} />
-        </div>
-        <div style={{ padding: "16px 24px", borderTop: "1px solid " + G.border, display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={function() {
-            if (!form.name.trim() || !form.email.trim()) return;
-            onSave(Object.assign({}, form, { id: Date.now(), budget: Number(form.budget) || 0, createdAt: today() }));
-            onClose();
-          }}>Add Lead</Btn>
-        </div>
+        <div style={{ padding: 24, display: "grid", gap: 14, overflowY: "auto", flex: 1 }}>{children}</div>
+        {footer && <div style={{ padding: "16px 24px", borderTop: "1px solid " + G.border, display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>{footer}</div>}
       </div>
     </div>
   );
 }
 
+function AddLeadModal({ onClose, onSave }) {
+  var _s = useState({ name: "", email: "", phone: "", type: "Wedding", eventDate: "", budget: "", status: "New", source: "Website", notes: "" });
+  var form = _s[0], setForm = _s[1];
+  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+  return (
+    <ModalWrap onClose={onClose} title="New Inquiry" footer={<>
+      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={function() {
+        if (!form.name.trim() || !form.email.trim()) return;
+        onSave(Object.assign({}, form, { id: Date.now(), budget: Number(form.budget) || 0, createdAt: today() }));
+        onClose();
+      }}>Add Lead</Btn>
+    </>}>
+      <input placeholder="Full Name" value={form.name} onChange={function(e) { set("name", e.target.value); }} style={inputStyle} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <input placeholder="Email" value={form.email} onChange={function(e) { set("email", e.target.value); }} style={inputStyle} />
+        <input placeholder="Phone" value={form.phone} onChange={function(e) { set("phone", e.target.value); }} style={inputStyle} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <input placeholder="Type" value={form.type} onChange={function(e) { set("type", e.target.value); }} style={inputStyle} />
+        <input placeholder="Source" value={form.source} onChange={function(e) { set("source", e.target.value); }} style={inputStyle} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <input type="date" value={form.eventDate} onChange={function(e) { set("eventDate", e.target.value); }} style={inputStyle} />
+        <input type="number" placeholder="Budget" value={form.budget} onChange={function(e) { set("budget", e.target.value); }} style={inputStyle} />
+      </div>
+      <textarea placeholder="Notes" value={form.notes} onChange={function(e) { set("notes", e.target.value); }} style={Object.assign({}, inputStyle, { minHeight: 90 })} />
+    </ModalWrap>
+  );
+}
+
+function AddProposalModal({ onClose, onSave, templates, prefill }) {
+  var init = prefill ? { clientName: prefill.name || "", clientEmail: prefill.email || "", serviceType: prefill.type || "Wedding", package: "", total: "", status: "Draft" } : { clientName: "", clientEmail: "", serviceType: "Wedding", package: "", total: "", status: "Draft" };
+  var _s = useState(init);
+  var form = _s[0], setForm = _s[1];
+  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+
+  var matchingTemplates = (templates || []).filter(function(t) { return t.active !== false && t.serviceType === form.serviceType; });
+
+  return (
+    <ModalWrap onClose={onClose} title="New Proposal" footer={<>
+      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={function() {
+        if (!form.clientName.trim()) return;
+        onSave(Object.assign({}, form, { id: Date.now(), total: Number(form.total) || 0, createdAt: today() }));
+        onClose();
+      }}>Create Proposal</Btn>
+    </>}>
+      <input placeholder="Client Name" value={form.clientName} onChange={function(e) { set("clientName", e.target.value); }} style={inputStyle} />
+      <input placeholder="Client Email" value={form.clientEmail} onChange={function(e) { set("clientEmail", e.target.value); }} style={inputStyle} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Service type</div>
+          <select value={form.serviceType} onChange={function(e) { set("serviceType", e.target.value); set("package", ""); set("total", ""); }} style={selectStyle}>
+            <option value="Wedding">Wedding</option>
+            <option value="Family Portrait">Family Portrait</option>
+            <option value="Corporate Headshots">Corporate Headshots</option>
+            <option value="Personal Branding">Personal Branding</option>
+            <option value="Event Coverage">Event Coverage</option>
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Status</div>
+          <select value={form.status} onChange={function(e) { set("status", e.target.value); }} style={selectStyle}>
+            <option value="Draft">Draft</option>
+            <option value="Sent">Sent</option>
+          </select>
+        </div>
+      </div>
+      {matchingTemplates.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 6 }}>Your packages</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {matchingTemplates.map(function(t) {
+              var selected = form.package === t.name;
+              var includes = t.includes ? t.includes.split("|") : [];
+              return (
+                <button key={t.id} onClick={function() { set("package", t.name); set("total", String(t.price)); }} style={{
+                  textAlign: "left", padding: "14px 16px", borderRadius: 8, cursor: "pointer",
+                  background: selected ? G.goldDim + "33" : G.surface,
+                  border: "1px solid " + (selected ? G.gold : G.border),
+                  color: selected ? G.gold : G.text,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{t.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: selected ? G.goldLight : G.amber }}>{fmt$(t.price)}</div>
+                  </div>
+                  {t.description && <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>{t.description}</div>}
+                  {includes.length > 0 && (
+                    <div style={{ marginTop: 8, display: "grid", gap: 3 }}>
+                      {includes.map(function(item, i) {
+                        return <div key={i} style={{ fontSize: 11, color: selected ? G.goldDim : G.textDim }}>{"\u2022 " + item}</div>;
+                      })}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {matchingTemplates.length === 0 && (
+        <div style={{ border: "1px dashed " + G.border, borderRadius: 8, padding: 16, textAlign: "center", color: G.textDim, fontSize: 12 }}>
+          No templates for this service type. Add them in Proposals {">"} Manage Templates.
+        </div>
+      )}
+      <div>
+        <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Custom amount</div>
+        <input type="number" placeholder="Total Amount" value={form.total} onChange={function(e) { set("total", e.target.value); }} style={inputStyle} />
+      </div>
+    </ModalWrap>
+  );
+}
+
+function AddTemplateModal({ onClose, onSave, editTemplate }) {
+  var init = editTemplate ? { name: editTemplate.name, serviceType: editTemplate.serviceType, price: String(editTemplate.price), description: editTemplate.description || "", includes: editTemplate.includes || "" } : { name: "", serviceType: "Wedding", price: "", description: "", includes: "" };
+  var _s = useState(init);
+  var form = _s[0], setForm = _s[1];
+  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+
+  return (
+    <ModalWrap onClose={onClose} title={editTemplate ? "Edit Template" : "New Template"} footer={<>
+      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={function() {
+        if (!form.name.trim()) return;
+        onSave(Object.assign({}, form, { id: editTemplate ? editTemplate.id : Date.now(), price: Number(form.price) || 0, active: true, createdAt: today() }));
+        onClose();
+      }}>{editTemplate ? "Save Changes" : "Create Template"}</Btn>
+    </>}>
+      <input placeholder="Package Name (e.g. The Signature Lounge)" value={form.name} onChange={function(e) { set("name", e.target.value); }} style={inputStyle} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Service type</div>
+          <select value={form.serviceType} onChange={function(e) { set("serviceType", e.target.value); }} style={selectStyle}>
+            <option value="Wedding">Wedding</option>
+            <option value="Family Portrait">Family Portrait</option>
+            <option value="Corporate Headshots">Corporate Headshots</option>
+            <option value="Personal Branding">Personal Branding</option>
+            <option value="Event Coverage">Event Coverage</option>
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Price</div>
+          <input type="number" placeholder="Price" value={form.price} onChange={function(e) { set("price", e.target.value); }} style={inputStyle} />
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Description</div>
+        <input placeholder="Short description" value={form.description} onChange={function(e) { set("description", e.target.value); }} style={inputStyle} />
+      </div>
+      <div>
+        <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>What{"'"}s included (one item per line)</div>
+        <textarea placeholder={"Up to 2 hours of coverage\nUp to 40 guests\nRetouched images\nPrivate gallery"} value={form.includes.replace(/\|/g, "\n")} onChange={function(e) { set("includes", e.target.value.replace(/\n/g, "|")); }} style={Object.assign({}, inputStyle, { minHeight: 120 })} />
+      </div>
+    </ModalWrap>
+  );
+}
+
+function CreateContractModal({ onClose, onSave, proposal }) {
+  var _s = useState({ sessionDate: "", sessionLocation: "", retainerPercent: "50", signerName: "" });
+  var form = _s[0], setForm = _s[1];
+  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+  var retainer = Math.round(Number(proposal.total) * (Number(form.retainerPercent) / 100));
+
+  return (
+    <ModalWrap onClose={onClose} title="Create Contract" footer={<>
+      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn variant="success" onClick={function() {
+        onSave({
+          id: Date.now(), clientName: proposal.clientName, clientEmail: proposal.clientEmail,
+          serviceType: proposal.serviceType, sessionDate: form.sessionDate,
+          sessionLocation: form.sessionLocation, totalAmount: Number(proposal.total),
+          retainerAmount: retainer, status: "Draft", signerName: form.signerName, createdAt: today(),
+        });
+        onClose();
+      }}>Create Contract</Btn>
+    </>}>
+      <div style={{ background: G.surface, borderRadius: 8, padding: 14 }}>
+        <div style={{ fontSize: 12, color: G.textMuted }}>From proposal</div>
+        <div style={{ color: G.text, fontWeight: 600, marginTop: 4 }}>{proposal.clientName} {"\u2014"} {proposal.package}</div>
+        <div style={{ color: G.gold, fontWeight: 600, marginTop: 2 }}>{fmt$(proposal.total)}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Session date</div><input type="date" value={form.sessionDate} onChange={function(e) { set("sessionDate", e.target.value); }} style={inputStyle} /></div>
+        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Location</div><input placeholder="Location" value={form.sessionLocation} onChange={function(e) { set("sessionLocation", e.target.value); }} style={inputStyle} /></div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Retainer %</div><input type="number" value={form.retainerPercent} onChange={function(e) { set("retainerPercent", e.target.value); }} style={inputStyle} /></div>
+        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Retainer amount</div><div style={{ padding: "10px 12px", color: G.gold, fontWeight: 600 }}>{fmt$(retainer)}</div></div>
+      </div>
+      <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Signer name</div><input placeholder="Signer name" value={form.signerName} onChange={function(e) { set("signerName", e.target.value); }} style={inputStyle} /></div>
+    </ModalWrap>
+  );
+}
+
+function CreateInvoiceModal({ onClose, onSave, contract, invoiceCount }) {
+  var num = "NSP-" + new Date().getFullYear() + "-" + String(invoiceCount + 1).padStart(3, "0");
+  var _s = useState({ type: "retainer", dueDate: "", customAmount: "", customDesc: "" });
+  var form = _s[0], setForm = _s[1];
+  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+  var amount = form.type === "retainer" ? contract.retainerAmount : form.type === "balance" ? (contract.totalAmount - contract.retainerAmount) : Number(form.customAmount) || 0;
+  var desc = form.type === "retainer" ? "Retainer \u2014 " + Math.round((contract.retainerAmount / contract.totalAmount) * 100) + "% of " + contract.serviceType : form.type === "balance" ? "Balance \u2014 " + contract.serviceType : form.customDesc;
+
+  return (
+    <ModalWrap onClose={onClose} title="Create Invoice" footer={<>
+      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn variant="success" onClick={function() {
+        onSave({
+          id: Date.now(), invoiceNumber: num, clientName: contract.clientName,
+          serviceType: contract.serviceType, description: desc, amount: amount,
+          status: "Pending", dueDate: form.dueDate, createdAt: today(),
+        });
+        onClose();
+      }}>Create Invoice</Btn>
+    </>}>
+      <div style={{ background: G.surface, borderRadius: 8, padding: 14 }}>
+        <div style={{ fontSize: 12, color: G.textMuted }}>From contract</div>
+        <div style={{ color: G.text, fontWeight: 600, marginTop: 4 }}>{contract.clientName} {"\u2014"} {contract.serviceType}</div>
+        <div style={{ color: G.gold, fontWeight: 600, marginTop: 2 }}>Total: {fmt$(contract.totalAmount)} {"\u00B7"} Retainer: {fmt$(contract.retainerAmount)}</div>
+      </div>
+      <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Invoice #{num}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        {[["retainer", "Retainer"], ["balance", "Balance"], ["custom", "Custom"]].map(function(t) {
+          return <button key={t[0]} onClick={function() { set("type", t[0]); }} style={{ padding: "10px", borderRadius: 6, border: "1px solid " + (form.type === t[0] ? G.gold : G.border), background: form.type === t[0] ? G.goldDim + "33" : G.surface, color: form.type === t[0] ? G.gold : G.textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>{t[1]}</button>;
+        })}
+      </div>
+      {form.type === "custom" && <>
+        <input type="number" placeholder="Amount" value={form.customAmount} onChange={function(e) { set("customAmount", e.target.value); }} style={inputStyle} />
+        <input placeholder="Description" value={form.customDesc} onChange={function(e) { set("customDesc", e.target.value); }} style={inputStyle} />
+      </>}
+      <div style={{ fontSize: 14, color: G.gold, fontWeight: 600 }}>Amount: {fmt$(amount)}</div>
+      <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Due date</div><input type="date" value={form.dueDate} onChange={function(e) { set("dueDate", e.target.value); }} style={inputStyle} /></div>
+    </ModalWrap>
+  );
+}
+
 /* ====== PAGE VIEWS ====== */
 
-function LeadsView({ leads, setLeads }) {
-  const [search, setSearch] = useState("");
-  const [adding, setAdding] = useState(false);
+function LeadsView({ leads, setLeads, onSendProposal }) {
+  var _s = useState(""), search = _s[0], setSearch = _s[1];
+  var _a = useState(false), adding = _a[0], setAdding = _a[1];
 
   var visible = useMemo(function() {
     var q = search.toLowerCase();
-    return leads.filter(function(l) {
-      return !q || l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.type.toLowerCase().includes(q);
-    });
+    return leads.filter(function(l) { return !q || l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.type.toLowerCase().includes(q); });
   }, [leads, search]);
 
   var booked = leads.filter(function(l) { return l.status === "Booked"; });
@@ -295,6 +478,11 @@ function LeadsView({ leads, setLeads }) {
                       <div style={{ color: G.textMuted, fontSize: 12 }}>{lead.type}</div>
                       <div style={{ color: G.gold, marginTop: 8, fontWeight: 600 }}>{fmt$(lead.budget)}</div>
                       <div style={{ color: G.textDim, fontSize: 11 }}>{fmtDate(lead.eventDate)}</div>
+                      {(status === "New" || status === "Contacted") && (
+                        <button onClick={function() { onSendProposal(lead); }} style={{ marginTop: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, border: "1px solid " + G.purple, background: G.purpleBg, color: G.purple, cursor: "pointer" }}>
+                          Send Proposal {"\u2192"}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -309,96 +497,11 @@ function LeadsView({ leads, setLeads }) {
   );
 }
 
-function AddProposalModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ clientName: "", clientEmail: "", serviceType: "Wedding", package: "", total: "", status: "Draft" });
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
-  var selectStyle = Object.assign({}, inputStyle, { appearance: "auto" });
+function ProposalsView({ proposals, setProposals, templates, setTemplates, onCreateContract }) {
+  var _a = useState(false), adding = _a[0], setAdding = _a[1];
+  var _t = useState(false), showTemplates = _t[0], setShowTemplates = _t[1];
+  var _e = useState(null), editTpl = _e[0], setEditTpl = _e[1];
 
-  var packages = {
-    Wedding: ["Legacy \u2014 Full Day ($5,000)", "Signature \u2014 Half Day ($3,500)", "Essentials \u2014 Ceremony Only ($2,000)"],
-    "Family Portrait": ["Premium \u2014 Extended Session ($1,500)", "Standard \u2014 1 Hour ($800)", "Mini \u2014 30 Minutes ($400)"],
-    "Corporate Headshots": ["Premium \u2014 The Authority ($3,720)", "Standard \u2014 The Professional ($2,200)", "Basic \u2014 The Starter ($1,200)"],
-    "Personal Branding": ["Signature \u2014 The Identity ($3,250)", "Standard \u2014 The Spotlight ($2,000)", "Starter \u2014 The Intro ($1,000)"],
-    "Event Coverage": ["Full Day \u2014 Premium ($4,500)", "Half Day \u2014 Standard ($2,500)", "Highlights \u2014 Basic ($1,500)"],
-  };
-
-  var currentPackages = packages[form.serviceType] || [];
-
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}>
-      <div onClick={function(e) { e.stopPropagation(); }} style={{ width: "100%", maxWidth: 560, background: G.card, border: "1px solid " + G.border, borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid " + G.border, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontSize: 24 }}>New Proposal</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: G.textMuted, fontSize: 24, cursor: "pointer" }}>{"\u00D7"}</button>
-        </div>
-        <div style={{ padding: 24, display: "grid", gap: 14 }}>
-          <input placeholder="Client Name" value={form.clientName} onChange={function(e) { set("clientName", e.target.value); }} style={inputStyle} />
-          <input placeholder="Client Email" value={form.clientEmail} onChange={function(e) { set("clientEmail", e.target.value); }} style={inputStyle} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Service type</div>
-              <select value={form.serviceType} onChange={function(e) { set("serviceType", e.target.value); set("package", ""); set("total", ""); }} style={selectStyle}>
-                <option value="Wedding">Wedding</option>
-                <option value="Family Portrait">Family Portrait</option>
-                <option value="Corporate Headshots">Corporate Headshots</option>
-                <option value="Personal Branding">Personal Branding</option>
-                <option value="Event Coverage">Event Coverage</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Status</div>
-              <select value={form.status} onChange={function(e) { set("status", e.target.value); }} style={selectStyle}>
-                <option value="Draft">Draft</option>
-                <option value="Sent">Sent</option>
-                <option value="Viewed">Viewed</option>
-                <option value="Accepted">Accepted</option>
-                <option value="Declined">Declined</option>
-              </select>
-            </div>
-          </div>
-          {currentPackages.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 6 }}>Select a package</div>
-              <div style={{ display: "grid", gap: 8 }}>
-                {currentPackages.map(function(pkg) {
-                  var match = pkg.match(/\([\$]?([\d,]+)\)/);
-                  var price = match ? match[1].replace(",", "") : "";
-                  var selected = form.package === pkg.split(" (")[0];
-                  return (
-                    <button key={pkg} onClick={function() { set("package", pkg.split(" (")[0]); set("total", price); }} style={{
-                      textAlign: "left", padding: "12px 14px", borderRadius: 6, cursor: "pointer",
-                      background: selected ? G.goldDim + "33" : G.surface,
-                      border: "1px solid " + (selected ? G.gold : G.border),
-                      color: selected ? G.gold : G.text,
-                    }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{pkg.split(" (")[0]}</div>
-                      <div style={{ fontSize: 12, color: selected ? G.goldLight : G.textMuted, marginTop: 2 }}>{"$" + Number(price).toLocaleString()}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          <div>
-            <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Custom amount (or edit package price)</div>
-            <input type="number" placeholder="Total Amount" value={form.total} onChange={function(e) { set("total", e.target.value); }} style={inputStyle} />
-          </div>
-        </div>
-        <div style={{ padding: "16px 24px", borderTop: "1px solid " + G.border, display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn onClick={function() {
-            if (!form.clientName.trim()) return;
-            onSave(Object.assign({}, form, { id: Date.now(), total: Number(form.total) || 0, createdAt: today() }));
-            onClose();
-          }}>Create Proposal</Btn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProposalsView({ proposals, setProposals }) {
-  const [adding, setAdding] = useState(false);
   var total = proposals.reduce(function(a, p) { return a + Number(p.total || 0); }, 0);
   var accepted = proposals.filter(function(p) { return p.status === "Accepted"; }).reduce(function(a, p) { return a + Number(p.total || 0); }, 0);
   var accCount = proposals.filter(function(p) { return p.status === "Accepted"; }).length;
@@ -410,25 +513,95 @@ function ProposalsView({ proposals, setProposals }) {
     else setProposals(function(prev) { return [proposal].concat(prev); });
   };
 
+  var handleSaveTemplate = async function(tpl) {
+    if (editTpl) {
+      var ok = await sbUpdate("package_templates", tpl.id, tpl);
+      if (ok) setTemplates(function(prev) { return prev.map(function(t) { return t.id === tpl.id ? tpl : t; }); });
+    } else {
+      var saved = await sbInsert("package_templates", tpl);
+      if (saved) setTemplates(function(prev) { return prev.concat([saved]); });
+      else setTemplates(function(prev) { return [tpl].concat(prev); });
+    }
+    setEditTpl(null);
+  };
+
+  var handleDeleteTemplate = async function(id) {
+    var ok = await sbDelete("package_templates", id);
+    if (ok) setTemplates(function(prev) { return prev.filter(function(t) { return t.id !== id; }); });
+  };
+
   return (
     <>
-      <SectionTitle title="Proposals" subtitle={proposals.length + " proposals"} actions={<Btn onClick={function() { setAdding(true); }}>+ New Proposal</Btn>} />
+      <SectionTitle title="Proposals" subtitle={proposals.length + " proposals"} actions={
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn variant="outline" onClick={function() { setShowTemplates(!showTemplates); }}>{showTemplates ? "Hide Templates" : "Manage Templates"}</Btn>
+          <Btn onClick={function() { setAdding(true); }}>+ New Proposal</Btn>
+        </div>
+      } />
+
+      {showTemplates && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontWeight: 400, margin: 0 }}>Package Templates</h3>
+            <Btn small onClick={function() { setEditTpl(null); setShowTemplates("adding"); }}>+ Add Template</Btn>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+            {templates.map(function(t) {
+              var includes = t.includes ? t.includes.split("|") : [];
+              return (
+                <div key={t.id} style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ color: G.text, fontWeight: 600, fontSize: 14 }}>{t.name}</div>
+                      <div style={{ color: G.textMuted, fontSize: 11, marginTop: 2 }}>{t.serviceType}</div>
+                    </div>
+                    <div style={{ color: G.gold, fontWeight: 600, fontSize: 16 }}>{fmt$(t.price)}</div>
+                  </div>
+                  {t.description && <div style={{ color: G.textDim, fontSize: 12, marginTop: 8 }}>{t.description}</div>}
+                  {includes.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {includes.map(function(item, i) { return <div key={i} style={{ fontSize: 11, color: G.textDim, marginTop: 2 }}>{"\u2022 " + item}</div>; })}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+                    <Btn small variant="outline" onClick={function() { setEditTpl(t); setShowTemplates("adding"); }}>Edit</Btn>
+                    <Btn small variant="danger" onClick={function() { handleDeleteTemplate(t.id); }}>Delete</Btn>
+                  </div>
+                </div>
+              );
+            })}
+            {templates.length === 0 && <div style={{ color: G.textDim, fontSize: 12, padding: 16 }}>No templates yet. Click + Add Template to create your first one.</div>}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, marginBottom: 24 }}>
         <StatCard label="Total Proposed" value={fmt$(total)} sub="All proposals" />
         <StatCard label="Accepted Value" value={fmt$(accepted)} sub="Accepted" accent={G.green} />
         <StatCard label="Acceptance Rate" value={rate + "%"} sub="Overall" accent={G.gold} />
       </div>
-      <ListCards items={proposals.map(function(p) { return { title: p.clientName, sub: p.serviceType + " \u00B7 " + p.package, right: fmt$(p.total), badge: p.status }; })} />
-      {adding && <AddProposalModal onClose={function() { setAdding(false); }} onSave={handleSave} />}
+      <ListCards items={proposals.map(function(p) {
+        return {
+          title: p.clientName, sub: p.serviceType + " \u00B7 " + p.package, right: fmt$(p.total), badge: p.status,
+          actions: p.status === "Accepted" ? <Btn small variant="success" onClick={function() { onCreateContract(p); }}>Create Contract {"\u2192"}</Btn> : null,
+        };
+      })} />
+      {adding && <AddProposalModal onClose={function() { setAdding(false); }} onSave={handleSave} templates={templates} />}
+      {showTemplates === "adding" && <AddTemplateModal onClose={function() { setShowTemplates(true); }} onSave={handleSaveTemplate} editTemplate={editTpl} />}
     </>
   );
 }
 
-function ContractsView({ contracts }) {
+function ContractsView({ contracts, setContracts, onCreateInvoice }) {
   return (
     <>
       <SectionTitle title="Contracts" subtitle={contracts.length + " contracts"} />
-      <ListCards items={contracts.map(function(c) { return { title: c.clientName, sub: c.serviceType + " \u00B7 " + fmtDate(c.sessionDate) + " \u00B7 " + c.sessionLocation, right: fmt$(c.totalAmount), badge: c.status }; })} />
+      <ListCards items={contracts.map(function(c) {
+        return {
+          title: c.clientName, sub: c.serviceType + " \u00B7 " + fmtDate(c.sessionDate) + " \u00B7 " + c.sessionLocation, right: fmt$(c.totalAmount), badge: c.status,
+          actions: c.status === "Signed" ? <Btn small variant="success" onClick={function() { onCreateInvoice(c); }}>Send Invoice {"\u2192"}</Btn> : null,
+        };
+      })} />
     </>
   );
 }
@@ -481,37 +654,22 @@ function DocumentsView({ contracts, proposals }) {
   );
 }
 
-/* ====== REPORTS VIEW — FULL PHASE 1 ====== */
+/* ====== REPORTS ====== */
 
 function exportToCSV(leads, invoices, proposals, contracts) {
-  var rows = [
-    ["NSP BUSINESS SUITE \u2014 REPORT EXPORT"],
-    ["Generated: " + new Date().toLocaleDateString()],
-    [],
-    ["=== INVOICES ==="],
-    ["Invoice #", "Client", "Service", "Description", "Amount", "Status", "Due Date", "Paid Date"],
-  ];
+  var rows = [["NSP BUSINESS SUITE \u2014 REPORT EXPORT"], ["Generated: " + new Date().toLocaleDateString()], [],
+    ["=== INVOICES ==="], ["Invoice #", "Client", "Service", "Description", "Amount", "Status", "Due Date", "Paid Date"]];
   invoices.forEach(function(i) { rows.push([i.invoiceNumber, i.clientName, i.serviceType, i.description, i.amount, i.status, i.dueDate || "", i.paidDate || ""]); });
-  rows.push([]);
-  rows.push(["=== LEADS ==="]);
-  rows.push(["Name", "Email", "Type", "Budget", "Status", "Source", "Event Date"]);
+  rows.push([], ["=== LEADS ==="], ["Name", "Email", "Type", "Budget", "Status", "Source", "Event Date"]);
   leads.forEach(function(l) { rows.push([l.name, l.email, l.type, l.budget, l.status, l.source, l.eventDate || ""]); });
-  rows.push([]);
-  rows.push(["=== PROPOSALS ==="]);
-  rows.push(["Client", "Service", "Package", "Total", "Status", "Created"]);
+  rows.push([], ["=== PROPOSALS ==="], ["Client", "Service", "Package", "Total", "Status", "Created"]);
   proposals.forEach(function(p) { rows.push([p.clientName, p.serviceType, p.package, p.total, p.status, p.createdAt || ""]); });
-  rows.push([]);
-  rows.push(["=== CONTRACTS ==="]);
-  rows.push(["Client", "Service", "Total", "Retainer", "Status", "Session Date", "Signer"]);
+  rows.push([], ["=== CONTRACTS ==="], ["Client", "Service", "Total", "Retainer", "Status", "Session Date", "Signer"]);
   contracts.forEach(function(c) { rows.push([c.clientName, c.serviceType, c.totalAmount, c.retainerAmount, c.status, c.sessionDate || "", c.signerName || ""]); });
-
   var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
   var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   var url = URL.createObjectURL(blob);
-  var a = document.createElement("a");
-  a.href = url;
-  a.download = "NSP_Report_" + today() + ".csv";
-  a.click();
+  var a = document.createElement("a"); a.href = url; a.download = "NSP_Report_" + today() + ".csv"; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -533,135 +691,75 @@ function MiniBar({ data, color, labels }) {
 }
 
 function ReportsView({ leads, invoices, proposals, contracts }) {
-  const [range, setRange] = useState("all");
+  var _r = useState("all"), range = _r[0], setRange = _r[1];
   var now = new Date();
 
   var filterByRange = useCallback(function(dateStr) {
     if (range === "all" || !dateStr) return true;
     var d = new Date(dateStr + "T12:00:00");
     if (range === "month") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    if (range === "quarter") {
-      var q = Math.floor(now.getMonth() / 3);
-      var dq = Math.floor(d.getMonth() / 3);
-      return dq === q && d.getFullYear() === now.getFullYear();
-    }
+    if (range === "quarter") return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) && d.getFullYear() === now.getFullYear();
     if (range === "year") return d.getFullYear() === now.getFullYear();
     return true;
   }, [range]);
 
   var filteredInvoices = invoices.filter(function(i) { return filterByRange(i.dueDate || i.paidDate); });
   var filteredLeads = leads.filter(function(l) { return filterByRange(l.createdAt); });
-
   var revenue = filteredInvoices.filter(function(i) { return i.status === "Paid"; }).reduce(function(a, i) { return a + Number(i.amount || 0); }, 0);
   var receivables = filteredInvoices.filter(function(i) { return i.status === "Pending"; }).reduce(function(a, i) { return a + Number(i.amount || 0); }, 0);
   var overdue = filteredInvoices.filter(function(i) { return i.status === "Overdue"; }).reduce(function(a, i) { return a + Number(i.amount || 0); }, 0);
   var pipelineVal = filteredLeads.filter(function(l) { return l.status !== "Lost"; }).reduce(function(a, l) { return a + Number(l.budget || 0); }, 0);
 
-  /* Monthly revenue chart (last 6 months) */
   var monthlyData = useMemo(function() {
-    var months = [];
-    var mLabels = [];
+    var months = [], mLabels = [];
     for (var i = 5; i >= 0; i--) {
       var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       mLabels.push(d.toLocaleDateString("en-US", { month: "short" }));
-      var total = invoices
-        .filter(function(inv) { return inv.status === "Paid" && inv.paidDate; })
-        .filter(function(inv) {
-          var pd = new Date(inv.paidDate + "T12:00:00");
-          return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
-        })
-        .reduce(function(a, inv) { return a + Number(inv.amount || 0); }, 0);
-      months.push(total);
+      months.push(invoices.filter(function(inv) { return inv.status === "Paid" && inv.paidDate; }).filter(function(inv) {
+        var pd = new Date(inv.paidDate + "T12:00:00"); return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
+      }).reduce(function(a, inv) { return a + Number(inv.amount || 0); }, 0));
     }
     return { months: months, labels: mLabels };
   }, [invoices]);
 
-  /* Receivables aging */
   var aging = useMemo(function() {
-    var buckets = { "0-30": 0, "31-60": 0, "60+": 0 };
+    var b = { "0-30": 0, "31-60": 0, "60+": 0 };
     invoices.filter(function(i) { return i.status === "Pending" || i.status === "Overdue"; }).forEach(function(i) {
-      if (!i.dueDate) return;
-      var due = new Date(i.dueDate + "T12:00:00");
-      var diff = Math.floor((now - due) / (1000 * 60 * 60 * 24));
-      if (diff <= 30) buckets["0-30"] += Number(i.amount || 0);
-      else if (diff <= 60) buckets["31-60"] += Number(i.amount || 0);
-      else buckets["60+"] += Number(i.amount || 0);
-    });
-    return buckets;
+      if (!i.dueDate) return; var diff = Math.floor((now - new Date(i.dueDate + "T12:00:00")) / 86400000);
+      if (diff <= 30) b["0-30"] += Number(i.amount || 0); else if (diff <= 60) b["31-60"] += Number(i.amount || 0); else b["60+"] += Number(i.amount || 0);
+    }); return b;
   }, [invoices]);
 
-  /* Revenue by service type */
   var byType = useMemo(function() {
-    var types = {};
-    invoices.filter(function(i) { return i.status === "Paid"; }).forEach(function(i) {
-      var t = i.serviceType || "Other";
-      types[t] = (types[t] || 0) + Number(i.amount || 0);
-    });
-    return types;
+    var t = {}; invoices.filter(function(i) { return i.status === "Paid"; }).forEach(function(i) { var k = i.serviceType || "Other"; t[k] = (t[k] || 0) + Number(i.amount || 0); }); return t;
   }, [invoices]);
 
-  /* Pipeline breakdown */
-  var pipelineItems = filteredLeads
-    .filter(function(l) { return l.status !== "Lost"; })
-    .sort(function(a, b) { return Number(b.budget || 0) - Number(a.budget || 0); });
-
-  var rangeButtons = [
-    { key: "month", label: "This month" },
-    { key: "quarter", label: "This quarter" },
-    { key: "year", label: "This year" },
-    { key: "all", label: "All time" },
-  ];
-
+  var pipelineItems = filteredLeads.filter(function(l) { return l.status !== "Lost"; }).sort(function(a, b) { return Number(b.budget || 0) - Number(a.budget || 0); });
+  var rangeButtons = [{ key: "month", label: "This month" }, { key: "quarter", label: "This quarter" }, { key: "year", label: "This year" }, { key: "all", label: "All time" }];
   var typeColors = [G.green, G.blue, G.amber, G.purple, G.red];
 
   return (
     <>
-      <SectionTitle
-        title="Reports"
-        subtitle="Revenue & analytics"
-        actions={<Btn variant="outline" onClick={function() { exportToCSV(leads, invoices, proposals, contracts); }}>{"\u2193 Export CSV"}</Btn>}
-      />
-
-      {/* Date Range Filter */}
+      <SectionTitle title="Reports" subtitle="Revenue & analytics" actions={<Btn variant="outline" onClick={function() { exportToCSV(leads, invoices, proposals, contracts); }}>{"\u2193 Export CSV"}</Btn>} />
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        {rangeButtons.map(function(r) {
-          return (
-            <button key={r.key} onClick={function() { setRange(r.key); }} style={{
-              padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer",
-              border: "1px solid " + (range === r.key ? G.gold : G.border),
-              background: range === r.key ? G.goldDim + "33" : "transparent",
-              color: range === r.key ? G.gold : G.textMuted,
-            }}>
-              {r.label}
-            </button>
-          );
-        })}
+        {rangeButtons.map(function(r) { return <button key={r.key} onClick={function() { setRange(r.key); }} style={{ padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (range === r.key ? G.gold : G.border), background: range === r.key ? G.goldDim + "33" : "transparent", color: range === r.key ? G.gold : G.textMuted }}>{r.label}</button>; })}
       </div>
-
-      {/* Summary Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginBottom: 32 }}>
         <StatCard label="Collected Revenue" value={fmt$(revenue)} sub="Paid invoices" accent={G.green} />
         <StatCard label="Receivables" value={fmt$(receivables)} sub="Pending invoices" accent={G.amber} />
         <StatCard label="Overdue" value={fmt$(overdue)} sub="Past due" accent={G.red} />
         <StatCard label="Pipeline Value" value={fmt$(pipelineVal)} sub="Open opportunities" accent={G.gold} />
       </div>
-
-      {/* Charts Row */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, marginBottom: 32 }}>
-        {/* Revenue Over Time */}
         <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "18px 20px" }}>
           <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: 16 }}>Revenue over time</div>
           <MiniBar data={monthlyData.months} color={G.green} labels={monthlyData.labels} />
         </div>
-
-        {/* Receivables Aging */}
         <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "18px 20px" }}>
           <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: 16 }}>Receivables aging</div>
           <div style={{ display: "grid", gap: 10 }}>
-            {Object.entries(aging).map(function(entry) {
-              var bucket = entry[0];
-              var val = entry[1];
-              var barColor = bucket === "0-30" ? G.green : bucket === "31-60" ? G.amber : G.red;
+            {Object.entries(aging).map(function(e) {
+              var bucket = e[0], val = e[1], barColor = bucket === "0-30" ? G.green : bucket === "31-60" ? G.amber : G.red;
               var agingMax = Math.max.apply(null, Object.values(aging).concat([1]));
               return (
                 <div key={bucket}>
@@ -678,59 +776,42 @@ function ReportsView({ leads, invoices, proposals, contracts }) {
           </div>
         </div>
       </div>
-
-      {/* Revenue by Type */}
       {Object.keys(byType).length > 0 && (
         <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "18px 20px", marginBottom: 32 }}>
           <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: 16 }}>Revenue by service type</div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {Object.entries(byType).map(function(entry, i) {
-              var typeName = entry[0];
-              var val = entry[1];
+            {Object.entries(byType).map(function(e, i) {
               var totalRev = Object.values(byType).reduce(function(a, b) { return a + b; }, 0);
-              var pct = totalRev ? Math.round((val / totalRev) * 100) : 0;
               return (
-                <div key={typeName} style={{ display: "flex", alignItems: "center", gap: 8, background: G.surface, borderRadius: 6, padding: "8px 14px" }}>
+                <div key={e[0]} style={{ display: "flex", alignItems: "center", gap: 8, background: G.surface, borderRadius: 6, padding: "8px 14px" }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: typeColors[i % typeColors.length] }} />
-                  <span style={{ fontSize: 13, color: G.text }}>{typeName}</span>
-                  <span style={{ fontSize: 13, color: typeColors[i % typeColors.length], fontWeight: 600 }}>{fmt$(val)}</span>
-                  <span style={{ fontSize: 11, color: G.textDim }}>({pct}%)</span>
+                  <span style={{ fontSize: 13, color: G.text }}>{e[0]}</span>
+                  <span style={{ fontSize: 13, color: typeColors[i % typeColors.length], fontWeight: 600 }}>{fmt$(e[1])}</span>
+                  <span style={{ fontSize: 11, color: G.textDim }}>({totalRev ? Math.round((e[1] / totalRev) * 100) : 0}%)</span>
                 </div>
               );
             })}
           </div>
         </div>
       )}
-
-      {/* Pipeline Breakdown Table */}
       <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, overflow: "hidden" }}>
         <div style={{ padding: "14px 20px", borderBottom: "1px solid " + G.border }}>
           <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Pipeline breakdown</div>
         </div>
-        {pipelineItems.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center", color: G.textDim }}>No open opportunities</div>
-        ) : (
+        {pipelineItems.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: G.textDim }}>No open opportunities</div> : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid " + G.border }}>
-                {["Client", "Type", "Value", "Stage", "Event Date"].map(function(h) {
-                  return <th key={h} style={{ textAlign: h === "Value" ? "right" : "left", padding: "10px 16px", fontSize: 10, color: G.textDim, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>{h}</th>;
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {pipelineItems.map(function(l) {
-                return (
-                  <tr key={l.id} style={{ borderBottom: "1px solid " + G.border }}>
-                    <td style={{ padding: "12px 16px", fontSize: 13, color: G.text, fontWeight: 600 }}>{l.name}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 12, color: G.textMuted }}>{l.type}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 13, color: G.gold, fontWeight: 600, textAlign: "right" }}>{fmt$(l.budget)}</td>
-                    <td style={{ padding: "12px 16px" }}><Badge status={l.status} /></td>
-                    <td style={{ padding: "12px 16px", fontSize: 12, color: G.textMuted }}>{fmtDate(l.eventDate)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
+            <thead><tr style={{ borderBottom: "1px solid " + G.border }}>
+              {["Client", "Type", "Value", "Stage", "Event Date"].map(function(h) { return <th key={h} style={{ textAlign: h === "Value" ? "right" : "left", padding: "10px 16px", fontSize: 10, color: G.textDim, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>{h}</th>; })}
+            </tr></thead>
+            <tbody>{pipelineItems.map(function(l) {
+              return (<tr key={l.id} style={{ borderBottom: "1px solid " + G.border }}>
+                <td style={{ padding: "12px 16px", fontSize: 13, color: G.text, fontWeight: 600 }}>{l.name}</td>
+                <td style={{ padding: "12px 16px", fontSize: 12, color: G.textMuted }}>{l.type}</td>
+                <td style={{ padding: "12px 16px", fontSize: 13, color: G.gold, fontWeight: 600, textAlign: "right" }}>{fmt$(l.budget)}</td>
+                <td style={{ padding: "12px 16px" }}><Badge status={l.status} /></td>
+                <td style={{ padding: "12px 16px", fontSize: 12, color: G.textMuted }}>{fmtDate(l.eventDate)}</td>
+              </tr>);
+            })}</tbody>
           </table>
         )}
       </div>
@@ -741,17 +822,7 @@ function ReportsView({ leads, invoices, proposals, contracts }) {
 /* ====== SIDEBAR ====== */
 
 function Sidebar({ page, setPage }) {
-  var items = [
-    ["leads", "Leads", "Pipeline & inquiries"],
-    ["proposals", "Proposals", "Quotes & packages"],
-    ["contracts", "Contracts", "E-sign agreements"],
-    ["invoicing", "Invoicing", "Payments & billing"],
-    ["schedule", "Schedule", "Calendar & sessions"],
-    ["reports", "Reports", "Revenue & analytics"],
-    ["contacts", "Contacts", "Import/Export & promos"],
-    ["documents", "Documents", "Signed files"],
-  ];
-
+  var items = [["leads", "Leads", "Pipeline & inquiries"], ["proposals", "Proposals", "Quotes & packages"], ["contracts", "Contracts", "E-sign agreements"], ["invoicing", "Invoicing", "Payments & billing"], ["schedule", "Schedule", "Calendar & sessions"], ["reports", "Reports", "Revenue & analytics"], ["contacts", "Contacts", "Import/Export & promos"], ["documents", "Documents", "Signed files"]];
   return (
     <aside style={{ width: 250, background: G.sidebar, borderRight: "1px solid " + G.border, padding: "18px 0", minHeight: "100vh" }}>
       <div style={{ padding: "0 18px 18px", borderBottom: "1px solid " + G.border }}>
@@ -760,29 +831,14 @@ function Sidebar({ page, setPage }) {
       </div>
       <div style={{ padding: 12, display: "grid", gap: 8 }}>
         {items.map(function(item) {
-          var key = item[0], label = item[1], sub = item[2];
-          var active = page === key;
-          return (
-            <button key={key} onClick={function() { setPage(key); }} style={{
-              textAlign: "left", padding: "14px 16px", borderRadius: 8,
-              border: "1px solid " + (active ? G.goldDim : "transparent"),
-              background: active ? "#1a1408" : "transparent",
-              color: active ? G.gold : G.textMuted, cursor: "pointer",
-            }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
-              <div style={{ fontSize: 11, color: active ? G.goldDim : G.textDim, marginTop: 2 }}>{sub}</div>
-            </button>
-          );
+          var key = item[0], label = item[1], sub = item[2], active = page === key;
+          return (<button key={key} onClick={function() { setPage(key); }} style={{ textAlign: "left", padding: "14px 16px", borderRadius: 8, border: "1px solid " + (active ? G.goldDim : "transparent"), background: active ? "#1a1408" : "transparent", color: active ? G.gold : G.textMuted, cursor: "pointer" }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
+            <div style={{ fontSize: 11, color: active ? G.goldDim : G.textDim, marginTop: 2 }}>{sub}</div>
+          </button>);
         })}
       </div>
-      {supabase && (
-        <div style={{ padding: "12px 18px", marginTop: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: G.green }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: G.green }} />
-            Database connected
-          </div>
-        </div>
-      )}
+      {supabase && <div style={{ padding: "12px 18px", marginTop: 8 }}><div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: G.green }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: G.green }} />Database connected</div></div>}
     </aside>
   );
 }
@@ -790,63 +846,90 @@ function Sidebar({ page, setPage }) {
 /* ====== MAIN APP ====== */
 
 export default function NSPBusinessSuite() {
-  const [page, setPage] = useState("leads");
-  const [leads, setLeads] = useState(SEED_LEADS);
-  const [proposals, setProposals] = useState(SEED_PROPOSALS);
-  const [contracts, setContracts] = useState(SEED_CONTRACTS);
-  const [invoices, setInvoices] = useState(SEED_INVOICES);
-  const [sessions, setSessions] = useState(SEED_SESSIONS);
-  const [promos, setPromos] = useState(SEED_PROMOS);
-  const [loaded, setLoaded] = useState(false);
+  var _p = useState("leads"), page = _p[0], setPage = _p[1];
+  var _l = useState(SEED_LEADS), leads = _l[0], setLeads = _l[1];
+  var _pr = useState(SEED_PROPOSALS), proposals = _pr[0], setProposals = _pr[1];
+  var _c = useState(SEED_CONTRACTS), contracts = _c[0], setContracts = _c[1];
+  var _i = useState(SEED_INVOICES), invoices = _i[0], setInvoices = _i[1];
+  var _s = useState(SEED_SESSIONS), sessions = _s[0], setSessions = _s[1];
+  var _pm = useState(SEED_PROMOS), promos = _pm[0], setPromos = _pm[1];
+  var _t = useState([]), templates = _t[0], setTemplates = _t[1];
+  var _ld = useState(false), loaded = _ld[0], setLoaded = _ld[1];
+
+  /* Flow modals */
+  var _fp = useState(null), flowProposal = _fp[0], setFlowProposal = _fp[1];
+  var _fc = useState(null), flowContract = _fc[0], setFlowContract = _fc[1];
+  var _fi = useState(null), flowInvoice = _fi[0], setFlowInvoice = _fi[1];
 
   useEffect(function() {
     async function loadAll() {
       if (!supabase) { setLoaded(true); return; }
       try {
-        var results = await Promise.all([
-          sbFetch("leads"), sbFetch("proposals"), sbFetch("contracts"),
-          sbFetch("invoices"), sbFetch("sessions"), sbFetch("promos"),
-        ]);
-        if (results[0] && results[0].length) setLeads(results[0]);
-        if (results[1] && results[1].length) setProposals(results[1]);
-        if (results[2] && results[2].length) setContracts(results[2]);
-        if (results[3] && results[3].length) setInvoices(results[3]);
-        if (results[4] && results[4].length) setSessions(results[4]);
-        if (results[5] && results[5].length) setPromos(results[5]);
-      } catch (e) {
-        console.error("Failed loading from Supabase:", e);
-      }
+        var r = await Promise.all([sbFetch("leads"), sbFetch("proposals"), sbFetch("contracts"), sbFetch("invoices"), sbFetch("sessions"), sbFetch("promos"), sbFetch("package_templates")]);
+        if (r[0] && r[0].length) setLeads(r[0]);
+        if (r[1] && r[1].length) setProposals(r[1]);
+        if (r[2] && r[2].length) setContracts(r[2]);
+        if (r[3] && r[3].length) setInvoices(r[3]);
+        if (r[4] && r[4].length) setSessions(r[4]);
+        if (r[5] && r[5].length) setPromos(r[5]);
+        if (r[6]) setTemplates(r[6]);
+      } catch (e) { console.error("Failed loading:", e); }
       setLoaded(true);
     }
     loadAll();
   }, []);
 
+  /* Flow handlers */
+  var handleSendProposal = function(lead) { setFlowProposal(lead); setPage("proposals"); };
+
+  var handleCreateContract = function(proposal) { setFlowContract(proposal); setPage("contracts"); };
+
+  var handleSaveFlowContract = async function(contract) {
+    var saved = await sbInsert("contracts", contract);
+    if (saved) setContracts(function(prev) { return prev.concat([saved]); });
+    else setContracts(function(prev) { return [contract].concat(prev); });
+    setFlowContract(null);
+  };
+
+  var handleCreateInvoice = function(contract) { setFlowInvoice(contract); setPage("invoicing"); };
+
+  var handleSaveFlowInvoice = async function(invoice) {
+    var saved = await sbInsert("invoices", invoice);
+    if (saved) setInvoices(function(prev) { return prev.concat([saved]); });
+    else setInvoices(function(prev) { return [invoice].concat(prev); });
+    setFlowInvoice(null);
+  };
+
+  var handleSaveFlowProposal = async function(proposal) {
+    var saved = await sbInsert("proposals", proposal);
+    if (saved) setProposals(function(prev) { return prev.concat([saved]); });
+    else setProposals(function(prev) { return [proposal].concat(prev); });
+    setFlowProposal(null);
+  };
+
   var content = null;
   switch (page) {
-    case "leads": content = <LeadsView leads={leads} setLeads={setLeads} />; break;
-    case "proposals": content = <ProposalsView proposals={proposals} setProposals={setProposals} />; break;
-    case "contracts": content = <ContractsView contracts={contracts} />; break;
+    case "leads": content = <LeadsView leads={leads} setLeads={setLeads} onSendProposal={handleSendProposal} />; break;
+    case "proposals": content = <ProposalsView proposals={proposals} setProposals={setProposals} templates={templates} setTemplates={setTemplates} onCreateContract={handleCreateContract} />; break;
+    case "contracts": content = <ContractsView contracts={contracts} setContracts={setContracts} onCreateInvoice={handleCreateInvoice} />; break;
     case "invoicing": content = <InvoicesView invoices={invoices} />; break;
     case "schedule": content = <ScheduleView sessions={sessions} />; break;
     case "reports": content = <ReportsView leads={leads} invoices={invoices} proposals={proposals} contracts={contracts} />; break;
     case "contacts": content = <ContactsView leads={leads} promos={promos} />; break;
     case "documents": content = <DocumentsView contracts={contracts} proposals={proposals} />; break;
-    default: content = <LeadsView leads={leads} setLeads={setLeads} />;
+    default: content = <LeadsView leads={leads} setLeads={setLeads} onSendProposal={handleSendProposal} />;
   }
 
   return (
     <div style={{ background: G.bg, color: G.text, minHeight: "100vh", display: "flex" }}>
       <Sidebar page={page} setPage={setPage} />
       <main style={{ flex: 1, padding: 28 }}>
-        {!loaded && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, color: G.textMuted }}>
-            <div style={{ width: 16, height: 16, border: "2px solid " + G.gold, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-            Loading data...
-            <style>{"@keyframes spin { to { transform: rotate(360deg) } }"}</style>
-          </div>
-        )}
+        {!loaded && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, color: G.textMuted }}><div style={{ width: 16, height: 16, border: "2px solid " + G.gold, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />Loading...<style>{"@keyframes spin { to { transform: rotate(360deg) } }"}</style></div>}
         {loaded && content}
       </main>
+      {flowProposal && <AddProposalModal onClose={function() { setFlowProposal(null); }} onSave={handleSaveFlowProposal} templates={templates} prefill={flowProposal} />}
+      {flowContract && <CreateContractModal onClose={function() { setFlowContract(null); }} onSave={handleSaveFlowContract} proposal={flowContract} />}
+      {flowInvoice && <CreateInvoiceModal onClose={function() { setFlowInvoice(null); }} onSave={handleSaveFlowInvoice} contract={flowInvoice} invoiceCount={invoices.length} />}
     </div>
   );
 }
