@@ -1,935 +1,3122 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "./supabaseClient";
+import React, { useEffect, useMemo, useState } from "react";
 
 const G = {
-  bg: "#070707", surface: "#0f0f0f", card: "#131313", border: "#222222",
-  gold: "#c9a96e", goldLight: "#dfc28e", goldDim: "#7a6030",
-  text: "#ede9e3", textMuted: "#7a7772", textDim: "#3e3c3a",
-  green: "#5aab7a", greenBg: "#0a1a10", red: "#c95f5f", redBg: "#1a0a0a",
-  blue: "#6a9fd8", blueBg: "#0a1220", amber: "#d4955a", amberBg: "#1a1008",
-  purple: "#9b7fe0", purpleBg: "#0d0a1a", sidebar: "#0a0a0a",
+  bg: "#0c0d0f",
+  surface: "#131517",
+  card: "#191b1e",
+  border: "#2a2d31",
+  borderLight: "#353a3f",
+  text: "#e8e6e3",
+  textDim: "#9b9a97",
+  textMuted: "#6b6a68",
+  gold: "#d4a853",
+  goldBg: "rgba(212,168,83,.08)",
+  green: "#34d399",
+  greenBg: "rgba(52,211,153,.08)",
+  red: "#f87171",
+  redBg: "rgba(248,113,113,.08)",
+  blue: "#60a5fa",
+  blueBg: "rgba(96,165,250,.08)",
+  amber: "#fbbf24",
+  amberBg: "rgba(251,191,36,.08)",
+  teal: "#4a9ba5",
 };
 
-const STATUS_META = {
-  New: { color: G.blue, bg: G.blueBg }, Contacted: { color: G.amber, bg: G.amberBg },
-  "Proposal Sent": { color: G.purple, bg: G.purpleBg }, Booked: { color: G.green, bg: G.greenBg },
-  Lost: { color: G.red, bg: G.redBg }, Draft: { color: G.textMuted, bg: G.surface },
-  Sent: { color: G.amber, bg: G.amberBg }, Viewed: { color: G.blue, bg: G.blueBg },
-  Accepted: { color: G.green, bg: G.greenBg }, Declined: { color: G.red, bg: G.redBg },
-  Signed: { color: G.green, bg: G.greenBg }, Paid: { color: G.green, bg: G.greenBg },
-  Pending: { color: G.amber, bg: G.amberBg }, Overdue: { color: G.red, bg: G.redBg },
-  Confirmed: { color: G.green, bg: G.greenBg }, Tentative: { color: G.amber, bg: G.amberBg },
-  Active: { color: G.green, bg: G.greenBg }, Inactive: { color: G.textMuted, bg: G.surface },
+const STAGES = [
+  { key: "Lead", color: "#60a5fa", icon: "◆" },
+  { key: "Booked", color: "#d4a853", icon: "★" },
+  { key: "Fulfillment", color: "#a78bfa", icon: "◈" },
+  { key: "Completed", color: "#34d399", icon: "✓" },
+];
+
+const TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "schedule", label: "Schedule" },
+  { key: "quotes", label: "Quotes & Orders" },
+  { key: "financials", label: "Financials" },
+  { key: "contracts", label: "Contracts" },
+  { key: "notes", label: "Notes" },
+  { key: "files", label: "Files" },
+];
+
+const STORAGE_KEY = "nsp_lead_detail_v2";
+
+const DEFAULT_SETTINGS = {
+  businessName: "Nico Salgado Photography",
+  address1: "30317 Glenmuer",
+  address2: "Farmington Hills, MI 48334",
+  website: "https://www.nicosalgadophotography.com",
+  email: "nicosalgadophoto@gmail.com",
+  phone: "",
+  quotePrefix: "Q",
+  statuses: ["Draft", "Sent", "Accepted", "Declined"],
 };
 
-var fmt$ = function(n) { return "$" + Number(n || 0).toLocaleString(); };
-var fmtDate = function(d) {
-  return d ? new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "\u2014";
+const DEFAULT_DATA = {
+  lead: {
+    id: 1,
+    name: "Camila & David",
+    email: "camila.d@gmail.com",
+    phone: "(313) 555-0192",
+    type: "Wedding",
+    stage: "Booked",
+    revenue: 0,
+    balance: 0,
+    eventDate: "2026-06-14",
+    location: "The Planterra Conservatory, West Bloomfield",
+    referralSource: "Instagram",
+    inquiredOn: "2026-04-07",
+    notes:
+      "Couple wants documentary-style. Emphasis on candid moments during golden hour.",
+  },
+  schedule: [
+    {
+      id: 1,
+      title: "Engagement Session",
+      date: "2026-05-10",
+      time: "4:00 PM",
+      location: "Belle Isle Park",
+      status: "Confirmed",
+    },
+    {
+      id: 2,
+      title: "Wedding Day Coverage",
+      date: "2026-06-14",
+      time: "1:00 PM",
+      location: "The Planterra Conservatory",
+      status: "Confirmed",
+    },
+  ],
+  notes: [
+    {
+      id: 1,
+      text: "Spoke on the phone — they want engagement + wedding day. Budget flexible if we include album.",
+      date: "2026-04-02T11:00:00",
+    },
+    {
+      id: 2,
+      text: "Instagram inquiry received",
+      date: "2026-03-22T10:30:00",
+    },
+  ],
+  payments: [
+    {
+      id: 1,
+      kind: "Retainer + Balance",
+      name: "Wedding Payment Plan",
+      description: "50% retainer to book, remainder due 14 days before event",
+      initialPayment: 50,
+      initialType: "Percent of Order",
+      tipEnabled: true,
+      remaining: [{ amount: 50, type: "Percent of Order", due: "before event" }],
+    },
+  ],
+  contracts: [
+    {
+      id: 1,
+      title: "Wedding Photography Agreement",
+      status: "Sent",
+      sentOn: "2026-04-08",
+      signedOn: "",
+      signer: "Camila D.",
+      version: "v1",
+    },
+  ],
+  files: [
+    {
+      id: 1,
+      name: "moodboard-reference.pdf",
+      kind: "Reference",
+      uploadedOn: "2026-04-03",
+    },
+    {
+      id: 2,
+      name: "venue-timeline.docx",
+      kind: "Planning",
+      uploadedOn: "2026-04-05",
+    },
+  ],
+  quotes: [
+    {
+      id: "quote-1",
+      quoteNumber: 1,
+      quoteNumberLabel: "Q-0001",
+      clientName: "Camila & David",
+      clientEmail: "camila.d@gmail.com",
+      eventName: "Wedding Coverage",
+      eventDate: "2026-06-14",
+      status: "Draft",
+      introduction: "Thank you for the opportunity.",
+      expiration: "2026-05-01",
+      sections: [
+        {
+          id: "sec-1",
+          packageName: "Signature Collection",
+          description: "Full wedding day coverage with polished deliverables.",
+          includes: [
+            "8 hours coverage",
+            "Online gallery",
+            "Sneak peeks within 48 hours",
+          ],
+          notes: "Album available as add-on.",
+          lineItems: [
+            { id: "li-1", name: "Wedding Collection", price: 4800, qty: 1 },
+          ],
+        },
+      ],
+      notes: "50% retainer required to reserve the date.",
+      promoCode: "",
+      discountType: "amount",
+      discountValue: 0,
+      createdAt: "2026-04-07T10:00:00",
+      updatedAt: "2026-04-07T10:00:00",
+      lastViewed: null,
+      pageViews: 0,
+      selected: false,
+    },
+  ],
+  recipients: [
+    {
+      id: 1,
+      quoteId: "quote-1",
+      name: "Camila",
+      email: "camila.d@gmail.com",
+      lastVisit: null,
+    },
+  ],
+  counters: { nextQuoteNumber: 2 },
+  settings: DEFAULT_SETTINGS,
 };
-var today = function() { return new Date().toISOString().split("T")[0]; };
 
-function snakeToCamel(obj) {
-  if (!obj) return obj;
-  var out = {};
-  for (var k of Object.keys(obj)) { out[k.replace(/_([a-z])/g, function(_, c) { return c.toUpperCase(); })] = obj[k]; }
-  return out;
-}
-function camelToSnake(obj) {
-  if (!obj) return obj;
-  var out = {};
-  for (var k of Object.keys(obj)) { out[k.replace(/[A-Z]/g, function(c) { return "_" + c.toLowerCase(); })] = obj[k]; }
-  return out;
+function safeJsonParse(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-async function sbFetch(table) {
-  if (!supabase) return null;
-  var r = await supabase.from(table).select("*").order("id", { ascending: true });
-  if (r.error) { console.error("sbFetch " + table, r.error); return null; }
-  return r.data.map(snakeToCamel);
-}
-async function sbInsert(table, row) {
-  if (!supabase) return null;
-  var snaked = camelToSnake(row); delete snaked.id;
-  var r = await supabase.from(table).insert(snaked).select().single();
-  if (r.error) { console.error("sbInsert " + table, r.error); return null; }
-  return snakeToCamel(r.data);
-}
-async function sbUpdate(table, id, updates) {
-  if (!supabase) return false;
-  var r = await supabase.from(table).update(camelToSnake(updates)).eq("id", id);
-  if (r.error) { console.error("sbUpdate " + table, r.error); return false; }
-  return true;
-}
-async function sbDelete(table, id) {
-  if (!supabase) return false;
-  var r = await supabase.from(table).delete().eq("id", id);
-  if (r.error) { console.error("sbDelete " + table, r.error); return false; }
-  return true;
-}
-
-/* SEED DATA */
-var SEED_LEADS = [
-  { id: 1, name: "Sarah & Tyler Mitchell", email: "sarah@email.com", phone: "248-555-0142", type: "Wedding", eventDate: "2026-08-15", budget: 5000, status: "New", source: "Website", notes: "Interested in Legacy package.", createdAt: "2026-03-28" },
-  { id: 2, name: "James & Priya Okafor", email: "priya.okafor@gmail.com", phone: "313-555-0287", type: "Family Portrait", eventDate: "2026-05-10", budget: 1200, status: "Proposal Sent", source: "Referral", notes: "Outdoor session. 2 kids.", createdAt: "2026-04-01" },
-  { id: 3, name: "Detroit Metro Hospital", email: "hr@dmh.com", phone: "313-555-0400", type: "Corporate Headshots", eventDate: "2026-04-22", budget: 3800, status: "Booked", source: "LinkedIn", notes: "18 executives. Half-day.", createdAt: "2026-03-15" },
-  { id: 4, name: "Aaliyah Fontaine", email: "aaliyah@fontainepr.com", phone: "248-555-0911", type: "Personal Branding", eventDate: "2026-05-18", budget: 2200, status: "Contacted", source: "Instagram", notes: "PR consultant. Editorial feel.", createdAt: "2026-04-03" },
-  { id: 5, name: "Grand Ballroom at MGM", email: "events@mgmgrand.com", phone: "313-555-0700", type: "Event Coverage", eventDate: "2026-06-07", budget: 4500, status: "Lost", source: "Website", notes: "Annual gala. Keep on radar.", createdAt: "2026-02-20" },
-];
-var SEED_PROPOSALS = [
-  { id: 1, clientName: "Detroit Metro Hospital", clientEmail: "hr@dmh.com", serviceType: "Headshots", package: "Premium \u2014 The Authority", total: 3720, status: "Accepted", createdAt: "2026-03-18" },
-  { id: 2, clientName: "Aaliyah Fontaine", clientEmail: "aaliyah@fontainepr.com", serviceType: "Personal Branding", package: "Signature \u2014 The Identity", total: 3250, status: "Sent", createdAt: "2026-04-03" },
-];
-var SEED_CONTRACTS = [
-  { id: 1, clientName: "Detroit Metro Hospital", clientEmail: "hr@dmh.com", serviceType: "Headshots", sessionDate: "2026-04-22", sessionLocation: "Detroit Metro Hospital", totalAmount: 3720, retainerAmount: 1860, status: "Signed", createdAt: "2026-03-18", signerName: "Marcus Webb" },
-];
-var SEED_INVOICES = [
-  { id: 1, invoiceNumber: "NSP-2026-001", clientName: "Detroit Metro Hospital", serviceType: "Headshots", description: "Retainer \u2014 50% of Corporate Headshots Package", amount: 1860, status: "Paid", dueDate: "2026-03-25", paidDate: "2026-03-22" },
-  { id: 2, invoiceNumber: "NSP-2026-002", clientName: "Detroit Metro Hospital", serviceType: "Headshots", description: "Balance \u2014 50% of Corporate Headshots Package", amount: 1860, status: "Pending", dueDate: "2026-04-21" },
-];
-var SEED_SESSIONS = [
-  { id: 1, client: "Detroit Metro Hospital", email: "hr@dmh.com", serviceType: "Corporate Headshots", date: "2026-04-22", time: "9:00 AM", location: "Detroit Metro Hospital, Detroit", status: "Confirmed" },
-  { id: 2, client: "Aaliyah Fontaine", email: "aaliyah@fontainepr.com", serviceType: "Personal Branding", date: "2026-05-18", time: "11:00 AM", location: "NSP Studio, West Bloomfield", status: "Tentative" },
-];
-var SEED_PROMOS = [
-  { id: 1, name: "Spring Mini Sessions", code: "SPRING2026", discount: 15, type: "percent", validFrom: "2026-04-01", validTo: "2026-05-31", description: "15% off all spring mini sessions", active: true, timesUsed: 3 },
-  { id: 2, name: "Referral Bonus", code: "REFER100", discount: 100, type: "fixed", validFrom: "2026-01-01", validTo: "2026-12-31", description: "$100 off for referred clients", active: true, timesUsed: 7 },
-];
-
-/* ====== UI COMPONENTS ====== */
-
-function Badge({ status }) {
-  var meta = STATUS_META[status] || { color: G.textMuted, bg: G.surface };
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: meta.bg, color: meta.color, border: "1px solid " + meta.color + "33", borderRadius: 999, padding: "3px 10px", fontSize: 11, fontWeight: 600 }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: meta.color }} />
-      {status}
-    </span>
-  );
-}
-function StatCard({ label, value, sub, accent }) {
-  return (
-    <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "16px 20px" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", marginBottom: 8, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 34, lineHeight: 1, color: accent || G.text, fontFamily: "Georgia, serif" }}>{value}</div>
-      <div style={{ fontSize: 11, color: G.textDim, marginTop: 6 }}>{sub}</div>
-    </div>
-  );
-}
-function Btn({ children, onClick, variant, disabled, small }) {
-  var styles = {
-    primary: { background: G.gold, color: "#080808", border: "1px solid " + G.gold },
-    ghost: { background: "transparent", color: G.textMuted, border: "1px solid " + G.border },
-    outline: { background: "transparent", color: G.gold, border: "1px solid " + G.goldDim },
-    danger: { background: "transparent", color: G.red, border: "1px solid " + G.red },
-    success: { background: G.green, color: "#080808", border: "1px solid " + G.green },
+function loadState() {
+  if (typeof window === "undefined") return DEFAULT_DATA;
+  const saved = safeJsonParse(window.localStorage.getItem(STORAGE_KEY), null);
+  if (!saved) return DEFAULT_DATA;
+  return {
+    ...DEFAULT_DATA,
+    ...saved,
+    lead: { ...DEFAULT_DATA.lead, ...(saved.lead || {}) },
+    settings: { ...DEFAULT_SETTINGS, ...(saved.settings || {}) },
+    counters: { ...DEFAULT_DATA.counters, ...(saved.counters || {}) },
+    schedule: saved.schedule || DEFAULT_DATA.schedule,
+    payments: saved.payments || DEFAULT_DATA.payments,
+    contracts: saved.contracts || DEFAULT_DATA.contracts,
+    files: saved.files || DEFAULT_DATA.files,
+    notes: saved.notes || DEFAULT_DATA.notes,
+    quotes: saved.quotes || DEFAULT_DATA.quotes,
+    recipients: saved.recipients || DEFAULT_DATA.recipients,
   };
+}
+
+function genId(prefix = "id") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toMoney(value) {
+  return Math.max(0, Number(value) || 0);
+}
+
+function toQty(value) {
+  return Math.max(1, Math.floor(Number(value) || 1));
+}
+
+function fmt$(n) {
+  return "$" + Number(n || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatDateLocal(dateString, options) {
+  if (!dateString) return "—";
+  if (typeof dateString === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [y, m, d] = dateString.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-US", options);
+  }
+  const parsed = new Date(dateString);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("en-US", options);
+}
+
+const fmtShort = (d) =>
+  formatDateLocal(d, { month: "short", day: "numeric", year: "numeric" });
+
+const fmtLong = (d) =>
+  formatDateLocal(d, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+const fmtTime = (d) => {
+  const parsed = new Date(d);
+  return Number.isNaN(parsed.getTime())
+    ? ""
+    : parsed.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+};
+
+function cleanIncludes(arr) {
+  return (arr || [])
+    .map((x) => String(x || "").trim())
+    .filter(Boolean);
+}
+
+function calcQuoteTotals(q) {
+  const subtotal = (q.sections || []).reduce(
+    (sum, section) =>
+      sum +
+      (section.lineItems || []).reduce(
+        (sectionSum, li) => sectionSum + toMoney(li.price) * toQty(li.qty),
+        0
+      ),
+    0
+  );
+
+  const rawDiscount = Math.max(0, Number(q.discountValue) || 0);
+  const discountAmount =
+    q.discountType === "percent"
+      ? Math.min(subtotal, subtotal * (Math.min(100, rawDiscount) / 100))
+      : Math.min(subtotal, rawDiscount);
+
+  return {
+    subtotal,
+    discountAmount,
+    total: Math.max(0, subtotal - discountAmount),
+  };
+}
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function quoteToPrintableHtml(quote, settings) {
+  const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
+  const sectionsHtml = (quote.sections || [])
+    .map((section) => {
+      const includesHtml = cleanIncludes(section.includes)
+        .map(
+          (inc) =>
+            `<div style="padding:3px 0;font-size:13px;color:#444;">${escapeHtml(
+              inc
+            )}</div>`
+        )
+        .join("");
+
+      const itemsHtml = (section.lineItems || [])
+        .map((li) => {
+          const lineTotal = toMoney(li.price) * toQty(li.qty);
+          const qtyText =
+            toQty(li.qty) > 1
+              ? `<div style="font-size:11px;color:#888;">(${escapeHtml(
+                  fmt$(li.price)
+                )} × ${toQty(li.qty)})</div>`
+              : "";
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #eee;padding-top:10px;margin-top:10px;gap:12px;">
+              <div style="font-size:14px;font-weight:700;">${escapeHtml(
+                li.name || "Untitled item"
+              )}</div>
+              <div style="text-align:right;white-space:nowrap;">
+                <div style="font-size:14px;font-weight:700;font-family:monospace;">${escapeHtml(
+                  fmt$(lineTotal)
+                )}</div>
+                ${qtyText}
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      return `
+        <div style="margin-bottom:28px;">
+          ${
+            section.packageName
+              ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
+                  section.packageName
+                )}</div>`
+              : ""
+          }
+          ${
+            section.description
+              ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
+                  section.description
+                )}</div>`
+              : ""
+          }
+          ${includesHtml}
+          ${
+            section.notes
+              ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
+                  section.notes
+                )}</div>`
+              : ""
+          }
+          ${itemsHtml}
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(quote.quoteNumberLabel || "Quote")}</title>
+        <style>
+          body { font-family: Arial, Helvetica, sans-serif; color:#1a1a1a; padding:32px; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div style="max-width:800px;margin:0 auto;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:32px;gap:24px;">
+            <div>
+              <div style="font-size:22px;font-weight:800;color:${G.teal};letter-spacing:-.02em;">${escapeHtml(
+    settings.businessName || "Business"
+  )}</div>
+              <div style="font-size:12px;color:#666;line-height:1.7;margin-top:4px;">
+                ${settings.address1 ? `${escapeHtml(settings.address1)}<br />` : ""}
+                ${settings.address2 ? `${escapeHtml(settings.address2)}<br />` : ""}
+                ${settings.website ? `${escapeHtml(settings.website)}<br />` : ""}
+                ${settings.email ? `${escapeHtml(settings.email)}<br />` : ""}
+                ${settings.phone ? `${escapeHtml(settings.phone)}<br />` : ""}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:18px;font-weight:700;">${escapeHtml(
+                quote.quoteNumberLabel || "Quote Summary"
+              )}</div>
+              <div style="font-size:13px;color:#666;margin-top:4px;">Quote Total: <strong>${escapeHtml(
+                fmt$(total)
+              )}</strong></div>
+              <div style="margin-top:12px;">
+                <div style="font-size:14px;font-weight:700;">Recipient</div>
+                <div style="font-size:13px;color:#666;">${escapeHtml(
+                  quote.clientName || "—"
+                )}</div>
+                ${
+                  quote.clientEmail
+                    ? `<div style="font-size:13px;color:#666;">${escapeHtml(
+                        quote.clientEmail
+                      )}</div>`
+                    : ""
+                }
+              </div>
+            </div>
+          </div>
+
+          ${
+            quote.eventName || quote.eventDate
+              ? `
+            <div style="text-align:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #e0e0e0;">
+              <div style="font-size:18px;font-weight:700;color:${G.teal};">
+                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${
+                  quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
+                }
+              </div>
+            </div>
+          `
+              : ""
+          }
+
+          ${
+            quote.introduction
+              ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
+                  quote.introduction
+                )}</div>`
+              : ""
+          }
+          ${sectionsHtml}
+          ${
+            quote.notes
+              ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
+                  quote.notes
+                )}</div>`
+              : ""
+          }
+          ${
+            quote.expiration
+              ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
+                  fmtShort(quote.expiration)
+                )}</div>`
+              : ""
+          }
+
+          <div style="border-top:2px solid #1a1a1a;padding-top:16px;margin-top:20px;">
+            <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
+              <div style="font-size:14px;color:#666;">Subtotal:</div>
+              <div style="font-size:16px;font-weight:700;font-family:monospace;">${escapeHtml(
+                fmt$(subtotal)
+              )}</div>
+            </div>
+            ${
+              discountAmount > 0
+                ? `
+              <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
+                <div style="font-size:14px;color:#666;">Discount${
+                  quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
+                }:</div>
+                <div style="font-size:16px;font-weight:700;font-family:monospace;color:#b42318;">-${escapeHtml(
+                  fmt$(discountAmount)
+                )}</div>
+              </div>
+            `
+                : ""
+            }
+            <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:16px;">
+              <div style="font-size:14px;color:#666;">Total:</div>
+              <div style="font-size:18px;font-weight:800;font-family:monospace;">${escapeHtml(
+                fmt$(total)
+              )}</div>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+function openPrintWindow(html) {
+  const win = window.open("", "_blank", "width=1000,height=800");
+  if (!win) return false;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+  return true;
+}
+
+function Btn({
+  children,
+  onClick,
+  variant = "primary",
+  small,
+  full,
+  disabled,
+  style,
+}) {
+  const base = {
+    primary: { bg: G.gold, color: "#0e0f11", border: "none" },
+    secondary: {
+      bg: "transparent",
+      color: G.text,
+      border: `1px solid ${G.border}`,
+    },
+    ghost: { bg: "transparent", color: G.textDim, border: "none" },
+    danger: { bg: G.redBg, color: G.red, border: `1px solid ${G.red}33` },
+  };
+  const s = base[variant];
   return (
-    <button disabled={disabled} onClick={onClick} style={{ padding: small ? "6px 10px" : "10px 16px", borderRadius: 6, fontWeight: 600, fontSize: small ? 11 : 13, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, ...(styles[variant || "primary"]) }}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: s.bg,
+        color: s.color,
+        border: s.border,
+        padding: small ? "6px 14px" : "9px 20px",
+        borderRadius: 6,
+        fontWeight: 600,
+        fontSize: small ? 11 : 12,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.4 : 1,
+        width: full ? "100%" : "auto",
+        textAlign: "center",
+        letterSpacing: ".02em",
+        transition: "all .15s",
+        ...style,
+      }}
+    >
       {children}
     </button>
   );
 }
-function SectionTitle({ title, subtitle, actions }) {
+
+function Card({ children, style }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-      <div>
-        <h1 style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontSize: 32, fontWeight: 400, margin: 0 }}>{title}</h1>
-        {subtitle && <p style={{ color: G.textMuted, fontSize: 12, marginTop: 6 }}>{subtitle}</p>}
-      </div>
+    <div
+      style={{
+        background: G.card,
+        border: `1px solid ${G.border}`,
+        borderRadius: 10,
+        padding: 20,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionLabel({ children, actions }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ fontSize: 18, fontWeight: 700, color: G.text }}>{children}</div>
       {actions}
     </div>
   );
 }
-function ListCards({ items, badgeMap }) {
+
+function InputField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  required,
+  style,
+  multiline,
+  readOnly,
+}) {
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      {items.map(function(item, i) {
-        return (
-          <div key={i} style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "16px 18px", display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ color: G.text, fontWeight: 600, fontSize: 14 }}>{item.title}</div>
-              <div style={{ color: G.textMuted, fontSize: 12, marginTop: 4 }}>{item.sub}</div>
-            </div>
-            <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-              {item.badge && <Badge status={item.badge} />}
-              {item.right && <div style={{ color: G.gold, fontWeight: 600 }}>{item.right}</div>}
-              {item.actions && <div style={{ display: "flex", gap: 6, marginTop: 4 }}>{item.actions}</div>}
-            </div>
-          </div>
-        );
-      })}
-      {items.length === 0 && (
-        <div style={{ border: "1px dashed " + G.border, borderRadius: 8, padding: 24, textAlign: "center", color: G.textDim }}>Nothing here yet.</div>
+    <div style={{ marginBottom: 14, ...style }}>
+      {label && (
+        <label
+          style={{
+            display: "block",
+            fontSize: 12,
+            fontWeight: 600,
+            color: G.text,
+            marginBottom: 5,
+          }}
+        >
+          {label}
+          {required && <span style={{ color: G.red }}> *</span>}
+        </label>
+      )}
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          rows={3}
+          readOnly={readOnly}
+          style={{
+            width: "100%",
+            background: G.surface,
+            color: G.text,
+            border: `1px solid ${G.border}`,
+            borderRadius: 6,
+            padding: "9px 12px",
+            fontSize: 13,
+            boxSizing: "border-box",
+            resize: "vertical",
+            fontFamily: "inherit",
+          }}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          style={{
+            width: "100%",
+            background: G.surface,
+            color: G.text,
+            border: `1px solid ${G.border}`,
+            borderRadius: 6,
+            padding: "9px 12px",
+            fontSize: 13,
+            boxSizing: "border-box",
+          }}
+        />
       )}
     </div>
   );
 }
 
-var inputStyle = { background: G.surface, color: G.text, border: "1px solid " + G.border, borderRadius: 6, padding: "10px 12px", width: "100%", boxSizing: "border-box" };
-var selectStyle = Object.assign({}, inputStyle, { appearance: "auto" });
-
-/* ====== MODALS ====== */
-
-function ModalWrap({ onClose, title, children, footer }) {
+function Pill({ children, color, bg }) {
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000, overflowY: "auto" }}>
-      <div onClick={function(e) { e.stopPropagation(); }} style={{ width: "100%", maxWidth: 600, background: G.card, border: "1px solid " + G.border, borderRadius: 10, overflow: "hidden", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid " + G.border, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-          <div style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontSize: 24 }}>{title}</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: G.textMuted, fontSize: 24, cursor: "pointer" }}>{"\u00D7"}</button>
-        </div>
-        <div style={{ padding: 24, display: "grid", gap: 14, overflowY: "auto", flex: 1 }}>{children}</div>
-        {footer && <div style={{ padding: "16px 24px", borderTop: "1px solid " + G.border, display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>{footer}</div>}
-      </div>
+    <span
+      style={{
+        display: "inline-flex",
+        padding: "3px 10px",
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 600,
+        color,
+        background: bg,
+        letterSpacing: ".03em",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Badge({ n, color }) {
+  if (!n) return null;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        fontSize: 10,
+        fontWeight: 700,
+        background: color || G.red,
+        color: "#fff",
+        padding: "0 5px",
+        marginLeft: 6,
+      }}
+    >
+      {n}
+    </span>
+  );
+}
+
+function EmptyState({ icon, text, action }) {
+  return (
+    <div style={{ textAlign: "center", padding: "50px 20px", color: G.textMuted }}>
+      <div style={{ fontSize: 32, marginBottom: 10, opacity: 0.3 }}>{icon}</div>
+      <div style={{ fontSize: 13, marginBottom: action ? 16 : 0 }}>{text}</div>
+      {action}
     </div>
   );
 }
 
-function AddLeadModal({ onClose, onSave }) {
-  var _s = useState({ name: "", email: "", phone: "", type: "Wedding", eventDate: "", budget: "", status: "New", source: "Website", notes: "" });
-  var form = _s[0], setForm = _s[1];
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
+function ErrorList({ errors }) {
+  if (!errors?.length) return null;
   return (
-    <ModalWrap onClose={onClose} title="New Inquiry" footer={<>
-      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-      <Btn onClick={function() {
-        if (!form.name.trim() || !form.email.trim()) return;
-        onSave(Object.assign({}, form, { id: Date.now(), budget: Number(form.budget) || 0, createdAt: today() }));
-        onClose();
-      }}>Add Lead</Btn>
-    </>}>
-      <input placeholder="Full Name" value={form.name} onChange={function(e) { set("name", e.target.value); }} style={inputStyle} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <input placeholder="Email" value={form.email} onChange={function(e) { set("email", e.target.value); }} style={inputStyle} />
-        <input placeholder="Phone" value={form.phone} onChange={function(e) { set("phone", e.target.value); }} style={inputStyle} />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <input placeholder="Type" value={form.type} onChange={function(e) { set("type", e.target.value); }} style={inputStyle} />
-        <input placeholder="Source" value={form.source} onChange={function(e) { set("source", e.target.value); }} style={inputStyle} />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <input type="date" value={form.eventDate} onChange={function(e) { set("eventDate", e.target.value); }} style={inputStyle} />
-        <input type="number" placeholder="Budget" value={form.budget} onChange={function(e) { set("budget", e.target.value); }} style={inputStyle} />
-      </div>
-      <textarea placeholder="Notes" value={form.notes} onChange={function(e) { set("notes", e.target.value); }} style={Object.assign({}, inputStyle, { minHeight: 90 })} />
-    </ModalWrap>
-  );
-}
-
-function AddProposalModal({ onClose, onSave, templates, prefill }) {
-  var init = prefill ? { clientName: prefill.name || "", clientEmail: prefill.email || "", serviceType: prefill.type || "Wedding", package: "", total: "", status: "Draft" } : { clientName: "", clientEmail: "", serviceType: "Wedding", package: "", total: "", status: "Draft" };
-  var _s = useState(init);
-  var form = _s[0], setForm = _s[1];
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
-
-  var matchingTemplates = (templates || []).filter(function(t) { return t.active !== false && t.serviceType === form.serviceType; });
-
-  return (
-    <ModalWrap onClose={onClose} title="New Proposal" footer={<>
-      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-      <Btn onClick={function() {
-        if (!form.clientName.trim()) return;
-        onSave(Object.assign({}, form, { id: Date.now(), total: Number(form.total) || 0, createdAt: today() }));
-        onClose();
-      }}>Create Proposal</Btn>
-    </>}>
-      <input placeholder="Client Name" value={form.clientName} onChange={function(e) { set("clientName", e.target.value); }} style={inputStyle} />
-      <input placeholder="Client Email" value={form.clientEmail} onChange={function(e) { set("clientEmail", e.target.value); }} style={inputStyle} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div>
-          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Service type</div>
-          <select value={form.serviceType} onChange={function(e) { set("serviceType", e.target.value); set("package", ""); set("total", ""); }} style={selectStyle}>
-            <option value="Wedding">Wedding</option>
-            <option value="Family Portrait">Family Portrait</option>
-            <option value="Corporate Headshots">Corporate Headshots</option>
-            <option value="Personal Branding">Personal Branding</option>
-            <option value="Event Coverage">Event Coverage</option>
-          </select>
+    <div
+      style={{
+        background: G.redBg,
+        border: `1px solid ${G.red}33`,
+        borderRadius: 8,
+        padding: "10px 14px",
+        marginBottom: 14,
+      }}
+    >
+      {errors.map((e, i) => (
+        <div key={i} style={{ fontSize: 12, color: G.red }}>
+          {e}
         </div>
-        <div>
-          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Status</div>
-          <select value={form.status} onChange={function(e) { set("status", e.target.value); }} style={selectStyle}>
-            <option value="Draft">Draft</option>
-            <option value="Sent">Sent</option>
-          </select>
-        </div>
-      </div>
-      {matchingTemplates.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 6 }}>Your packages</div>
-          <div style={{ display: "grid", gap: 8 }}>
-            {matchingTemplates.map(function(t) {
-              var selected = form.package === t.name;
-              var includes = t.includes ? t.includes.split("|") : [];
-              return (
-                <button key={t.id} onClick={function() { set("package", t.name); set("total", String(t.price)); }} style={{
-                  textAlign: "left", padding: "14px 16px", borderRadius: 8, cursor: "pointer",
-                  background: selected ? G.goldDim + "33" : G.surface,
-                  border: "1px solid " + (selected ? G.gold : G.border),
-                  color: selected ? G.gold : G.text,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{t.name}</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: selected ? G.goldLight : G.amber }}>{fmt$(t.price)}</div>
-                  </div>
-                  {t.description && <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>{t.description}</div>}
-                  {includes.length > 0 && (
-                    <div style={{ marginTop: 8, display: "grid", gap: 3 }}>
-                      {includes.map(function(item, i) {
-                        return <div key={i} style={{ fontSize: 11, color: selected ? G.goldDim : G.textDim }}>{"\u2022 " + item}</div>;
-                      })}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {matchingTemplates.length === 0 && (
-        <div style={{ border: "1px dashed " + G.border, borderRadius: 8, padding: 16, textAlign: "center", color: G.textDim, fontSize: 12 }}>
-          No templates for this service type. Add them in Proposals {">"} Manage Templates.
-        </div>
-      )}
-      <div>
-        <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Custom amount</div>
-        <input type="number" placeholder="Total Amount" value={form.total} onChange={function(e) { set("total", e.target.value); }} style={inputStyle} />
-      </div>
-    </ModalWrap>
-  );
-}
-
-function AddTemplateModal({ onClose, onSave, editTemplate }) {
-  var init = editTemplate ? { name: editTemplate.name, serviceType: editTemplate.serviceType, price: String(editTemplate.price), description: editTemplate.description || "", includes: editTemplate.includes || "" } : { name: "", serviceType: "Wedding", price: "", description: "", includes: "" };
-  var _s = useState(init);
-  var form = _s[0], setForm = _s[1];
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
-
-  return (
-    <ModalWrap onClose={onClose} title={editTemplate ? "Edit Template" : "New Template"} footer={<>
-      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-      <Btn onClick={function() {
-        if (!form.name.trim()) return;
-        onSave(Object.assign({}, form, { id: editTemplate ? editTemplate.id : Date.now(), price: Number(form.price) || 0, active: true, createdAt: today() }));
-        onClose();
-      }}>{editTemplate ? "Save Changes" : "Create Template"}</Btn>
-    </>}>
-      <input placeholder="Package Name (e.g. The Signature Lounge)" value={form.name} onChange={function(e) { set("name", e.target.value); }} style={inputStyle} />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div>
-          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Service type</div>
-          <select value={form.serviceType} onChange={function(e) { set("serviceType", e.target.value); }} style={selectStyle}>
-            <option value="Wedding">Wedding</option>
-            <option value="Family Portrait">Family Portrait</option>
-            <option value="Corporate Headshots">Corporate Headshots</option>
-            <option value="Personal Branding">Personal Branding</option>
-            <option value="Event Coverage">Event Coverage</option>
-          </select>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Price</div>
-          <input type="number" placeholder="Price" value={form.price} onChange={function(e) { set("price", e.target.value); }} style={inputStyle} />
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Description</div>
-        <input placeholder="Short description" value={form.description} onChange={function(e) { set("description", e.target.value); }} style={inputStyle} />
-      </div>
-      <div>
-        <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>What{"'"}s included (one item per line)</div>
-        <textarea placeholder={"Up to 2 hours of coverage\nUp to 40 guests\nRetouched images\nPrivate gallery"} value={form.includes.replace(/\|/g, "\n")} onChange={function(e) { set("includes", e.target.value.replace(/\n/g, "|")); }} style={Object.assign({}, inputStyle, { minHeight: 120 })} />
-      </div>
-    </ModalWrap>
-  );
-}
-
-function CreateContractModal({ onClose, onSave, proposal }) {
-  var _s = useState({ sessionDate: "", sessionLocation: "", retainerPercent: "50", signerName: "" });
-  var form = _s[0], setForm = _s[1];
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
-  var retainer = Math.round(Number(proposal.total) * (Number(form.retainerPercent) / 100));
-
-  return (
-    <ModalWrap onClose={onClose} title="Create Contract" footer={<>
-      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-      <Btn variant="success" onClick={function() {
-        onSave({
-          id: Date.now(), clientName: proposal.clientName, clientEmail: proposal.clientEmail,
-          serviceType: proposal.serviceType, sessionDate: form.sessionDate,
-          sessionLocation: form.sessionLocation, totalAmount: Number(proposal.total),
-          retainerAmount: retainer, status: "Draft", signerName: form.signerName, createdAt: today(),
-        });
-        onClose();
-      }}>Create Contract</Btn>
-    </>}>
-      <div style={{ background: G.surface, borderRadius: 8, padding: 14 }}>
-        <div style={{ fontSize: 12, color: G.textMuted }}>From proposal</div>
-        <div style={{ color: G.text, fontWeight: 600, marginTop: 4 }}>{proposal.clientName} {"\u2014"} {proposal.package}</div>
-        <div style={{ color: G.gold, fontWeight: 600, marginTop: 2 }}>{fmt$(proposal.total)}</div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Session date</div><input type="date" value={form.sessionDate} onChange={function(e) { set("sessionDate", e.target.value); }} style={inputStyle} /></div>
-        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Location</div><input placeholder="Location" value={form.sessionLocation} onChange={function(e) { set("sessionLocation", e.target.value); }} style={inputStyle} /></div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Retainer %</div><input type="number" value={form.retainerPercent} onChange={function(e) { set("retainerPercent", e.target.value); }} style={inputStyle} /></div>
-        <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Retainer amount</div><div style={{ padding: "10px 12px", color: G.gold, fontWeight: 600 }}>{fmt$(retainer)}</div></div>
-      </div>
-      <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Signer name</div><input placeholder="Signer name" value={form.signerName} onChange={function(e) { set("signerName", e.target.value); }} style={inputStyle} /></div>
-    </ModalWrap>
-  );
-}
-
-function CreateInvoiceModal({ onClose, onSave, contract, invoiceCount }) {
-  var num = "NSP-" + new Date().getFullYear() + "-" + String(invoiceCount + 1).padStart(3, "0");
-  var _s = useState({ type: "retainer", dueDate: "", customAmount: "", customDesc: "" });
-  var form = _s[0], setForm = _s[1];
-  var set = function(k, v) { setForm(function(f) { return Object.assign({}, f, { [k]: v }); }); };
-  var amount = form.type === "retainer" ? contract.retainerAmount : form.type === "balance" ? (contract.totalAmount - contract.retainerAmount) : Number(form.customAmount) || 0;
-  var desc = form.type === "retainer" ? "Retainer \u2014 " + Math.round((contract.retainerAmount / contract.totalAmount) * 100) + "% of " + contract.serviceType : form.type === "balance" ? "Balance \u2014 " + contract.serviceType : form.customDesc;
-
-  return (
-    <ModalWrap onClose={onClose} title="Create Invoice" footer={<>
-      <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-      <Btn variant="success" onClick={function() {
-        onSave({
-          id: Date.now(), invoiceNumber: num, clientName: contract.clientName,
-          serviceType: contract.serviceType, description: desc, amount: amount,
-          status: "Pending", dueDate: form.dueDate, createdAt: today(),
-        });
-        onClose();
-      }}>Create Invoice</Btn>
-    </>}>
-      <div style={{ background: G.surface, borderRadius: 8, padding: 14 }}>
-        <div style={{ fontSize: 12, color: G.textMuted }}>From contract</div>
-        <div style={{ color: G.text, fontWeight: 600, marginTop: 4 }}>{contract.clientName} {"\u2014"} {contract.serviceType}</div>
-        <div style={{ color: G.gold, fontWeight: 600, marginTop: 2 }}>Total: {fmt$(contract.totalAmount)} {"\u00B7"} Retainer: {fmt$(contract.retainerAmount)}</div>
-      </div>
-      <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Invoice #{num}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        {[["retainer", "Retainer"], ["balance", "Balance"], ["custom", "Custom"]].map(function(t) {
-          return <button key={t[0]} onClick={function() { set("type", t[0]); }} style={{ padding: "10px", borderRadius: 6, border: "1px solid " + (form.type === t[0] ? G.gold : G.border), background: form.type === t[0] ? G.goldDim + "33" : G.surface, color: form.type === t[0] ? G.gold : G.textMuted, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>{t[1]}</button>;
-        })}
-      </div>
-      {form.type === "custom" && <>
-        <input type="number" placeholder="Amount" value={form.customAmount} onChange={function(e) { set("customAmount", e.target.value); }} style={inputStyle} />
-        <input placeholder="Description" value={form.customDesc} onChange={function(e) { set("customDesc", e.target.value); }} style={inputStyle} />
-      </>}
-      <div style={{ fontSize: 14, color: G.gold, fontWeight: 600 }}>Amount: {fmt$(amount)}</div>
-      <div><div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Due date</div><input type="date" value={form.dueDate} onChange={function(e) { set("dueDate", e.target.value); }} style={inputStyle} /></div>
-    </ModalWrap>
-  );
-}
-
-/* ====== PAGE VIEWS ====== */
-
-function LeadsView({ leads, setLeads, onSendProposal }) {
-  var _s = useState(""), search = _s[0], setSearch = _s[1];
-  var _a = useState(false), adding = _a[0], setAdding = _a[1];
-
-  var visible = useMemo(function() {
-    var q = search.toLowerCase();
-    return leads.filter(function(l) { return !q || l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.type.toLowerCase().includes(q); });
-  }, [leads, search]);
-
-  var booked = leads.filter(function(l) { return l.status === "Booked"; });
-  var pipeline = leads.filter(function(l) { return l.status !== "Lost"; });
-  var pipelineVal = pipeline.reduce(function(a, l) { return a + Number(l.budget || 0); }, 0);
-  var bookedVal = booked.reduce(function(a, l) { return a + Number(l.budget || 0); }, 0);
-  var convRate = leads.length ? Math.round((booked.length / leads.length) * 100) : 0;
-
-  var handleSave = async function(lead) {
-    var saved = await sbInsert("leads", lead);
-    if (saved) setLeads(function(prev) { return prev.concat([saved]); });
-    else setLeads(function(prev) { return [lead].concat(prev); });
-  };
-
-  return (
-    <>
-      <SectionTitle title="Lead Pipeline" subtitle={leads.length + " inquiries \u00B7 " + booked.length + " booked \u00B7 " + convRate + "% conversion"} actions={<Btn onClick={function() { setAdding(true); }}>+ New Inquiry</Btn>} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label="Total Leads" value={leads.length} sub="All time" />
-        <StatCard label="Pipeline Value" value={fmt$(pipelineVal)} sub="Excl. lost" accent={G.gold} />
-        <StatCard label="Booked Revenue" value={fmt$(bookedVal)} sub="Confirmed" accent={G.green} />
-        <StatCard label="Conversion Rate" value={convRate + "%"} sub="Inquiry \u2192 Booked" accent={G.amber} />
-      </div>
-      <input value={search} onChange={function(e) { setSearch(e.target.value); }} placeholder="Search by name, email, type..." style={Object.assign({ width: "100%", marginBottom: 18 }, inputStyle)} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0,1fr))", gap: 14 }}>
-        {["New", "Contacted", "Proposal Sent", "Booked", "Lost"].map(function(status) {
-          var items = visible.filter(function(l) { return l.status === status; });
-          var total = items.reduce(function(a, l) { return a + Number(l.budget || 0); }, 0);
-          var meta = STATUS_META[status];
-          return (
-            <div key={status}>
-              <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "2px solid " + meta.color + "55" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ color: meta.color, fontWeight: 700, fontSize: 12, letterSpacing: ".08em", textTransform: "uppercase" }}>{status}</div>
-                  <Badge status={status} />
-                </div>
-                <div style={{ color: G.textDim, fontSize: 11, marginTop: 5 }}>{fmt$(total)}</div>
-              </div>
-              <div style={{ display: "grid", gap: 8 }}>
-                {items.map(function(lead) {
-                  return (
-                    <div key={lead.id} style={{ background: G.card, border: "1px solid " + G.border, borderLeft: "3px solid " + meta.color, borderRadius: 8, padding: 12 }}>
-                      <div style={{ color: G.text, fontWeight: 600, fontSize: 14 }}>{lead.name}</div>
-                      <div style={{ color: G.textMuted, fontSize: 12 }}>{lead.type}</div>
-                      <div style={{ color: G.gold, marginTop: 8, fontWeight: 600 }}>{fmt$(lead.budget)}</div>
-                      <div style={{ color: G.textDim, fontSize: 11 }}>{fmtDate(lead.eventDate)}</div>
-                      {(status === "New" || status === "Contacted") && (
-                        <button onClick={function() { onSendProposal(lead); }} style={{ marginTop: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, borderRadius: 4, border: "1px solid " + G.purple, background: G.purpleBg, color: G.purple, cursor: "pointer" }}>
-                          Send Proposal {"\u2192"}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-                {items.length === 0 && <div style={{ border: "1px dashed " + G.border, borderRadius: 8, padding: 18, textAlign: "center", color: G.textDim, fontSize: 12 }}>No leads</div>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {adding && <AddLeadModal onClose={function() { setAdding(false); }} onSave={handleSave} />}
-    </>
-  );
-}
-
-function ProposalsView({ proposals, setProposals, templates, setTemplates, onCreateContract }) {
-  var _a = useState(false), adding = _a[0], setAdding = _a[1];
-  var _t = useState(false), showTemplates = _t[0], setShowTemplates = _t[1];
-  var _e = useState(null), editTpl = _e[0], setEditTpl = _e[1];
-
-  var total = proposals.reduce(function(a, p) { return a + Number(p.total || 0); }, 0);
-  var accepted = proposals.filter(function(p) { return p.status === "Accepted"; }).reduce(function(a, p) { return a + Number(p.total || 0); }, 0);
-  var accCount = proposals.filter(function(p) { return p.status === "Accepted"; }).length;
-  var rate = proposals.length ? Math.round((accCount / proposals.length) * 100) : 0;
-
-  var handleSave = async function(proposal) {
-    var saved = await sbInsert("proposals", proposal);
-    if (saved) setProposals(function(prev) { return prev.concat([saved]); });
-    else setProposals(function(prev) { return [proposal].concat(prev); });
-  };
-
-  var handleSaveTemplate = async function(tpl) {
-    if (editTpl) {
-      var ok = await sbUpdate("package_templates", tpl.id, tpl);
-      if (ok) setTemplates(function(prev) { return prev.map(function(t) { return t.id === tpl.id ? tpl : t; }); });
-    } else {
-      var saved = await sbInsert("package_templates", tpl);
-      if (saved) setTemplates(function(prev) { return prev.concat([saved]); });
-      else setTemplates(function(prev) { return [tpl].concat(prev); });
-    }
-    setEditTpl(null);
-  };
-
-  var handleDeleteTemplate = async function(id) {
-    var ok = await sbDelete("package_templates", id);
-    if (ok) setTemplates(function(prev) { return prev.filter(function(t) { return t.id !== id; }); });
-  };
-
-  return (
-    <>
-      <SectionTitle title="Proposals" subtitle={proposals.length + " proposals"} actions={
-        <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="outline" onClick={function() { setShowTemplates(!showTemplates); }}>{showTemplates ? "Hide Templates" : "Manage Templates"}</Btn>
-          <Btn onClick={function() { setAdding(true); }}>+ New Proposal</Btn>
-        </div>
-      } />
-
-      {showTemplates && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h3 style={{ color: G.goldLight, fontFamily: "Georgia, serif", fontWeight: 400, margin: 0 }}>Package Templates</h3>
-            <Btn small onClick={function() { setEditTpl(null); setShowTemplates("adding"); }}>+ Add Template</Btn>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-            {templates.map(function(t) {
-              var includes = t.includes ? t.includes.split("|") : [];
-              return (
-                <div key={t.id} style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <div style={{ color: G.text, fontWeight: 600, fontSize: 14 }}>{t.name}</div>
-                      <div style={{ color: G.textMuted, fontSize: 11, marginTop: 2 }}>{t.serviceType}</div>
-                    </div>
-                    <div style={{ color: G.gold, fontWeight: 600, fontSize: 16 }}>{fmt$(t.price)}</div>
-                  </div>
-                  {t.description && <div style={{ color: G.textDim, fontSize: 12, marginTop: 8 }}>{t.description}</div>}
-                  {includes.length > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      {includes.map(function(item, i) { return <div key={i} style={{ fontSize: 11, color: G.textDim, marginTop: 2 }}>{"\u2022 " + item}</div>; })}
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-                    <Btn small variant="outline" onClick={function() { setEditTpl(t); setShowTemplates("adding"); }}>Edit</Btn>
-                    <Btn small variant="danger" onClick={function() { handleDeleteTemplate(t.id); }}>Delete</Btn>
-                  </div>
-                </div>
-              );
-            })}
-            {templates.length === 0 && <div style={{ color: G.textDim, fontSize: 12, padding: 16 }}>No templates yet. Click + Add Template to create your first one.</div>}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, marginBottom: 24 }}>
-        <StatCard label="Total Proposed" value={fmt$(total)} sub="All proposals" />
-        <StatCard label="Accepted Value" value={fmt$(accepted)} sub="Accepted" accent={G.green} />
-        <StatCard label="Acceptance Rate" value={rate + "%"} sub="Overall" accent={G.gold} />
-      </div>
-      <ListCards items={proposals.map(function(p) {
-        return {
-          title: p.clientName, sub: p.serviceType + " \u00B7 " + p.package, right: fmt$(p.total), badge: p.status,
-          actions: p.status === "Accepted" ? <Btn small variant="success" onClick={function() { onCreateContract(p); }}>Create Contract {"\u2192"}</Btn> : null,
-        };
-      })} />
-      {adding && <AddProposalModal onClose={function() { setAdding(false); }} onSave={handleSave} templates={templates} />}
-      {showTemplates === "adding" && <AddTemplateModal onClose={function() { setShowTemplates(true); }} onSave={handleSaveTemplate} editTemplate={editTpl} />}
-    </>
-  );
-}
-
-function ContractsView({ contracts, setContracts, onCreateInvoice }) {
-  return (
-    <>
-      <SectionTitle title="Contracts" subtitle={contracts.length + " contracts"} />
-      <ListCards items={contracts.map(function(c) {
-        return {
-          title: c.clientName, sub: c.serviceType + " \u00B7 " + fmtDate(c.sessionDate) + " \u00B7 " + c.sessionLocation, right: fmt$(c.totalAmount), badge: c.status,
-          actions: c.status === "Signed" ? <Btn small variant="success" onClick={function() { onCreateInvoice(c); }}>Send Invoice {"\u2192"}</Btn> : null,
-        };
-      })} />
-    </>
-  );
-}
-
-function InvoicesView({ invoices }) {
-  return (
-    <>
-      <SectionTitle title="Invoicing" subtitle={invoices.length + " invoices"} />
-      <ListCards items={invoices.map(function(i) { return { title: i.invoiceNumber + " \u00B7 " + i.clientName, sub: i.description + " \u00B7 Due " + fmtDate(i.dueDate), right: fmt$(i.amount), badge: i.status }; })} />
-    </>
-  );
-}
-
-function ScheduleView({ sessions }) {
-  return (
-    <>
-      <SectionTitle title="Schedule" subtitle={sessions.length + " sessions"} />
-      <ListCards items={sessions.map(function(s) { return { title: s.client, sub: s.serviceType + " \u00B7 " + fmtDate(s.date) + " \u00B7 " + s.time + " \u00B7 " + s.location, right: "", badge: s.status }; })} />
-    </>
-  );
-}
-
-function ContactsView({ leads, promos }) {
-  var contacts = leads.map(function(l) { return { name: l.name, email: l.email, type: l.type, source: l.source, status: l.status }; });
-  return (
-    <>
-      <SectionTitle title="Contacts & Marketing" subtitle={contacts.length + " contacts \u00B7 " + promos.filter(function(p) { return p.active; }).length + " active promos"} />
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18 }}>
-        <div>
-          <h3 style={{ color: G.goldLight, marginBottom: 12, fontFamily: "Georgia, serif", fontWeight: 400 }}>Contacts</h3>
-          <ListCards items={contacts.map(function(c) { return { title: c.name, sub: c.email + " \u00B7 " + c.type + " \u00B7 " + c.source, right: "", badge: c.status }; })} />
-        </div>
-        <div>
-          <h3 style={{ color: G.goldLight, marginBottom: 12, fontFamily: "Georgia, serif", fontWeight: 400 }}>Promos</h3>
-          <ListCards items={promos.map(function(p) { return { title: p.name + " \u00B7 " + p.code, sub: (p.type === "percent" ? p.discount + "%" : fmt$(p.discount)) + " off \u00B7 " + fmtDate(p.validFrom) + " \u2014 " + fmtDate(p.validTo), right: "Used " + p.timesUsed + "\u00D7", badge: p.active ? "Active" : "Inactive" }; })} badgeMap={{ Active: { color: G.green, bg: G.greenBg }, Inactive: { color: G.textMuted, bg: G.surface } }} />
-        </div>
-      </div>
-    </>
-  );
-}
-
-function DocumentsView({ contracts, proposals }) {
-  var docs = contracts.filter(function(c) { return c.status === "Signed"; }).map(function(c) { return { title: c.clientName + " Contract", sub: c.serviceType + " \u00B7 Signed by " + (c.signerName || "\u2014"), right: fmtDate(c.createdAt), badge: "Signed" }; })
-    .concat(proposals.filter(function(p) { return p.status === "Accepted"; }).map(function(p) { return { title: p.clientName + " Proposal", sub: p.serviceType, right: fmtDate(p.createdAt), badge: "Accepted" }; }));
-  return (
-    <>
-      <SectionTitle title="Documents" subtitle={docs.length + " signed files"} />
-      <ListCards items={docs} />
-    </>
-  );
-}
-
-/* ====== REPORTS ====== */
-
-function exportToCSV(leads, invoices, proposals, contracts) {
-  var rows = [["NSP BUSINESS SUITE \u2014 REPORT EXPORT"], ["Generated: " + new Date().toLocaleDateString()], [],
-    ["=== INVOICES ==="], ["Invoice #", "Client", "Service", "Description", "Amount", "Status", "Due Date", "Paid Date"]];
-  invoices.forEach(function(i) { rows.push([i.invoiceNumber, i.clientName, i.serviceType, i.description, i.amount, i.status, i.dueDate || "", i.paidDate || ""]); });
-  rows.push([], ["=== LEADS ==="], ["Name", "Email", "Type", "Budget", "Status", "Source", "Event Date"]);
-  leads.forEach(function(l) { rows.push([l.name, l.email, l.type, l.budget, l.status, l.source, l.eventDate || ""]); });
-  rows.push([], ["=== PROPOSALS ==="], ["Client", "Service", "Package", "Total", "Status", "Created"]);
-  proposals.forEach(function(p) { rows.push([p.clientName, p.serviceType, p.package, p.total, p.status, p.createdAt || ""]); });
-  rows.push([], ["=== CONTRACTS ==="], ["Client", "Service", "Total", "Retainer", "Status", "Session Date", "Signer"]);
-  contracts.forEach(function(c) { rows.push([c.clientName, c.serviceType, c.totalAmount, c.retainerAmount, c.status, c.sessionDate || "", c.signerName || ""]); });
-  var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
-  var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement("a"); a.href = url; a.download = "NSP_Report_" + today() + ".csv"; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function MiniBar({ data, color, labels }) {
-  var max = Math.max.apply(null, data.concat([1]));
-  return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120 }}>
-      {data.map(function(v, i) {
-        return (
-          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <div style={{ fontSize: 10, color: G.textMuted }}>{v > 0 ? fmt$(v) : ""}</div>
-            <div style={{ width: "100%", background: color, borderRadius: 3, height: Math.max(max ? (v / max) * 80 : 0, 2), transition: "height .3s" }} />
-            <div style={{ fontSize: 9, color: G.textDim }}>{labels && labels[i] ? labels[i] : ""}</div>
-          </div>
-        );
-      })}
+      ))}
     </div>
   );
 }
 
-function ReportsView({ leads, invoices, proposals, contracts }) {
-  var _r = useState("all"), range = _r[0], setRange = _r[1];
-  var now = new Date();
-
-  var filterByRange = useCallback(function(dateStr) {
-    if (range === "all" || !dateStr) return true;
-    var d = new Date(dateStr + "T12:00:00");
-    if (range === "month") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    if (range === "quarter") return Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) && d.getFullYear() === now.getFullYear();
-    if (range === "year") return d.getFullYear() === now.getFullYear();
-    return true;
-  }, [range]);
-
-  var filteredInvoices = invoices.filter(function(i) { return filterByRange(i.dueDate || i.paidDate); });
-  var filteredLeads = leads.filter(function(l) { return filterByRange(l.createdAt); });
-  var revenue = filteredInvoices.filter(function(i) { return i.status === "Paid"; }).reduce(function(a, i) { return a + Number(i.amount || 0); }, 0);
-  var receivables = filteredInvoices.filter(function(i) { return i.status === "Pending"; }).reduce(function(a, i) { return a + Number(i.amount || 0); }, 0);
-  var overdue = filteredInvoices.filter(function(i) { return i.status === "Overdue"; }).reduce(function(a, i) { return a + Number(i.amount || 0); }, 0);
-  var pipelineVal = filteredLeads.filter(function(l) { return l.status !== "Lost"; }).reduce(function(a, l) { return a + Number(l.budget || 0); }, 0);
-
-  var monthlyData = useMemo(function() {
-    var months = [], mLabels = [];
-    for (var i = 5; i >= 0; i--) {
-      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      mLabels.push(d.toLocaleDateString("en-US", { month: "short" }));
-      months.push(invoices.filter(function(inv) { return inv.status === "Paid" && inv.paidDate; }).filter(function(inv) {
-        var pd = new Date(inv.paidDate + "T12:00:00"); return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
-      }).reduce(function(a, inv) { return a + Number(inv.amount || 0); }, 0));
-    }
-    return { months: months, labels: mLabels };
-  }, [invoices]);
-
-  var aging = useMemo(function() {
-    var b = { "0-30": 0, "31-60": 0, "60+": 0 };
-    invoices.filter(function(i) { return i.status === "Pending" || i.status === "Overdue"; }).forEach(function(i) {
-      if (!i.dueDate) return; var diff = Math.floor((now - new Date(i.dueDate + "T12:00:00")) / 86400000);
-      if (diff <= 30) b["0-30"] += Number(i.amount || 0); else if (diff <= 60) b["31-60"] += Number(i.amount || 0); else b["60+"] += Number(i.amount || 0);
-    }); return b;
-  }, [invoices]);
-
-  var byType = useMemo(function() {
-    var t = {}; invoices.filter(function(i) { return i.status === "Paid"; }).forEach(function(i) { var k = i.serviceType || "Other"; t[k] = (t[k] || 0) + Number(i.amount || 0); }); return t;
-  }, [invoices]);
-
-  var pipelineItems = filteredLeads.filter(function(l) { return l.status !== "Lost"; }).sort(function(a, b) { return Number(b.budget || 0) - Number(a.budget || 0); });
-  var rangeButtons = [{ key: "month", label: "This month" }, { key: "quarter", label: "This quarter" }, { key: "year", label: "This year" }, { key: "all", label: "All time" }];
-  var typeColors = [G.green, G.blue, G.amber, G.purple, G.red];
-
+function InfoRow({ label, value, accent }) {
   return (
-    <>
-      <SectionTitle title="Reports" subtitle="Revenue & analytics" actions={<Btn variant="outline" onClick={function() { exportToCSV(leads, invoices, proposals, contracts); }}>{"\u2193 Export CSV"}</Btn>} />
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        {rangeButtons.map(function(r) { return <button key={r.key} onClick={function() { setRange(r.key); }} style={{ padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (range === r.key ? G.gold : G.border), background: range === r.key ? G.goldDim + "33" : "transparent", color: range === r.key ? G.gold : G.textMuted }}>{r.label}</button>; })}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 14, marginBottom: 32 }}>
-        <StatCard label="Collected Revenue" value={fmt$(revenue)} sub="Paid invoices" accent={G.green} />
-        <StatCard label="Receivables" value={fmt$(receivables)} sub="Pending invoices" accent={G.amber} />
-        <StatCard label="Overdue" value={fmt$(overdue)} sub="Past due" accent={G.red} />
-        <StatCard label="Pipeline Value" value={fmt$(pipelineVal)} sub="Open opportunities" accent={G.gold} />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18, marginBottom: 32 }}>
-        <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "18px 20px" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: 16 }}>Revenue over time</div>
-          <MiniBar data={monthlyData.months} color={G.green} labels={monthlyData.labels} />
-        </div>
-        <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "18px 20px" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: 16 }}>Receivables aging</div>
-          <div style={{ display: "grid", gap: 10 }}>
-            {Object.entries(aging).map(function(e) {
-              var bucket = e[0], val = e[1], barColor = bucket === "0-30" ? G.green : bucket === "31-60" ? G.amber : G.red;
-              var agingMax = Math.max.apply(null, Object.values(aging).concat([1]));
-              return (
-                <div key={bucket}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: G.textMuted }}>{bucket} days</span>
-                    <span style={{ fontSize: 12, color: barColor, fontWeight: 600 }}>{fmt$(val)}</span>
-                  </div>
-                  <div style={{ height: 8, background: G.surface, borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: (agingMax ? (val / agingMax) * 100 : 0) + "%", background: barColor, borderRadius: 4, transition: "width .3s" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      {Object.keys(byType).length > 0 && (
-        <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, padding: "18px 20px", marginBottom: 32 }}>
-          <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700, marginBottom: 16 }}>Revenue by service type</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {Object.entries(byType).map(function(e, i) {
-              var totalRev = Object.values(byType).reduce(function(a, b) { return a + b; }, 0);
-              return (
-                <div key={e[0]} style={{ display: "flex", alignItems: "center", gap: 8, background: G.surface, borderRadius: 6, padding: "8px 14px" }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: typeColors[i % typeColors.length] }} />
-                  <span style={{ fontSize: 13, color: G.text }}>{e[0]}</span>
-                  <span style={{ fontSize: 13, color: typeColors[i % typeColors.length], fontWeight: 600 }}>{fmt$(e[1])}</span>
-                  <span style={{ fontSize: 11, color: G.textDim }}>({totalRev ? Math.round((e[1] / totalRev) * 100) : 0}%)</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      <div style={{ background: G.card, border: "1px solid " + G.border, borderRadius: 8, overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: "1px solid " + G.border }}>
-          <div style={{ fontSize: 10, letterSpacing: ".12em", color: G.textMuted, textTransform: "uppercase", fontWeight: 700 }}>Pipeline breakdown</div>
-        </div>
-        {pipelineItems.length === 0 ? <div style={{ padding: 24, textAlign: "center", color: G.textDim }}>No open opportunities</div> : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr style={{ borderBottom: "1px solid " + G.border }}>
-              {["Client", "Type", "Value", "Stage", "Event Date"].map(function(h) { return <th key={h} style={{ textAlign: h === "Value" ? "right" : "left", padding: "10px 16px", fontSize: 10, color: G.textDim, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>{h}</th>; })}
-            </tr></thead>
-            <tbody>{pipelineItems.map(function(l) {
-              return (<tr key={l.id} style={{ borderBottom: "1px solid " + G.border }}>
-                <td style={{ padding: "12px 16px", fontSize: 13, color: G.text, fontWeight: 600 }}>{l.name}</td>
-                <td style={{ padding: "12px 16px", fontSize: 12, color: G.textMuted }}>{l.type}</td>
-                <td style={{ padding: "12px 16px", fontSize: 13, color: G.gold, fontWeight: 600, textAlign: "right" }}>{fmt$(l.budget)}</td>
-                <td style={{ padding: "12px 16px" }}><Badge status={l.status} /></td>
-                <td style={{ padding: "12px 16px", fontSize: 12, color: G.textMuted }}>{fmtDate(l.eventDate)}</td>
-              </tr>);
-            })}</tbody>
-          </table>
-        )}
-      </div>
-    </>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "9px 0",
+        borderBottom: `1px solid ${G.border}33`,
+      }}
+    >
+      <span style={{ color: G.textMuted, fontSize: 12, fontWeight: 600 }}>
+        {label}
+      </span>
+      <span
+        style={{
+          color: accent || G.text,
+          fontSize: 13,
+          fontWeight: 500,
+          textAlign: "right",
+          maxWidth: "60%",
+        }}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 
-/* ====== SIDEBAR ====== */
+function OverviewTab({ lead, setLead, quotes }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ ...lead });
 
-function Sidebar({ page, setPage }) {
-  var items = [["leads", "Leads", "Pipeline & inquiries"], ["proposals", "Proposals", "Quotes & packages"], ["contracts", "Contracts", "E-sign agreements"], ["invoicing", "Invoicing", "Payments & billing"], ["schedule", "Schedule", "Calendar & sessions"], ["reports", "Reports", "Revenue & analytics"], ["contacts", "Contacts", "Import/Export & promos"], ["documents", "Documents", "Signed files"]];
-  return (
-    <aside style={{ width: 250, background: G.sidebar, borderRight: "1px solid " + G.border, padding: "18px 0", minHeight: "100vh" }}>
-      <div style={{ padding: "0 18px 18px", borderBottom: "1px solid " + G.border }}>
-        <div style={{ color: G.gold, fontSize: 10, letterSpacing: ".3em", marginBottom: 8 }}>NICO SALGADO PHOTOGRAPHY</div>
-        <div style={{ color: G.goldLight, fontSize: 38, fontFamily: "Georgia, serif", lineHeight: 1 }}>Business Suite</div>
-      </div>
-      <div style={{ padding: 12, display: "grid", gap: 8 }}>
-        {items.map(function(item) {
-          var key = item[0], label = item[1], sub = item[2], active = page === key;
-          return (<button key={key} onClick={function() { setPage(key); }} style={{ textAlign: "left", padding: "14px 16px", borderRadius: 8, border: "1px solid " + (active ? G.goldDim : "transparent"), background: active ? "#1a1408" : "transparent", color: active ? G.gold : G.textMuted, cursor: "pointer" }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>{label}</div>
-            <div style={{ fontSize: 11, color: active ? G.goldDim : G.textDim, marginTop: 2 }}>{sub}</div>
-          </button>);
-        })}
-      </div>
-      {supabase && <div style={{ padding: "12px 18px", marginTop: 8 }}><div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: G.green }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: G.green }} />Database connected</div></div>}
-    </aside>
-  );
-}
-
-/* ====== MAIN APP ====== */
-
-export default function NSPBusinessSuite() {
-  var _p = useState("leads"), page = _p[0], setPage = _p[1];
-  var _l = useState(SEED_LEADS), leads = _l[0], setLeads = _l[1];
-  var _pr = useState(SEED_PROPOSALS), proposals = _pr[0], setProposals = _pr[1];
-  var _c = useState(SEED_CONTRACTS), contracts = _c[0], setContracts = _c[1];
-  var _i = useState(SEED_INVOICES), invoices = _i[0], setInvoices = _i[1];
-  var _s = useState(SEED_SESSIONS), sessions = _s[0], setSessions = _s[1];
-  var _pm = useState(SEED_PROMOS), promos = _pm[0], setPromos = _pm[1];
-  var _t = useState([]), templates = _t[0], setTemplates = _t[1];
-  var _ld = useState(false), loaded = _ld[0], setLoaded = _ld[1];
-
-  /* Flow modals */
-  var _fp = useState(null), flowProposal = _fp[0], setFlowProposal = _fp[1];
-  var _fc = useState(null), flowContract = _fc[0], setFlowContract = _fc[1];
-  var _fi = useState(null), flowInvoice = _fi[0], setFlowInvoice = _fi[1];
-
-  useEffect(function() {
-    async function loadAll() {
-      if (!supabase) { setLoaded(true); return; }
-      try {
-        var r = await Promise.all([sbFetch("leads"), sbFetch("proposals"), sbFetch("contracts"), sbFetch("invoices"), sbFetch("sessions"), sbFetch("promos"), sbFetch("package_templates")]);
-        if (r[0] && r[0].length) setLeads(r[0]);
-        if (r[1] && r[1].length) setProposals(r[1]);
-        if (r[2] && r[2].length) setContracts(r[2]);
-        if (r[3] && r[3].length) setInvoices(r[3]);
-        if (r[4] && r[4].length) setSessions(r[4]);
-        if (r[5] && r[5].length) setPromos(r[5]);
-        if (r[6]) setTemplates(r[6]);
-      } catch (e) { console.error("Failed loading:", e); }
-      setLoaded(true);
-    }
-    loadAll();
-  }, []);
-
-  /* Flow handlers */
-  var handleSendProposal = function(lead) { setFlowProposal(lead); setPage("proposals"); };
-
-  var handleCreateContract = function(proposal) { setFlowContract(proposal); setPage("contracts"); };
-
-  var handleSaveFlowContract = async function(contract) {
-    var saved = await sbInsert("contracts", contract);
-    if (saved) setContracts(function(prev) { return prev.concat([saved]); });
-    else setContracts(function(prev) { return [contract].concat(prev); });
-    setFlowContract(null);
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const save = () => {
+    setLead(form);
+    setEditing(false);
   };
 
-  var handleCreateInvoice = function(contract) { setFlowInvoice(contract); setPage("invoicing"); };
+  const openQuoteCount = quotes.filter((q) => q.status !== "Declined").length;
+  const latestQuote = quotes[0];
 
-  var handleSaveFlowInvoice = async function(invoice) {
-    var saved = await sbInsert("invoices", invoice);
-    if (saved) setInvoices(function(prev) { return prev.concat([saved]); });
-    else setInvoices(function(prev) { return [invoice].concat(prev); });
-    setFlowInvoice(null);
-  };
-
-  var handleSaveFlowProposal = async function(proposal) {
-    var saved = await sbInsert("proposals", proposal);
-    if (saved) setProposals(function(prev) { return prev.concat([saved]); });
-    else setProposals(function(prev) { return [proposal].concat(prev); });
-    setFlowProposal(null);
-  };
-
-  var content = null;
-  switch (page) {
-    case "leads": content = <LeadsView leads={leads} setLeads={setLeads} onSendProposal={handleSendProposal} />; break;
-    case "proposals": content = <ProposalsView proposals={proposals} setProposals={setProposals} templates={templates} setTemplates={setTemplates} onCreateContract={handleCreateContract} />; break;
-    case "contracts": content = <ContractsView contracts={contracts} setContracts={setContracts} onCreateInvoice={handleCreateInvoice} />; break;
-    case "invoicing": content = <InvoicesView invoices={invoices} />; break;
-    case "schedule": content = <ScheduleView sessions={sessions} />; break;
-    case "reports": content = <ReportsView leads={leads} invoices={invoices} proposals={proposals} contracts={contracts} />; break;
-    case "contacts": content = <ContactsView leads={leads} promos={promos} />; break;
-    case "documents": content = <DocumentsView contracts={contracts} proposals={proposals} />; break;
-    default: content = <LeadsView leads={leads} setLeads={setLeads} onSendProposal={handleSendProposal} />;
+  if (editing) {
+    return (
+      <Card>
+        <SectionLabel>Edit Lead Details</SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <InputField
+            label="Name"
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+            required
+          />
+          <InputField
+            label="Email"
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+            required
+          />
+          <InputField
+            label="Phone"
+            value={form.phone}
+            onChange={(e) => set("phone", e.target.value)}
+          />
+          <InputField
+            label="Type"
+            value={form.type}
+            onChange={(e) => set("type", e.target.value)}
+          />
+          <InputField
+            label="Event Date"
+            value={form.eventDate}
+            onChange={(e) => set("eventDate", e.target.value)}
+            type="date"
+          />
+          <InputField
+            label="Location"
+            value={form.location}
+            onChange={(e) => set("location", e.target.value)}
+          />
+          <InputField
+            label="Referral Source"
+            value={form.referralSource}
+            onChange={(e) => set("referralSource", e.target.value)}
+          />
+          <div style={{ marginBottom: 14 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                color: G.text,
+                marginBottom: 5,
+              }}
+            >
+              Stage
+            </label>
+            <select
+              value={form.stage}
+              onChange={(e) => set("stage", e.target.value)}
+              style={{
+                width: "100%",
+                background: G.surface,
+                color: G.text,
+                border: `1px solid ${G.border}`,
+                borderRadius: 6,
+                padding: "9px 12px",
+                fontSize: 13,
+              }}
+            >
+              {STAGES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.key}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <InputField
+          label="Lead Notes"
+          value={form.notes || ""}
+          onChange={(e) => set("notes", e.target.value)}
+          multiline
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "flex-end" }}>
+          <Btn
+            variant="ghost"
+            small
+            onClick={() => {
+              setForm({ ...lead });
+              setEditing(false);
+            }}
+          >
+            Cancel
+          </Btn>
+          <Btn small onClick={save}>
+            Save Changes
+          </Btn>
+        </div>
+      </Card>
+    );
   }
 
   return (
-    <div style={{ background: G.bg, color: G.text, minHeight: "100vh", display: "flex" }}>
-      <Sidebar page={page} setPage={setPage} />
-      <main style={{ flex: 1, padding: 28 }}>
-        {!loaded && <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 20, color: G.textMuted }}><div style={{ width: 16, height: 16, border: "2px solid " + G.gold, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />Loading...<style>{"@keyframes spin { to { transform: rotate(360deg) } }"}</style></div>}
-        {loaded && content}
-      </main>
-      {flowProposal && <AddProposalModal onClose={function() { setFlowProposal(null); }} onSave={handleSaveFlowProposal} templates={templates} prefill={flowProposal} />}
-      {flowContract && <CreateContractModal onClose={function() { setFlowContract(null); }} onSave={handleSaveFlowContract} proposal={flowContract} />}
-      {flowInvoice && <CreateInvoiceModal onClose={function() { setFlowInvoice(null); }} onSave={handleSaveFlowInvoice} contract={flowInvoice} invoiceCount={invoices.length} />}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <Card>
+        <SectionLabel
+          actions={
+            <Btn variant="ghost" small onClick={() => setEditing(true)}>
+              edit
+            </Btn>
+          }
+        >
+          Lead Details
+        </SectionLabel>
+        <InfoRow label="Name" value={lead.name} />
+        <InfoRow label="Email" value={lead.email} accent={G.blue} />
+        <InfoRow label="Phone" value={lead.phone} />
+        <InfoRow label="Type" value={lead.type} />
+        <InfoRow label="Stage" value={lead.stage} accent={G.gold} />
+        <InfoRow label="Event Date" value={fmtLong(lead.eventDate)} />
+        <InfoRow label="Location" value={lead.location} />
+        <InfoRow label="Referral" value={lead.referralSource} accent={G.gold} />
+        <InfoRow label="Inquired On" value={fmtShort(lead.inquiredOn)} />
+        <div style={{ marginTop: 12, fontSize: 13, color: G.textDim, lineHeight: 1.7 }}>
+          {lead.notes || "No lead notes yet."}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionLabel>Quote Snapshot</SectionLabel>
+        <InfoRow label="Active Quotes" value={String(openQuoteCount)} accent={G.gold} />
+        <InfoRow label="Latest Quote" value={latestQuote?.quoteNumberLabel || "—"} />
+        <InfoRow
+          label="Latest Total"
+          value={latestQuote ? fmt$(calcQuoteTotals(latestQuote).total) : "—"}
+          accent={G.green}
+        />
+        <InfoRow
+          label="Accepted Quotes"
+          value={String(quotes.filter((q) => q.status === "Accepted").length)}
+        />
+        <InfoRow label="Open Balance" value={fmt$(lead.balance)} accent={G.amber} />
+        <InfoRow label="Revenue" value={fmt$(lead.revenue)} accent={G.green} />
+      </Card>
+    </div>
+  );
+}
+
+function ScheduleTab({ schedule, setSchedule }) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    date: "",
+    time: "",
+    location: "",
+    status: "Pending",
+  });
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  return (
+    <Card>
+      <SectionLabel actions={<Btn small onClick={() => setAdding(true)}>+ Add Event</Btn>}>
+        Schedule
+      </SectionLabel>
+
+      {adding && (
+        <div
+          style={{
+            background: G.surface,
+            border: `1px solid ${G.borderLight}`,
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <InputField
+              label="Title"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              required
+            />
+            <InputField
+              label="Location"
+              value={form.location}
+              onChange={(e) => set("location", e.target.value)}
+            />
+            <InputField
+              label="Date"
+              value={form.date}
+              onChange={(e) => set("date", e.target.value)}
+              type="date"
+            />
+            <InputField
+              label="Time"
+              value={form.time}
+              onChange={(e) => set("time", e.target.value)}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={() => setAdding(false)}>
+              Cancel
+            </Btn>
+            <Btn
+              small
+              onClick={() => {
+                if (!form.title.trim()) return;
+                setSchedule((p) => [...p, { ...form, id: Date.now() }]);
+                setForm({
+                  title: "",
+                  date: "",
+                  time: "",
+                  location: "",
+                  status: "Pending",
+                });
+                setAdding(false);
+              }}
+            >
+              Save
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {schedule.length === 0 && !adding ? (
+        <EmptyState icon="📅" text="No events scheduled" />
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {schedule.map((ev) => (
+            <div
+              key={ev.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "14px 16px",
+                background: G.surface,
+                borderRadius: 8,
+                border: `1px solid ${G.border}`,
+              }}
+            >
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 8,
+                  background: G.blueBg,
+                  display: "grid",
+                  placeItems: "center",
+                  color: G.blue,
+                  fontSize: 16,
+                  flexShrink: 0,
+                }}
+              >
+                📅
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{ev.title}</div>
+                <div style={{ fontSize: 12, color: G.textDim }}>
+                  {fmtShort(ev.date)} · {ev.time} · {ev.location}
+                </div>
+              </div>
+              <Pill
+                color={ev.status === "Confirmed" ? G.green : G.amber}
+                bg={ev.status === "Confirmed" ? G.greenBg : G.amberBg}
+              >
+                {ev.status}
+              </Pill>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function QuotePreview({ quote, settings, onBack, onDownloadPdf }) {
+  const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <Btn variant="ghost" small onClick={onBack}>
+          ← Back to Quotes
+        </Btn>
+        <Btn small onClick={() => onDownloadPdf(quote)}>
+          Download / Save as PDF
+        </Btn>
+      </div>
+
+      <div
+        style={{
+          background: "#fff",
+          color: "#1a1a1a",
+          borderRadius: 12,
+          padding: "40px 48px",
+          maxWidth: 800,
+          margin: "0 auto",
+          fontFamily: "Arial, Helvetica, sans-serif",
+          boxShadow: "0 8px 40px rgba(0,0,0,.4)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 32, gap: 24 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: G.teal, letterSpacing: "-.02em" }}>
+              {settings.businessName}
+            </div>
+            <div style={{ fontSize: 12, color: "#666", lineHeight: 1.7, marginTop: 4 }}>
+              {settings.address1 && (
+                <>
+                  {settings.address1}
+                  <br />
+                </>
+              )}
+              {settings.address2 && (
+                <>
+                  {settings.address2}
+                  <br />
+                </>
+              )}
+              {settings.website && (
+                <>
+                  {settings.website}
+                  <br />
+                </>
+              )}
+              {settings.email && (
+                <>
+                  {settings.email}
+                  <br />
+                </>
+              )}
+              {settings.phone && (
+                <>
+                  {settings.phone}
+                  <br />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {quote.quoteNumberLabel || "Quote Summary"}
+            </div>
+            <div style={{ fontSize: 13, color: "#666", marginTop: 4 }}>
+              Quote Total: <strong>{fmt$(total)}</strong>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Recipient</div>
+              <div style={{ fontSize: 13, color: "#666" }}>{quote.clientName || "—"}</div>
+              {quote.clientEmail && (
+                <div style={{ fontSize: 13, color: "#666" }}>{quote.clientEmail}</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {(quote.eventName || quote.eventDate) && (
+          <div
+            style={{
+              textAlign: "center",
+              marginBottom: 32,
+              paddingBottom: 20,
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 700, color: G.teal }}>
+              {quote.eventName || quote.clientName}
+              {quote.eventDate ? ` on ${fmtLong(quote.eventDate)}` : ""}
+            </div>
+          </div>
+        )}
+
+        {quote.introduction && (
+          <div style={{ fontSize: 13, color: "#444", marginBottom: 24, fontStyle: "italic" }}>
+            {quote.introduction}
+          </div>
+        )}
+
+        {(quote.sections || []).map((sec) => (
+          <div key={sec.id} style={{ marginBottom: 28 }}>
+            {sec.packageName && (
+              <div style={{ fontSize: 16, fontWeight: 700, color: G.teal, marginBottom: 8 }}>
+                {sec.packageName}
+              </div>
+            )}
+            {sec.description && (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#444",
+                  lineHeight: 1.7,
+                  marginBottom: 10,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {sec.description}
+              </div>
+            )}
+            {cleanIncludes(sec.includes).map((inc, i) => (
+              <div key={i} style={{ fontSize: 13, color: "#444", padding: "3px 0" }}>
+                {inc}
+              </div>
+            ))}
+            {sec.notes && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#888",
+                  fontStyle: "italic",
+                  marginTop: 8,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {sec.notes}
+              </div>
+            )}
+            {(sec.lineItems || []).map((li) => {
+              const liTotal = toMoney(li.price) * toQty(li.qty);
+              const showQty = toQty(li.qty) > 1;
+              return (
+                <div
+                  key={li.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    borderTop: "1px solid #eee",
+                    paddingTop: 10,
+                    marginTop: 10,
+                    gap: 12,
+                  }}
+                >
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{li.name}</div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace" }}>
+                      {fmt$(liTotal)}
+                    </div>
+                    {showQty && (
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        ({fmt$(li.price)} × {li.qty})
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        {quote.notes && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#666",
+              marginTop: 16,
+              paddingTop: 12,
+              borderTop: "1px solid #eee",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {quote.notes}
+          </div>
+        )}
+
+        {quote.expiration && (
+          <div style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
+            This quote expires on {fmtShort(quote.expiration)}
+          </div>
+        )}
+
+        <div style={{ borderTop: "2px solid #1a1a1a", paddingTop: 16, marginTop: 20 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 16, marginBottom: 6 }}>
+            <div style={{ fontSize: 14, color: "#666" }}>Subtotal:</div>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "monospace" }}>
+              {fmt$(subtotal)}
+            </div>
+          </div>
+          {discountAmount > 0 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 16, marginBottom: 6 }}>
+              <div style={{ fontSize: 14, color: "#666" }}>
+                Discount{quote.promoCode ? ` (${quote.promoCode})` : ""}:
+              </div>
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  fontFamily: "monospace",
+                  color: "#b42318",
+                }}
+              >
+                -{fmt$(discountAmount)}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: 16 }}>
+            <div style={{ fontSize: 14, color: "#666" }}>Total:</div>
+            <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "monospace" }}>
+              {fmt$(total)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuotesTab({
+  lead,
+  setLead,
+  quotes,
+  setQuotes,
+  recipients,
+  setRecipients,
+  settings,
+  counters,
+  setCounters,
+}) {
+  const [building, setBuilding] = useState(null);
+  const [previewQuote, setPreviewQuote] = useState(null);
+  const [errors, setErrors] = useState([]);
+
+  const emptyQuote = {
+    id: "",
+    quoteNumber: null,
+    quoteNumberLabel: "",
+    clientName: lead.name || "",
+    clientEmail: lead.email || "",
+    eventName: lead.type || "",
+    eventDate: lead.eventDate || "",
+    status: settings.statuses[0] || "Draft",
+    introduction: "",
+    expiration: "",
+    sections: [],
+    notes: "",
+    promoCode: "",
+    discountType: "amount",
+    discountValue: 0,
+    createdAt: null,
+    updatedAt: null,
+    lastViewed: null,
+    pageViews: 0,
+    selected: false,
+  };
+
+  const issueNextQuoteNumber = () => {
+    const nextNumber = counters.nextQuoteNumber || 1;
+    setCounters((prev) => ({ ...prev, nextQuoteNumber: nextNumber + 1 }));
+    return nextNumber;
+  };
+
+  const startNew = () => {
+    const quoteNumber = issueNextQuoteNumber();
+    const quoteNumberLabel = `${settings.quotePrefix || "Q"}-${String(quoteNumber).padStart(
+      4,
+      "0"
+    )}`;
+    setErrors([]);
+    setBuilding({
+      ...emptyQuote,
+      id: genId("quote"),
+      quoteNumber,
+      quoteNumberLabel,
+      createdAt: new Date().toISOString(),
+    });
+  };
+
+  const setField = (key, value) => setBuilding((prev) => ({ ...prev, [key]: value }));
+
+  const addCustomSection = () => {
+    setBuilding((prev) => ({
+      ...prev,
+      sections: [
+        ...(prev.sections || []),
+        {
+          id: genId("sec"),
+          packageName: "Custom Section",
+          description: "",
+          includes: [],
+          notes: "",
+          lineItems: [{ id: genId("qli"), name: "", price: 0, qty: 1 }],
+        },
+      ],
+    }));
+  };
+
+  const updateSection = (sectionIdx, key, value) => {
+    setBuilding((prev) => {
+      const nextSections = [...prev.sections];
+      nextSections[sectionIdx] = { ...nextSections[sectionIdx], [key]: value };
+      return { ...prev, sections: nextSections };
+    });
+  };
+
+  const updateSectionLI = (sectionIdx, itemIdx, key, value) => {
+    setBuilding((prev) => {
+      const nextSections = [...prev.sections];
+      const nextItems = [...nextSections[sectionIdx].lineItems];
+      nextItems[itemIdx] = {
+        ...nextItems[itemIdx],
+        [key]: key === "price" ? toMoney(value) : key === "qty" ? toQty(value) : value,
+      };
+      nextSections[sectionIdx] = { ...nextSections[sectionIdx], lineItems: nextItems };
+      return { ...prev, sections: nextSections };
+    });
+  };
+
+  const addSectionLI = (sectionIdx) => {
+    setBuilding((prev) => {
+      const nextSections = [...prev.sections];
+      nextSections[sectionIdx] = {
+        ...nextSections[sectionIdx],
+        lineItems: [
+          ...nextSections[sectionIdx].lineItems,
+          { id: genId("qli"), name: "", price: 0, qty: 1 },
+        ],
+      };
+      return { ...prev, sections: nextSections };
+    });
+  };
+
+  const removeSectionLI = (sectionIdx, itemIdx) => {
+    setBuilding((prev) => {
+      const nextSections = [...prev.sections];
+      if (nextSections[sectionIdx].lineItems.length <= 1) return prev;
+      nextSections[sectionIdx] = {
+        ...nextSections[sectionIdx],
+        lineItems: nextSections[sectionIdx].lineItems.filter((_, i) => i !== itemIdx),
+      };
+      return { ...prev, sections: nextSections };
+    });
+  };
+
+  const removeSection = (sectionIdx) =>
+    setBuilding((prev) => ({
+      ...prev,
+      sections: prev.sections.filter((_, i) => i !== sectionIdx),
+    }));
+
+  const totals = useMemo(
+    () => (building ? calcQuoteTotals(building) : { subtotal: 0, discountAmount: 0, total: 0 }),
+    [building]
+  );
+
+  const validate = () => {
+    const nextErrors = [];
+    if (!building.clientName.trim()) nextErrors.push("Client name is required");
+    if (!(building.sections || []).length) nextErrors.push("Add at least one quote section");
+    (building.sections || []).forEach((section, sIdx) => {
+      if (!(section.lineItems || []).length) {
+        nextErrors.push(`Section ${sIdx + 1} has no line items`);
+      }
+      (section.lineItems || []).forEach((li, i) => {
+        if (!String(li.name || "").trim()) {
+          nextErrors.push(`Section ${sIdx + 1}, item ${i + 1} needs a name`);
+        }
+      });
+    });
+    if (
+      building.clientEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(building.clientEmail)
+    ) {
+      nextErrors.push("Invalid email format");
+    }
+    setErrors(nextErrors);
+    return nextErrors.length === 0;
+  };
+
+  const recalcLeadNumbers = (nextQuotes) => {
+    const acceptedRevenue = nextQuotes
+      .filter((q) => q.status === "Accepted")
+      .reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
+
+    const latestAccepted = nextQuotes.find((q) => q.status === "Accepted");
+    setLead((prev) => ({
+      ...prev,
+      revenue: acceptedRevenue,
+      balance: latestAccepted ? calcQuoteTotals(latestAccepted).total : prev.balance,
+    }));
+  };
+
+  const saveQuote = () => {
+    if (!validate()) return;
+
+    const existing = quotes.find((q) => q.id === building.id);
+    const saved = {
+      ...building,
+      ...calcQuoteTotals(building),
+      sections: (building.sections || []).map((s) => ({
+        ...s,
+        includes: cleanIncludes(s.includes),
+        lineItems: (s.lineItems || []).map((li) => ({
+          ...li,
+          price: toMoney(li.price),
+          qty: toQty(li.qty),
+        })),
+      })),
+      createdAt: existing?.createdAt || building.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    let nextQuotes;
+    if (quotes.some((q) => q.id === saved.id)) {
+      nextQuotes = quotes.map((q) => (q.id === saved.id ? saved : q));
+    } else {
+      nextQuotes = [saved, ...quotes];
+    }
+
+    setQuotes(nextQuotes);
+    recalcLeadNumbers(nextQuotes);
+
+    if (
+      saved.clientEmail &&
+      !recipients.some((r) => r.quoteId === saved.id && r.email === saved.clientEmail)
+    ) {
+      setRecipients((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          quoteId: saved.id,
+          name: saved.clientName || lead.name,
+          email: saved.clientEmail || lead.email,
+          lastVisit: null,
+        },
+      ]);
+    }
+
+    setBuilding(null);
+    setErrors([]);
+  };
+
+  const deleteQuote = (id) => {
+    const nextQuotes = quotes.filter((q) => q.id !== id);
+    setQuotes(nextQuotes);
+    recalcLeadNumbers(nextQuotes);
+  };
+
+  const duplicateQuote = (quote) => {
+    const newNumber = issueNextQuoteNumber();
+    const quoteNumberLabel = `${settings.quotePrefix || "Q"}-${String(newNumber).padStart(
+      4,
+      "0"
+    )}`;
+    const copy = JSON.parse(JSON.stringify(quote));
+    copy.id = genId("quote");
+    copy.quoteNumber = newNumber;
+    copy.quoteNumberLabel = quoteNumberLabel;
+    copy.status = "Draft";
+    copy.createdAt = new Date().toISOString();
+    copy.updatedAt = new Date().toISOString();
+    setQuotes((prev) => [copy, ...prev]);
+  };
+
+  const handleDownloadPdf = (quote) => {
+    const html = quoteToPrintableHtml(quote, settings);
+    openPrintWindow(html);
+  };
+
+  if (previewQuote) {
+    return (
+      <QuotePreview
+        quote={previewQuote}
+        settings={settings}
+        onBack={() => setPreviewQuote(null)}
+        onDownloadPdf={handleDownloadPdf}
+      />
+    );
+  }
+
+  if (building) {
+    return (
+      <div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <Btn
+            variant="ghost"
+            small
+            onClick={() => {
+              setBuilding(null);
+              setErrors([]);
+            }}
+          >
+            ← Back
+          </Btn>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn variant="secondary" small onClick={() => setPreviewQuote(building)}>
+              Preview Quote
+            </Btn>
+            <Btn small onClick={saveQuote}>
+              Save Quote
+            </Btn>
+          </div>
+        </div>
+
+        <ErrorList errors={errors} />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
+          <Card>
+            <SectionLabel>Client & Event Info</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <InputField
+                label="Client Name"
+                value={building.clientName}
+                onChange={(e) => setField("clientName", e.target.value)}
+                required
+              />
+              <InputField
+                label="Client Email"
+                value={building.clientEmail}
+                onChange={(e) => setField("clientEmail", e.target.value)}
+                placeholder="email@example.com"
+              />
+              <InputField
+                label="Event / Job Name"
+                value={building.eventName}
+                onChange={(e) => setField("eventName", e.target.value)}
+              />
+              <InputField
+                label="Event Date"
+                value={building.eventDate}
+                onChange={(e) => setField("eventDate", e.target.value)}
+                type="date"
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <InputField
+                label="Introduction"
+                value={building.introduction}
+                onChange={(e) => setField("introduction", e.target.value)}
+                placeholder="Thank you for the opportunity."
+              />
+              <InputField
+                label="Expiration Date"
+                value={building.expiration}
+                onChange={(e) => setField("expiration", e.target.value)}
+                type="date"
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: G.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Status
+                </label>
+                <select
+                  value={building.status}
+                  onChange={(e) => setField("status", e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "9px 12px",
+                    fontSize: 13,
+                  }}
+                >
+                  {settings.statuses.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <InputField
+                label="Quote Number"
+                value={building.quoteNumberLabel}
+                readOnly
+                onChange={() => {}}
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <SectionLabel
+              actions={
+                <Btn variant="ghost" small onClick={addCustomSection}>
+                  + Custom Section
+                </Btn>
+              }
+            >
+              Quote Sections
+            </SectionLabel>
+
+            {!building.sections.length ? (
+              <EmptyState icon="📋" text="Create a custom section to begin" />
+            ) : (
+              <div style={{ display: "grid", gap: 16 }}>
+                {building.sections.map((section, sectionIdx) => (
+                  <div
+                    key={section.id}
+                    style={{
+                      background: G.surface,
+                      border: `1px solid ${G.borderLight}`,
+                      borderRadius: 8,
+                      padding: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <input
+                        value={section.packageName}
+                        onChange={(e) =>
+                          updateSection(sectionIdx, "packageName", e.target.value)
+                        }
+                        placeholder="Section name"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: G.gold,
+                          fontSize: 14,
+                          fontWeight: 700,
+                          outline: "none",
+                          flex: 1,
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <Btn variant="ghost" small onClick={() => addSectionLI(sectionIdx)}>
+                          + item
+                        </Btn>
+                        <button
+                          onClick={() => removeSection(sectionIdx)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: G.red,
+                            cursor: "pointer",
+                            fontSize: 13,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+
+                    <InputField
+                      label="Section Description"
+                      value={section.description || ""}
+                      onChange={(e) =>
+                        updateSection(sectionIdx, "description", e.target.value)
+                      }
+                      multiline
+                    />
+
+                    <InputField
+                      label="Included Items (comma separated)"
+                      value={(section.includes || []).join(", ")}
+                      onChange={(e) =>
+                        updateSection(
+                          sectionIdx,
+                          "includes",
+                          e.target.value.split(",").map((x) => x.trim())
+                        )
+                      }
+                    />
+
+                    <InputField
+                      label="Section Notes"
+                      value={section.notes || ""}
+                      onChange={(e) => updateSection(sectionIdx, "notes", e.target.value)}
+                      multiline
+                    />
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "2fr 90px 60px 80px auto",
+                        gap: 6,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: G.textMuted,
+                        marginBottom: 4,
+                        textTransform: "uppercase",
+                        letterSpacing: ".06em",
+                      }}
+                    >
+                      <div>Item</div>
+                      <div>Price</div>
+                      <div>Qty</div>
+                      <div>Sub</div>
+                      <div></div>
+                    </div>
+
+                    {section.lineItems.map((li, itemIdx) => (
+                      <div
+                        key={li.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "2fr 90px 60px 80px auto",
+                          gap: 6,
+                          marginBottom: 4,
+                          alignItems: "center",
+                        }}
+                      >
+                        <input
+                          value={li.name}
+                          onChange={(e) =>
+                            updateSectionLI(sectionIdx, itemIdx, "name", e.target.value)
+                          }
+                          placeholder="Item name"
+                          style={{
+                            background: G.card,
+                            color: G.text,
+                            border: `1px solid ${G.border}`,
+                            borderRadius: 5,
+                            padding: "6px 8px",
+                            fontSize: 12,
+                          }}
+                        />
+                        <input
+                          type="number"
+                          value={li.price}
+                          min="0"
+                          onChange={(e) =>
+                            updateSectionLI(sectionIdx, itemIdx, "price", e.target.value)
+                          }
+                          style={{
+                            background: G.card,
+                            color: G.text,
+                            border: `1px solid ${G.border}`,
+                            borderRadius: 5,
+                            padding: "6px 8px",
+                            fontSize: 12,
+                          }}
+                        />
+                        <input
+                          type="number"
+                          value={li.qty}
+                          min="1"
+                          onChange={(e) =>
+                            updateSectionLI(sectionIdx, itemIdx, "qty", e.target.value)
+                          }
+                          style={{
+                            background: G.card,
+                            color: G.text,
+                            border: `1px solid ${G.border}`,
+                            borderRadius: 5,
+                            padding: "6px 8px",
+                            fontSize: 12,
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: G.text,
+                            textAlign: "right",
+                          }}
+                        >
+                          {fmt$(toMoney(li.price) * toQty(li.qty))}
+                        </div>
+                        <button
+                          onClick={() => removeSectionLI(sectionIdx, itemIdx)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: G.red,
+                            cursor: "pointer",
+                            fontSize: 13,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 12, marginTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: G.textDim }}>Subtotal:</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: G.text }}>
+                  {fmt$(totals.subtotal)}
+                </span>
+              </div>
+              {totals.discountAmount > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: 12,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: G.textDim }}>
+                    Discount{building.promoCode ? ` (${building.promoCode})` : ""}:
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: G.red }}>
+                    -{fmt$(totals.discountAmount)}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: 12 }}>
+                <span style={{ fontSize: 13, color: G.textDim }}>Quote Total:</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: G.gold }}>
+                  {fmt$(totals.total)}
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <SectionLabel>Promotion / Discount</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 14 }}>
+              <InputField
+                label="Promo Code / Label"
+                value={building.promoCode}
+                onChange={(e) => setField("promoCode", e.target.value)}
+                placeholder="SPRING25 or Loyalty Discount"
+              />
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: G.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Discount Type
+                </label>
+                <select
+                  value={building.discountType}
+                  onChange={(e) => setField("discountType", e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "9px 12px",
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="amount">Dollar Amount</option>
+                  <option value="percent">Percent</option>
+                </select>
+              </div>
+              <InputField
+                label={building.discountType === "percent" ? "Percent Off" : "Discount Amount"}
+                type="number"
+                value={building.discountValue}
+                onChange={(e) => {
+                  const value = Number(e.target.value) || 0;
+                  setField(
+                    "discountValue",
+                    building.discountType === "percent"
+                      ? Math.min(100, Math.max(0, value))
+                      : Math.max(0, value)
+                  );
+                }}
+                placeholder={building.discountType === "percent" ? "10" : "100"}
+              />
+            </div>
+          </Card>
+
+          <Card>
+            <InputField
+              label="Additional Notes"
+              value={building.notes}
+              onChange={(e) => setField("notes", e.target.value)}
+              multiline
+              placeholder="Terms, conditions, or notes..."
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ fontSize: 14, color: G.textDim }}>
+          {quotes.length} quote{quotes.length !== 1 ? "s" : ""}
+        </div>
+        <Btn small onClick={startNew}>
+          + New Quote
+        </Btn>
+      </div>
+
+      {quotes.length === 0 ? (
+        <EmptyState
+          icon="📋"
+          text="No quotes yet. Create your first quote."
+          action={
+            <Btn small onClick={startNew}>
+              Create Quote
+            </Btn>
+          }
+        />
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {quotes.map((q) => {
+            const statusColorMap = {
+              Draft: { color: G.textDim, bg: G.surface },
+              Sent: { color: G.amber, bg: G.amberBg },
+              Accepted: { color: G.green, bg: G.greenBg },
+              Declined: { color: G.red, bg: G.redBg },
+            };
+            const colors = statusColorMap[q.status] || {
+              color: G.textDim,
+              bg: G.surface,
+            };
+            const total = calcQuoteTotals(q).total;
+
+            return (
+              <div
+                key={q.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto auto auto",
+                  gap: 14,
+                  alignItems: "center",
+                  padding: "16px 18px",
+                  background: G.card,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 10,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>
+                    {q.clientName || "Untitled"}
+                  </div>
+                  <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
+                    {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
+                    {fmtShort(q.createdAt)}
+                  </div>
+                  <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
+                    {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
+                  </div>
+                </div>
+
+                <Pill color={colors.color} bg={colors.bg}>
+                  {q.status}
+                </Pill>
+
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: G.gold,
+                    minWidth: 90,
+                    textAlign: "right",
+                  }}
+                >
+                  {fmt$(total)}
+                </div>
+
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <Btn
+                    variant="ghost"
+                    small
+                    onClick={() => {
+                      setErrors([]);
+                      setBuilding(JSON.parse(JSON.stringify(q)));
+                    }}
+                  >
+                    Edit
+                  </Btn>
+                  <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
+                    Preview
+                  </Btn>
+                  <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
+                    PDF
+                  </Btn>
+                  <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
+                    Duplicate
+                  </Btn>
+                  <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
+                    ×
+                  </Btn>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FinancialsTab({ payments, setPayments, quotes }) {
+  const [editing, setEditing] = useState(null);
+  const [adding, setAdding] = useState(false);
+
+  const empty = {
+    kind: "Custom",
+    name: "",
+    description: "",
+    initialPayment: 0,
+    initialType: "Fixed amount",
+    tipEnabled: true,
+    remaining: [{ amount: 100, type: "Percent of Order", due: "on delivery" }],
+  };
+
+  const [form, setForm] = useState(empty);
+
+  const KINDS = ["Custom", "Monthly", "Multiple", "One"];
+  const DUES = ["on delivery", "on booking", "before event", "after event", "custom date"];
+  const AMTS = ["Percent of Order", "Fixed amount"];
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const showForm = adding || editing !== null;
+
+  const acceptedTotal = quotes
+    .filter((q) => q.status === "Accepted")
+    .reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
+
+  const openTotal = quotes
+    .filter((q) => q.status !== "Declined")
+    .reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
+
+  const save = () => {
+    if (!form.name.trim()) return;
+    if (editing !== null) {
+      setPayments((p) => p.map((x, i) => (i === editing ? { ...form, id: x.id } : x)));
+    } else {
+      setPayments((p) => [...p, { ...form, id: Date.now() }]);
+    }
+    setForm(empty);
+    setEditing(null);
+    setAdding(false);
+  };
+
+  if (showForm) {
+    return (
+      <Card>
+        <SectionLabel>Payment Schedule</SectionLabel>
+
+        <div style={{ marginBottom: 16 }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: 12,
+              fontWeight: 600,
+              color: G.text,
+              marginBottom: 6,
+            }}
+          >
+            Kind <span style={{ color: G.red }}>*</span>
+          </label>
+          <div style={{ display: "flex" }}>
+            {KINDS.map((k, i) => (
+              <button
+                key={k}
+                onClick={() => set("kind", k)}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: form.kind === k ? G.gold : G.surface,
+                  color: form.kind === k ? "#0e0f11" : G.textDim,
+                  border: `1px solid ${form.kind === k ? G.gold : G.border}`,
+                  cursor: "pointer",
+                  borderRadius:
+                    i === 0
+                      ? "6px 0 0 6px"
+                      : i === KINDS.length - 1
+                      ? "0 6px 6px 0"
+                      : 0,
+                }}
+              >
+                {form.kind === k && "✓ "}
+                {k}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <InputField
+          label="Name"
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          required
+        />
+        <InputField
+          label="Description"
+          value={form.description}
+          onChange={(e) => set("description", e.target.value)}
+        />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                color: G.text,
+                marginBottom: 5,
+              }}
+            >
+              Initial Payment
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="number"
+                value={form.initialPayment}
+                onChange={(e) => set("initialPayment", Number(e.target.value))}
+                style={{
+                  width: 80,
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 6,
+                  padding: "9px 12px",
+                  fontSize: 13,
+                }}
+              />
+              <select
+                value={form.initialType}
+                onChange={(e) => set("initialType", e.target.value)}
+                style={{
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 6,
+                  padding: "9px 12px",
+                  fontSize: 13,
+                }}
+              >
+                {AMTS.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 600,
+                color: G.text,
+                marginBottom: 5,
+              }}
+            >
+              Online Payment Restrictions
+            </label>
+            <select
+              style={{
+                width: "100%",
+                background: G.surface,
+                color: G.text,
+                border: `1px solid ${G.border}`,
+                borderRadius: 6,
+                padding: "9px 12px",
+                fontSize: 13,
+              }}
+            >
+              <option>None</option>
+              <option>Credit card only</option>
+            </select>
+          </div>
+        </div>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 14,
+            fontSize: 13,
+            color: G.text,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={form.tipEnabled}
+            onChange={(e) => set("tipEnabled", e.target.checked)}
+            style={{ accentColor: G.gold }}
+          />{" "}
+          Client can leave a tip
+        </label>
+
+        <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${G.border}` }}>
+          <SectionLabel
+            actions={
+              <Btn
+                small
+                variant="secondary"
+                onClick={() =>
+                  set("remaining", [
+                    ...form.remaining,
+                    { amount: 0, type: "Percent of Order", due: "on delivery" },
+                  ])
+                }
+              >
+                New Payment
+              </Btn>
+            }
+          >
+            Remaining Payments
+          </SectionLabel>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "2fr 2fr auto",
+              fontSize: 11,
+              fontWeight: 600,
+              color: G.textMuted,
+              padding: "8px 0",
+              borderBottom: `1px solid ${G.border}`,
+              textTransform: "uppercase",
+              letterSpacing: ".06em",
+            }}
+          >
+            <div>Amount</div>
+            <div>Due</div>
+            <div></div>
+          </div>
+
+          {form.remaining.map((r, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "2fr 2fr auto",
+                gap: 10,
+                padding: "10px 0",
+                borderBottom: `1px solid ${G.border}33`,
+                alignItems: "center",
+              }}
+            >
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="number"
+                  value={r.amount}
+                  onChange={(e) => {
+                    const rem = [...form.remaining];
+                    rem[idx] = { ...rem[idx], amount: Number(e.target.value) };
+                    set("remaining", rem);
+                  }}
+                  style={{
+                    width: 70,
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 13,
+                  }}
+                />
+                <select
+                  value={r.type}
+                  onChange={(e) => {
+                    const rem = [...form.remaining];
+                    rem[idx] = { ...rem[idx], type: e.target.value };
+                    set("remaining", rem);
+                  }}
+                  style={{
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "7px 10px",
+                    fontSize: 12,
+                  }}
+                >
+                  {AMTS.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <select
+                value={r.due}
+                onChange={(e) => {
+                  const rem = [...form.remaining];
+                  rem[idx] = { ...rem[idx], due: e.target.value };
+                  set("remaining", rem);
+                }}
+                style={{
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 6,
+                  padding: "7px 10px",
+                  fontSize: 12,
+                }}
+              >
+                {DUES.map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+
+              <Btn
+                variant="danger"
+                small
+                onClick={() => set("remaining", form.remaining.filter((_, i) => i !== idx))}
+              >
+                delete
+              </Btn>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 20, justifyContent: "flex-end" }}>
+          {editing !== null && (
+            <Btn
+              variant="danger"
+              small
+              onClick={() => {
+                setPayments((p) => p.filter((_, i) => i !== editing));
+                setEditing(null);
+                setAdding(false);
+                setForm(empty);
+              }}
+            >
+              Delete
+            </Btn>
+          )}
+          <Btn
+            variant="ghost"
+            small
+            onClick={() => {
+              setEditing(null);
+              setAdding(false);
+              setForm(empty);
+            }}
+          >
+            Cancel
+          </Btn>
+          <Btn onClick={save}>Save & Continue</Btn>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 20 }}>
+      <Card>
+        <SectionLabel>Financial Snapshot</SectionLabel>
+        <InfoRow label="Open Quote Value" value={fmt$(openTotal)} accent={G.gold} />
+        <InfoRow label="Accepted Revenue" value={fmt$(acceptedTotal)} accent={G.green} />
+        <InfoRow label="Payment Plans" value={String(payments.length)} />
+        <InfoRow
+          label="Average Quote"
+          value={quotes.length ? fmt$(openTotal / quotes.length) : fmt$(0)}
+        />
+      </Card>
+
+      <Card>
+        <SectionLabel
+          actions={
+            <Btn
+              small
+              onClick={() => {
+                setForm(empty);
+                setAdding(true);
+              }}
+            >
+              + New Payment Schedule
+            </Btn>
+          }
+        >
+          Payment Schedules
+        </SectionLabel>
+
+        {payments.length === 0 ? (
+          <EmptyState icon="💰" text="No payment schedules configured" />
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {payments.map((p, idx) => (
+              <div
+                key={p.id}
+                onClick={() => {
+                  setForm({ ...p });
+                  setEditing(idx);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "14px 16px",
+                  background: G.surface,
+                  borderRadius: 8,
+                  border: `1px solid ${G.border}`,
+                  cursor: "pointer",
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 8,
+                    background: G.goldBg,
+                    display: "grid",
+                    placeItems: "center",
+                    color: G.gold,
+                    fontSize: 14,
+                    flexShrink: 0,
+                  }}
+                >
+                  💰
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: G.textDim }}>
+                    {p.kind} · {p.description}
+                  </div>
+                </div>
+                <Pill color={G.gold} bg={G.goldBg}>
+                  {p.kind}
+                </Pill>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function ContractsTab({ contracts, setContracts }) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    status: "Draft",
+    sentOn: "",
+    signedOn: "",
+    signer: "",
+    version: "v1",
+  });
+
+  const save = () => {
+    if (!form.title.trim()) return;
+    setContracts((prev) => [{ id: Date.now(), ...form }, ...prev]);
+    setForm({
+      title: "",
+      status: "Draft",
+      sentOn: "",
+      signedOn: "",
+      signer: "",
+      version: "v1",
+    });
+    setAdding(false);
+  };
+
+  return (
+    <Card>
+      <SectionLabel actions={<Btn small onClick={() => setAdding(true)}>+ Add Contract</Btn>}>
+        Contracts
+      </SectionLabel>
+
+      {adding && (
+        <div
+          style={{
+            background: G.surface,
+            border: `1px solid ${G.borderLight}`,
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <InputField
+              label="Contract Title"
+              value={form.title}
+              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+            />
+            <div style={{ marginBottom: 14 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: G.text,
+                  marginBottom: 5,
+                }}
+              >
+                Status
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+                style={{
+                  width: "100%",
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 6,
+                  padding: "9px 12px",
+                  fontSize: 13,
+                }}
+              >
+                <option>Draft</option>
+                <option>Sent</option>
+                <option>Signed</option>
+              </select>
+            </div>
+            <InputField
+              label="Sent On"
+              type="date"
+              value={form.sentOn}
+              onChange={(e) => setForm((p) => ({ ...p, sentOn: e.target.value }))}
+            />
+            <InputField
+              label="Signed On"
+              type="date"
+              value={form.signedOn}
+              onChange={(e) => setForm((p) => ({ ...p, signedOn: e.target.value }))}
+            />
+            <InputField
+              label="Signer"
+              value={form.signer}
+              onChange={(e) => setForm((p) => ({ ...p, signer: e.target.value }))}
+            />
+            <InputField
+              label="Version"
+              value={form.version}
+              onChange={(e) => setForm((p) => ({ ...p, version: e.target.value }))}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={() => setAdding(false)}>
+              Cancel
+            </Btn>
+            <Btn small onClick={save}>
+              Save
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {contracts.length === 0 && !adding ? (
+        <EmptyState icon="📄" text="No contracts yet" />
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {contracts.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: 12,
+                alignItems: "center",
+                padding: "14px 16px",
+                background: G.surface,
+                borderRadius: 8,
+                border: `1px solid ${G.border}`,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
+                <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
+                  Version {c.version} · Signer: {c.signer || "—"} · Sent{" "}
+                  {c.sentOn ? fmtShort(c.sentOn) : "—"} · Signed{" "}
+                  {c.signedOn ? fmtShort(c.signedOn) : "—"}
+                </div>
+              </div>
+              <Pill
+                color={
+                  c.status === "Signed"
+                    ? G.green
+                    : c.status === "Sent"
+                    ? G.amber
+                    : G.textDim
+                }
+                bg={
+                  c.status === "Signed"
+                    ? G.greenBg
+                    : c.status === "Sent"
+                    ? G.amberBg
+                    : G.surface
+                }
+              >
+                {c.status}
+              </Pill>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function NotesTab({ notes, setNotes }) {
+  const [text, setText] = useState("");
+
+  const add = () => {
+    if (!text.trim()) return;
+    setNotes((p) => [
+      { id: Date.now(), text: text.trim(), date: new Date().toISOString() },
+      ...p,
+    ]);
+    setText("");
+  };
+
+  return (
+    <Card>
+      <SectionLabel>Notes</SectionLabel>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Add a note..."
+          style={{
+            flex: 1,
+            background: G.surface,
+            color: G.text,
+            border: `1px solid ${G.border}`,
+            borderRadius: 8,
+            padding: 12,
+            fontSize: 13,
+            minHeight: 60,
+            resize: "vertical",
+          }}
+        />
+        <Btn small onClick={add} disabled={!text.trim()} style={{ alignSelf: "flex-end" }}>
+          Add
+        </Btn>
+      </div>
+
+      {notes.length === 0 ? (
+        <EmptyState icon="📝" text="No notes yet" />
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {notes.map((n) => (
+            <div
+              key={n.id}
+              style={{
+                padding: "12px 14px",
+                background: G.surface,
+                borderRadius: 8,
+                border: `1px solid ${G.border}`,
+              }}
+            >
+              <div style={{ fontSize: 13, color: G.text, lineHeight: 1.6 }}>{n.text}</div>
+              <div style={{ fontSize: 11, color: G.textMuted, marginTop: 6 }}>
+                {fmtShort(n.date)} · {fmtTime(n.date)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function FilesTab({ files, setFiles }) {
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ name: "", kind: "Reference", uploadedOn: "" });
+
+  const save = () => {
+    if (!form.name.trim()) return;
+    setFiles((prev) => [
+      {
+        id: Date.now(),
+        ...form,
+        uploadedOn: form.uploadedOn || new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ]);
+    setForm({ name: "", kind: "Reference", uploadedOn: "" });
+    setAdding(false);
+  };
+
+  return (
+    <Card>
+      <SectionLabel actions={<Btn small onClick={() => setAdding(true)}>+ Add File</Btn>}>
+        Files
+      </SectionLabel>
+
+      {adding && (
+        <div
+          style={{
+            background: G.surface,
+            border: `1px solid ${G.borderLight}`,
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <InputField
+              label="File Name"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            />
+            <InputField
+              label="Type"
+              value={form.kind}
+              onChange={(e) => setForm((p) => ({ ...p, kind: e.target.value }))}
+            />
+            <InputField
+              label="Uploaded On"
+              type="date"
+              value={form.uploadedOn}
+              onChange={(e) => setForm((p) => ({ ...p, uploadedOn: e.target.value }))}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={() => setAdding(false)}>
+              Cancel
+            </Btn>
+            <Btn small onClick={save}>
+              Save
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {files.length === 0 && !adding ? (
+        <EmptyState icon="📁" text="No files yet" />
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {files.map((f) => (
+            <div
+              key={f.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto auto",
+                gap: 12,
+                alignItems: "center",
+                padding: "14px 16px",
+                background: G.surface,
+                borderRadius: 8,
+                border: `1px solid ${G.border}`,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{f.name}</div>
+                <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>{f.kind}</div>
+              </div>
+              <div style={{ fontSize: 12, color: G.textDim }}>{fmtShort(f.uploadedOn)}</div>
+              <Btn
+                variant="ghost"
+                small
+                onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))}
+              >
+                remove
+              </Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+export default function NSPBusinessSuite() {
+  const initial = loadState();
+
+  const [lead, setLead] = useState(initial.lead);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [quotes, setQuotes] = useState(initial.quotes);
+  const [recipients, setRecipients] = useState(initial.recipients);
+  const [schedule, setSchedule] = useState(initial.schedule);
+  const [payments, setPayments] = useState(initial.payments);
+  const [contracts, setContracts] = useState(initial.contracts);
+  const [files, setFiles] = useState(initial.files);
+  const [notes, setNotes] = useState(initial.notes);
+  const [settings, setSettings] = useState(initial.settings);
+  const [counters, setCounters] = useState(initial.counters);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        lead,
+        quotes,
+        recipients,
+        schedule,
+        payments,
+        contracts,
+        files,
+        notes,
+        settings,
+        counters,
+      })
+    );
+  }, [lead, quotes, recipients, schedule, payments, contracts, files, notes, settings, counters]);
+
+  const stageIdx = STAGES.findIndex((s) => s.key === lead.stage);
+  const quoteBadge = quotes.length;
+
+  const handleEmailQuote = () => {
+    const firstQuote = quotes[0];
+    if (!firstQuote || !lead.email) return;
+    const subject = encodeURIComponent(`${firstQuote.quoteNumberLabel} from ${settings.businessName}`);
+    const body = encodeURIComponent(
+      `Hi ${lead.name},
+
+Your quote ${firstQuote.quoteNumberLabel} is ready.
+
+Total: ${fmt$(calcQuoteTotals(firstQuote).total)}
+
+Thanks,
+${settings.businessName}`
+    );
+    window.location.href = `mailto:${lead.email}?subject=${subject}&body=${body}`;
+  };
+
+  const handlePdf = () => {
+    if (quotes[0]) openPrintWindow(quoteToPrintableHtml(quotes[0], settings));
+  };
+
+  const handleResetActivity = () => {
+    setQuotes((prev) => prev.map((q) => ({ ...q, lastViewed: null, pageViews: 0 })));
+  };
+
+  const handleDeleteLead = () => {
+    if (!window.confirm("Delete local lead data for this page?")) return;
+    if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
+    window.location.reload();
+  };
+
+  const SIDEBAR_ACTIONS = [
+    { label: "← Return to Leads", variant: "primary", onClick: () => window.history.back() },
+    { label: "Email Latest Quote", variant: "secondary", onClick: handleEmailQuote },
+    { label: "View / Print PDF", variant: "secondary", onClick: handlePdf },
+    { label: "Reset Client Activity", variant: "secondary", onClick: handleResetActivity },
+    { label: "Revision History", variant: "secondary", onClick: () => setActiveTab("notes") },
+    { label: "Delete", variant: "danger", onClick: handleDeleteLead },
+  ];
+
+  const renderTab = () => {
+    switch (activeTab) {
+      case "overview":
+        return <OverviewTab lead={lead} setLead={setLead} quotes={quotes} />;
+      case "schedule":
+        return <ScheduleTab schedule={schedule} setSchedule={setSchedule} />;
+      case "quotes":
+        return (
+          <QuotesTab
+            lead={lead}
+            setLead={setLead}
+            quotes={quotes}
+            setQuotes={setQuotes}
+            recipients={recipients}
+            setRecipients={setRecipients}
+            settings={settings}
+            counters={counters}
+            setCounters={setCounters}
+          />
+        );
+      case "financials":
+        return <FinancialsTab payments={payments} setPayments={setPayments} quotes={quotes} />;
+      case "contracts":
+        return <ContractsTab contracts={contracts} setContracts={setContracts} />;
+      case "notes":
+        return <NotesTab notes={notes} setNotes={setNotes} />;
+      case "files":
+        return <FilesTab files={files} setFiles={setFiles} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
+        background: G.bg,
+        color: G.text,
+        minHeight: "100vh",
+      }}
+    >
+      <div style={{ display: "flex", height: 44, overflow: "hidden" }}>
+        {STAGES.map((s, i) => {
+          const active = i <= stageIdx;
+          const current = s.key === lead.stage;
+          return (
+            <button
+              key={s.key}
+              onClick={() => setLead((p) => ({ ...p, stage: s.key }))}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                background: active ? s.color : G.surface,
+                color: active ? "#0e0f11" : G.textMuted,
+                border: "none",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: current ? 800 : 600,
+                letterSpacing: ".02em",
+                clipPath:
+                  i < STAGES.length - 1
+                    ? "polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%)"
+                    : "polygon(0 0, 100% 0, 100% 100%, 0 100%, 16px 50%)",
+                marginLeft: i > 0 ? -8 : 0,
+                paddingLeft: i > 0 ? 20 : 0,
+                transition: "all .2s",
+              }}
+            >
+              {s.icon} {s.key}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        style={{
+          padding: "20px 28px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          borderBottom: `1px solid ${G.border}`,
+          background: G.surface,
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-.02em" }}>
+              {lead.name}
+            </h1>
+            <span style={{ color: G.textMuted, fontSize: 16 }}>📌</span>
+          </div>
+          <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 13 }}>
+            <span>
+              Revenue: <span style={{ color: G.green, fontWeight: 600 }}>{fmt$(lead.revenue)}</span>
+            </span>
+            <span>
+              Balance: <span style={{ color: G.amber, fontWeight: 600 }}>{fmt$(lead.balance)}</span>
+            </span>
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtLong(lead.eventDate)}</div>
+          <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
+            Inquired on{" "}
+            <span style={{ fontWeight: 700, color: G.text }}>{fmtShort(lead.inquiredOn)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          borderBottom: `1px solid ${G.border}`,
+          background: G.surface,
+          overflowX: "auto",
+          padding: "0 28px",
+        }}
+      >
+        {TABS.map((t) => {
+          const badge = t.key === "quotes" ? quoteBadge : 0;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              style={{
+                padding: "12px 18px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: activeTab === t.key ? G.gold : G.textDim,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                borderBottom:
+                  activeTab === t.key ? `2px solid ${G.gold}` : "2px solid transparent",
+                transition: "all .15s",
+                whiteSpace: "nowrap",
+                letterSpacing: ".02em",
+              }}
+            >
+              {t.label}
+              {badge > 0 && <Badge n={badge} color={G.gold} />}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 220px",
+          minHeight: "calc(100vh - 170px)",
+        }}
+      >
+        <div style={{ padding: "24px 28px", overflowY: "auto" }}>{renderTab()}</div>
+
+        <div
+          style={{
+            borderLeft: `1px solid ${G.border}`,
+            padding: "20px 14px",
+            background: G.surface,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          {SIDEBAR_ACTIONS.map((a, i) => (
+            <Btn key={i} variant={a.variant} full small onClick={a.onClick}>
+              {a.label}
+            </Btn>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
