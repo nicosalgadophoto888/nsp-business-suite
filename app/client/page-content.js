@@ -24,6 +24,7 @@ export default function ClientPageContent() {
   const params = useSearchParams();
   const payload = useMemo(() => decodePayload(params.get("payload")), [params]);
   const [legacyResolved, setLegacyResolved] = useState(null);
+  const [showAdminNav, setShowAdminNav] = useState(false);
 
   useEffect(() => {
     if (payload?.document) return;
@@ -56,6 +57,14 @@ export default function ClientPageContent() {
     }
   }, [params, payload]);
 
+  useEffect(() => {
+    try {
+      setShowAdminNav(Boolean(window.localStorage.getItem("nsp_lead_detail_v2")));
+    } catch {
+      setShowAdminNav(false);
+    }
+  }, []);
+
   const resolved = payload?.document ? payload : legacyResolved;
   const isInvoice = resolved?.type === "invoice" && resolved?.document;
   const isSignDoc =
@@ -76,6 +85,25 @@ export default function ClientPageContent() {
             border: "1px solid #e5e7eb",
           }}
         >
+          {showAdminNav && (
+            <div style={{ textAlign: "right", padding: "14px 18px 0" }}>
+              <a
+                href="/"
+                style={{
+                  display: "inline-block",
+                  textDecoration: "none",
+                  background: "#111827",
+                  color: "#f3f4f6",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                Back to Dashboard
+              </a>
+            </div>
+          )}
           <div
             style={{
               background: "#0e0f11",
@@ -115,6 +143,25 @@ export default function ClientPageContent() {
             border: "1px solid #e5e7eb",
           }}
         >
+          {showAdminNav && (
+            <div style={{ textAlign: "right", padding: "14px 18px 0" }}>
+              <a
+                href="/"
+                style={{
+                  display: "inline-block",
+                  textDecoration: "none",
+                  background: "#111827",
+                  color: "#f3f4f6",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                Back to Dashboard
+              </a>
+            </div>
+          )}
           <div
             style={{
               background: "#0e0f11",
@@ -171,6 +218,25 @@ export default function ClientPageContent() {
           color: "#111827",
         }}
       >
+        {showAdminNav && (
+          <div style={{ textAlign: "right", padding: "14px 18px 0" }}>
+            <a
+              href="/"
+              style={{
+                display: "inline-block",
+                textDecoration: "none",
+                background: "#111827",
+                color: "#f3f4f6",
+                padding: "8px 14px",
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              Back to Dashboard
+            </a>
+          </div>
+        )}
         <div
           style={{
             background: "#0e0f11",
