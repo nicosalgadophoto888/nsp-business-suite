@@ -3592,7 +3592,19 @@ function ContractsTab({ contracts, setContracts, lead }) {
       const isRel = subTab === "releases";
       const label = isRel ? "Model Release" : "Contract";
 
-      const signLink = `${window.location.origin}/client?type=${isRel ? "release" : "contract"}&id=${item.id}`;
+      const encoded = encodeClientPayload({
+        type: isRel ? "release" : "contract",
+        document: {
+          title: item.title || "",
+          clientName: item.clientName || "",
+          sessionType: item.sessionType || "",
+          version: item.version || "v1",
+          body: merged || "",
+        },
+      });
+      const signLink = encoded
+        ? `${window.location.origin}/client?payload=${encodeURIComponent(encoded)}`
+        : `${window.location.origin}`;
 
       const htmlBody = `
 <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:600px;margin:0 auto;">
