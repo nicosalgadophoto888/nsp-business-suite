@@ -67,12 +67,14 @@ export default function ClientPageContent() {
 
   const resolved = payload?.document ? payload : legacyResolved;
   const isInvoice = resolved?.type === "invoice" && resolved?.document;
+  const isQuote = resolved?.type === "quote" && resolved?.document;
   const isSignDoc =
     (resolved?.type === "contract" || resolved?.type === "release") && resolved?.document;
   const inv = isInvoice ? resolved.document : null;
+  const quote = isQuote ? resolved.document : null;
   const doc = isSignDoc ? resolved.document : null;
 
-  if (!isInvoice && !isSignDoc) {
+  if (!isInvoice && !isQuote && !isSignDoc) {
     return (
       <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "48px 20px" }}>
         <div
@@ -198,6 +200,208 @@ export default function ClientPageContent() {
               }}
             >
               {doc.body || "Document text unavailable."}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isQuote) {
+    const emailTo = quote.businessEmail || "nicosalgadophoto@gmail.com";
+    const subject = `Quote ${quote.quoteNumberLabel || ""} Approved - ${quote.clientName || "Client"}`.trim();
+    const bodyText = `Hi Nico,\n\nI approve quote ${
+      quote.quoteNumberLabel || ""
+    }. Please send the payment link and next steps.\n\nThank you,\n${quote.clientName || ""}`;
+    const approveMailto = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(bodyText)}`;
+
+    return (
+      <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
+        <div
+          style={{
+            maxWidth: 900,
+            margin: "0 auto",
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            color: "#111827",
+          }}
+        >
+          {showAdminNav && (
+            <div style={{ textAlign: "right", padding: "14px 18px 0" }}>
+              <a
+                href="/"
+                style={{
+                  display: "inline-block",
+                  textDecoration: "none",
+                  background: "#111827",
+                  color: "#f3f4f6",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                Back to Dashboard
+              </a>
+            </div>
+          )}
+          <div
+            style={{
+              background: "#0e0f11",
+              color: "#d4a853",
+              padding: "22px 28px",
+              fontSize: 34,
+              fontWeight: 800,
+            }}
+          >
+            {quote.businessName || "Nico Salgado Photography"}
+          </div>
+
+          <div style={{ padding: "28px" }}>
+            <div style={{ fontSize: 34, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
+              Quote {quote.quoteNumberLabel || ""}
+            </div>
+            <div style={{ color: "#6b7280", fontSize: 16, marginBottom: 18 }}>
+              {quote.eventName || "Photography Services"}
+            </div>
+
+            {!!quote.introduction && (
+              <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
+                {quote.introduction}
+              </div>
+            )}
+
+            {Array.isArray(quote.sections) &&
+              quote.sections.map((section, idx) => (
+                <div
+                  key={`${section.packageName || "section"}-${idx}`}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: "14px 16px",
+                    marginBottom: 12,
+                  }}
+                >
+                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
+                    {section.packageName || "Package"}
+                  </div>
+                  {!!section.description && (
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: "#4b5563",
+                        lineHeight: 1.6,
+                        marginBottom: 8,
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {section.description}
+                    </div>
+                  )}
+                  {Array.isArray(section.includes) && section.includes.length > 0 && (
+                    <ul style={{ margin: "0 0 10px 18px", padding: 0, color: "#374151", fontSize: 13 }}>
+                      {section.includes.map((inc, incIdx) => (
+                        <li key={`${inc}-${incIdx}`} style={{ marginBottom: 4 }}>
+                          {inc}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {Array.isArray(section.lineItems) &&
+                    section.lineItems.map((li, liIdx) => {
+                      const qty = Number(li.qty || 1);
+                      const price = Number(li.price || 0);
+                      return (
+                        <div
+                          key={`${li.name || "line"}-${liIdx}`}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                            padding: "6px 0",
+                            borderTop: "1px solid #f0f1f3",
+                          }}
+                        >
+                          <div style={{ fontSize: 13, color: "#111827" }}>{li.name || "Item"}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                            {money(price * qty)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
+
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
+              <tbody>
+                <tr style={{ borderTop: "2px solid #111827" }}>
+                  <td style={{ padding: "12px 0", fontWeight: 700 }}>Subtotal</td>
+                  <td style={{ padding: "12px 0", textAlign: "right", fontWeight: 700 }}>
+                    {money(quote.subtotal)}
+                  </td>
+                </tr>
+                {Number(quote.discountAmount || 0) > 0 && (
+                  <tr>
+                    <td style={{ padding: "8px 0", color: "#dc2626", fontWeight: 700 }}>Discount</td>
+                    <td
+                      style={{
+                        padding: "8px 0",
+                        textAlign: "right",
+                        color: "#dc2626",
+                        fontWeight: 700,
+                      }}
+                    >
+                      -{money(quote.discountAmount)}
+                    </td>
+                  </tr>
+                )}
+                <tr>
+                  <td style={{ padding: "8px 0", fontWeight: 800, fontSize: 20 }}>Total</td>
+                  <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 800, fontSize: 20 }}>
+                    {money(quote.totalAmount)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {!!quote.notes && (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 12,
+                  borderTop: "1px solid #e5e7eb",
+                  fontSize: 14,
+                  color: "#4b5563",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {quote.notes}
+              </div>
+            )}
+
+            <div style={{ textAlign: "center", marginTop: 24 }}>
+              <a
+                href={approveMailto}
+                style={{
+                  display: "inline-block",
+                  padding: "12px 28px",
+                  background: "#d4a853",
+                  color: "#0e0f11",
+                  textDecoration: "none",
+                  borderRadius: 8,
+                  fontWeight: 800,
+                }}
+              >
+                Approve Quote
+              </a>
+            </div>
+
+            <div style={{ marginTop: 18, fontSize: 12, color: "#6b7280", textAlign: "center" }}>
+              After approval, we'll send your payment link and next booking steps.
             </div>
           </div>
         </div>

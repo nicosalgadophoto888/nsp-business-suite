@@ -1321,21 +1321,46 @@ function OverviewTab({ lead, setLead, quotes }) {
   );
 }
 
-function ScheduleTab({ schedule, setSchedule }) {
+function ScheduleTab({ schedule, setSchedule, lead }) {
   const [adding, setAdding] = useState(false);
+  const [showPastEvents, setShowPastEvents] = useState(true);
+  const [showEventNotes, setShowEventNotes] = useState(true);
+  const [selectedEventId, setSelectedEventId] = useState(null);
   const [form, setForm] = useState({
-    title: "",
-    date: "",
+    title: lead?.type ? `${lead.type} Session` : "",
+    date: lead?.eventDate || "",
     time: "",
-    location: "",
-    status: "Pending",
+    endTime: "",
+    location: lead?.location || "",
+    status: lead?.stage === "Booked" ? "Booked" : "Tentative",
+    notes: "",
   });
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
+  const sortedEvents = [...(schedule || [])].sort(
+    (a, b) => new Date(`${a.date || ""} ${a.time || ""}`) - new Date(`${b.date || ""} ${b.time || ""}`)
+  );
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const visibleEvents = sortedEvents.filter((ev) => {
+    if (showPastEvents) return true;
+    const d = new Date(ev.date || "");
+    return Number.isNaN(d.getTime()) ? true : d >= today;
+  });
+  const selectedEvent =
+    visibleEvents.find((ev) => String(ev.id) === String(selectedEventId)) || visibleEvents[0] || null;
+  const mapLocation = selectedEvent?.location || lead?.location || "Michigan";
+
+  const statusPill = (s) => {
+    if (s === "Booked" || s === "Confirmed") return { color: G.green, bg: G.greenBg };
+    if (s === "Tentative") return { color: G.amber, bg: G.amberBg };
+    return { color: G.textDim, bg: G.surface };
+  };
+
   return (
     <Card>
-      <SectionLabel actions={<Btn small onClick={() => setAdding(true)}>+ Add Event</Btn>}>
+      <SectionLabel actions={<Btn small onClick={() => setAdding(true)}>+ New Event</Btn>}>
         Schedule
       </SectionLabel>
 
@@ -1372,7 +1397,49 @@ function ScheduleTab({ schedule, setSchedule }) {
               value={form.time}
               onChange={(e) => set("time", e.target.value)}
             />
+            <InputField
+              label="End Time"
+              value={form.endTime}
+              onChange={(e) => set("endTime", e.target.value)}
+            />
+            <div style={{ marginBottom: 14 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: G.text,
+                  marginBottom: 5,
+                }}
+              >
+                Status
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => set("status", e.target.value)}
+                style={{
+                  width: "100%",
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 6,
+                  padding: "9px 12px",
+                  fontSize: 13,
+                }}
+              >
+                <option value="Tentative">Tentative</option>
+                <option value="Booked">Booked</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
           </div>
+          <InputField
+            label="Event Notes"
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            multiline
+          />
           <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
             <Btn variant="ghost" small onClick={() => setAdding(false)}>
               Cancel
@@ -1381,13 +1448,17 @@ function ScheduleTab({ schedule, setSchedule }) {
               small
               onClick={() => {
                 if (!form.title.trim()) return;
-                setSchedule((p) => [...p, { ...form, id: Date.now() }]);
+                const created = { ...form, id: Date.now() };
+                setSchedule((p) => [...p, created]);
+                setSelectedEventId(created.id);
                 setForm({
-                  title: "",
-                  date: "",
+                  title: lead?.type ? `${lead.type} Session` : "",
+                  date: lead?.eventDate || "",
                   time: "",
-                  location: "",
-                  status: "Pending",
+                  endTime: "",
+                  location: lead?.location || "",
+                  status: lead?.stage === "Booked" ? "Booked" : "Tentative",
+                  notes: "",
                 });
                 setAdding(false);
               }}
@@ -1398,52 +1469,123 @@ function ScheduleTab({ schedule, setSchedule }) {
         </div>
       )}
 
-      {schedule.length === 0 && !adding ? (
-        <EmptyState icon="📅" text="No events scheduled" />
+      {visibleEvents.length === 0 && !adding ? (
+        <EmptyState icon="📅" text="No events scheduled for this client yet." />
       ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {schedule.map((ev) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 250px", gap: 14 }}>
+          <div>
             <div
-              key={ev.id}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                padding: "14px 16px",
-                background: G.surface,
-                borderRadius: 8,
+                height: 270,
                 border: `1px solid ${G.border}`,
+                borderRadius: 8,
+                overflow: "hidden",
+                marginBottom: 12,
               }}
             >
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 8,
-                  background: G.blueBg,
-                  display: "grid",
-                  placeItems: "center",
-                  color: G.blue,
-                  fontSize: 16,
-                  flexShrink: 0,
-                }}
-              >
-                📅
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{ev.title}</div>
-                <div style={{ fontSize: 12, color: G.textDim }}>
-                  {fmtShort(ev.date)} · {ev.time} · {ev.location}
-                </div>
-              </div>
-              <Pill
-                color={ev.status === "Confirmed" ? G.green : G.amber}
-                bg={ev.status === "Confirmed" ? G.greenBg : G.amberBg}
-              >
-                {ev.status}
-              </Pill>
+              <iframe
+                title="Event map"
+                width="100%"
+                height="100%"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(mapLocation)}&output=embed`}
+                style={{ border: "none" }}
+              />
             </div>
-          ))}
+
+            <div style={{ display: "grid", gap: 8 }}>
+              {visibleEvents.map((ev) => {
+                const pill = statusPill(ev.status);
+                const active = String(selectedEvent?.id) === String(ev.id);
+                return (
+                  <div
+                    key={ev.id}
+                    onClick={() => setSelectedEventId(ev.id)}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "120px 1fr auto",
+                      gap: 12,
+                      alignItems: "center",
+                      padding: "12px 14px",
+                      background: active ? G.goldBg : G.surface,
+                      borderRadius: 8,
+                      border: `1px solid ${active ? G.gold : G.border}`,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, color: G.textMuted }}>{fmtShort(ev.date)}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{ev.time || "TBD"}</div>
+                      {ev.endTime ? (
+                        <div style={{ fontSize: 11, color: G.textDim }}>to {ev.endTime}</div>
+                      ) : null}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{ev.title}</div>
+                      <div style={{ fontSize: 12, color: G.textDim }}>{ev.location || "Location TBD"}</div>
+                      {showEventNotes && ev.notes ? (
+                        <div style={{ fontSize: 12, color: G.textMuted, marginTop: 3 }}>{ev.notes}</div>
+                      ) : null}
+                    </div>
+                    <Pill color={pill.color} bg={pill.bg}>
+                      {ev.status || "Tentative"}
+                    </Pill>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            style={{
+              border: `1px solid ${G.border}`,
+              borderRadius: 8,
+              padding: 12,
+              background: G.surface,
+              height: "fit-content",
+            }}
+          >
+            <div style={{ display: "grid", gap: 8 }}>
+              <Btn small onClick={() => setAdding(true)} full>
+                New Event
+              </Btn>
+              <Btn variant="secondary" small full onClick={() => window.print()}>
+                Print Schedule
+              </Btn>
+            </div>
+            <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+              <label style={{ fontSize: 12, color: G.text }}>
+                <input
+                  type="checkbox"
+                  checked={showPastEvents}
+                  onChange={(e) => setShowPastEvents(e.target.checked)}
+                  style={{ marginRight: 8 }}
+                />
+                Show Past Events
+              </label>
+              <label style={{ fontSize: 12, color: G.text }}>
+                <input
+                  type="checkbox"
+                  checked={showEventNotes}
+                  onChange={(e) => setShowEventNotes(e.target.checked)}
+                  style={{ marginRight: 8 }}
+                />
+                Show Event Notes
+              </label>
+            </div>
+            {selectedEvent ? (
+              <div style={{ marginTop: 14, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>
+                <div style={{ fontSize: 12, color: G.textMuted, marginBottom: 6 }}>Selected Event</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{selectedEvent.title}</div>
+                <div style={{ fontSize: 12, color: G.textDim }}>{fmtLong(selectedEvent.date)}</div>
+                <div style={{ fontSize: 12, color: G.textDim }}>
+                  {selectedEvent.time || "TBD"} {selectedEvent.endTime ? `- ${selectedEvent.endTime}` : ""}
+                </div>
+                <div style={{ fontSize: 12, color: G.textDim }}>{selectedEvent.location || "Location TBD"}</div>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </Card>
@@ -1706,6 +1848,8 @@ function QuotesTab({
   const [building, setBuilding] = useState(null);
   const [previewQuote, setPreviewQuote] = useState(null);
   const [errors, setErrors] = useState([]);
+  const [quoteNotice, setQuoteNotice] = useState(null);
+  const [emailingApproval, setEmailingApproval] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
@@ -1919,7 +2063,7 @@ function QuotesTab({
     }));
   };
 
-  const saveQuote = () => {
+  const persistQuoteFromBuilding = () => {
     if (!validate()) return;
 
     const existing = quotes.find((q) => q.id === building.id);
@@ -1965,8 +2109,146 @@ function QuotesTab({
       ]);
     }
 
-    setBuilding(null);
     setErrors([]);
+    return saved;
+  };
+
+  const saveQuote = () => {
+    const saved = persistQuoteFromBuilding();
+    if (!saved) return;
+    setQuoteNotice(null);
+    setBuilding(null);
+  };
+
+  const emailQuoteForApproval = async (quote) => {
+    const recipient = quote.clientEmail || lead.email;
+    if (!recipient) {
+      setQuoteNotice({ type: "error", message: "Client email is required to send approval." });
+      return false;
+    }
+    try {
+      setEmailingApproval(true);
+      setQuoteNotice(null);
+      const totals = calcQuoteTotals(quote);
+      const sectionSummary = (quote.sections || [])
+        .map((s) => {
+          const lineTotal = (s.lineItems || []).reduce(
+            (sum, li) => sum + toMoney(li.price) * toQty(li.qty),
+            0
+          );
+          return `<li style="margin:4px 0;"><strong>${escapeHtml(
+            s.packageName || "Package"
+          )}</strong> — ${escapeHtml(fmt$(lineTotal))}</li>`;
+        })
+        .join("");
+      const encoded = encodeClientPayload({
+        type: "quote",
+        document: {
+          id: quote.id,
+          quoteNumberLabel: quote.quoteNumberLabel || "",
+          clientName: quote.clientName || lead.name || "",
+          clientEmail: quote.clientEmail || lead.email || "",
+          eventName: quote.eventName || "",
+          eventDate: quote.eventDate || "",
+          introduction: quote.introduction || "",
+          notes: quote.notes || "",
+          expiration: quote.expiration || "",
+          subtotal: Number(totals.subtotal || 0),
+          discountAmount: Number(totals.discountAmount || 0),
+          totalAmount: Number(totals.total || 0),
+          sections: (quote.sections || []).map((s) => ({
+            packageName: s.packageName || "",
+            description: s.description || "",
+            includes: cleanIncludes(s.includes || []),
+            notes: s.notes || "",
+            lineItems: (s.lineItems || []).map((li) => ({
+              name: li.name || "",
+              price: toMoney(li.price),
+              qty: toQty(li.qty),
+            })),
+          })),
+          businessName: settings.businessName || "Nico Salgado Photography",
+          businessEmail: settings.email || "nicosalgadophoto@gmail.com",
+        },
+      });
+      const reviewLink = encoded
+        ? `${window.location.origin}/client?payload=${encodeURIComponent(encoded)}`
+        : `${window.location.origin}/client`;
+
+      const htmlBody = `
+<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto;">
+  <div style="background:#0e0f11;padding:24px 28px;border-radius:12px 12px 0 0;">
+    <div style="font-size:18px;font-weight:800;color:#d4a853;">${escapeHtml(
+      settings.businessName || "Nico Salgado Photography"
+    )}</div>
+  </div>
+  <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
+    <h2 style="margin:0 0 8px;font-size:18px;">Quote Approval Request</h2>
+    <p style="margin:0 0 16px;font-size:13px;color:#555;">Quote ${escapeHtml(
+      quote.quoteNumberLabel || ""
+    )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
+    <ul style="padding-left:18px;margin:0 0 14px;">${sectionSummary}</ul>
+    <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;font-size:14px;">
+      <strong>Total:</strong> ${escapeHtml(fmt$(totals.total))}
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="${reviewLink}" style="display:inline-block;padding:11px 24px;background:#d4a853;color:#0e0f11;text-decoration:none;border-radius:8px;font-weight:800;">
+        Review & Approve Quote
+      </a>
+    </div>
+    <p style="margin-top:16px;font-size:13px;color:#444;line-height:1.6;">
+      Please review and reply to this email with <strong>Approved</strong> to accept this quote.
+      Once approved, we can send your payment link immediately.
+    </p>
+    <p style="margin-top:10px;font-size:12px;color:#666;line-height:1.5;">
+      Trouble with the button? Copy this link into your browser:<br />
+      <a href="${reviewLink}" style="color:#b48a3a;">${reviewLink}</a>
+    </p>
+  </div>
+</div>`;
+
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: recipient,
+          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${
+            settings.businessName || "Nico Salgado Photography"
+          }`.trim(),
+          htmlBody,
+        }),
+      });
+      await parseApiResponse(res, "Failed to send quote approval email");
+
+      setQuotes((prev) =>
+        prev.map((q) =>
+          q.id === quote.id ? { ...q, status: "Sent", updatedAt: new Date().toISOString() } : q
+        )
+      );
+      setQuoteNotice({ type: "success", message: `Approval email sent to ${recipient}` });
+      return true;
+    } catch (err) {
+      setQuoteNotice({ type: "error", message: err.message || "Failed to send approval email." });
+      return false;
+    } finally {
+      setEmailingApproval(false);
+    }
+  };
+
+  const saveAndEmailQuote = async () => {
+    const saved = persistQuoteFromBuilding();
+    if (!saved) return;
+    const ok = await emailQuoteForApproval(saved);
+    if (ok) setBuilding(null);
+  };
+
+  const markQuoteAccepted = (quoteId) => {
+    const nextQuotes = quotes.map((q) =>
+      q.id === quoteId ? { ...q, status: "Accepted", updatedAt: new Date().toISOString() } : q
+    );
+    setQuotes(nextQuotes);
+    recalcLeadNumbers(nextQuotes);
+    setQuoteNotice({ type: "success", message: "Quote marked as accepted." });
   };
 
   const deleteQuote = (id) => {
@@ -2068,6 +2350,9 @@ function QuotesTab({
             <Btn variant="secondary" small onClick={() => setPreviewQuote(building)}>
               Preview Quote
             </Btn>
+            <Btn variant="secondary" small onClick={saveAndEmailQuote} disabled={emailingApproval}>
+              {emailingApproval ? "Sending..." : "Save & Email Approval"}
+            </Btn>
             <Btn small onClick={saveQuote}>
               Save Quote
             </Btn>
@@ -2075,6 +2360,24 @@ function QuotesTab({
         </div>
 
         <ErrorList errors={errors} />
+        {quoteNotice && (
+          <div
+            style={{
+              background: quoteNotice.type === "success" ? G.greenBg : G.redBg,
+              border: `1px solid ${
+                quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
+              }`,
+              color: quoteNotice.type === "success" ? G.green : G.red,
+              borderRadius: 8,
+              padding: "10px 14px",
+              marginBottom: 14,
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {quoteNotice.message}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
           <Card>
@@ -2720,6 +3023,20 @@ function QuotesTab({
                   <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
                     Preview
                   </Btn>
+                  <Btn
+                    variant="secondary"
+                    small
+                    onClick={async () => {
+                      await emailQuoteForApproval(q);
+                    }}
+                  >
+                    Email Approval
+                  </Btn>
+                  {q.status !== "Accepted" && (
+                    <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
+                      Mark Accepted
+                    </Btn>
+                  )}
                   <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
                     PDF
                   </Btn>
@@ -5406,11 +5723,28 @@ export default function NSPBusinessSuite() {
   const [sidebarToast, setSidebarToast] = useState(null);
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
+  const [newClientOpen, setNewClientOpen] = useState(false);
   const [composer, setComposer] = useState({
     templateId: "",
     to: "",
     subject: "",
     body: "",
+  });
+  const [newClientForm, setNewClientForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    type: "",
+    eventDate: "",
+    location: "",
+    referralSource: "",
+    inquiredOn: new Date().toISOString().slice(0, 10),
+    notes: "",
+    scheduleTitle: "",
+    scheduleDate: "",
+    scheduleTime: "",
+    scheduleLocation: "",
+    scheduleStatus: "Tentative",
   });
   const emailTemplates = useMemo(
     () => (templates || []).filter((t) => t.type === "email"),
@@ -5630,41 +5964,77 @@ export default function NSPBusinessSuite() {
   };
 
   const handleNewClient = () => {
-    const name = window.prompt("New client name:");
-    if (!name || !name.trim()) return;
-    const email = window.prompt("Client email (optional):", "") || "";
-    const type = window.prompt("Session type (optional):", "") || "";
-    const eventDate = window.prompt(
-      "Event/session date (YYYY-MM-DD, optional):",
-      new Date().toISOString().slice(0, 10)
-    ) || "";
-
-    setLead({
-      id: Date.now(),
-      name: name.trim(),
-      email: email.trim(),
+    setNewClientForm({
+      name: "",
+      email: "",
       phone: "",
-      type: type.trim(),
-      stage: "Lead",
-      revenue: 0,
-      balance: 0,
-      eventDate,
+      type: "",
+      eventDate: "",
       location: "",
       referralSource: "",
       inquiredOn: new Date().toISOString().slice(0, 10),
       notes: "",
+      scheduleTitle: "",
+      scheduleDate: "",
+      scheduleTime: "",
+      scheduleLocation: "",
+      scheduleStatus: "Tentative",
     });
+    setNewClientOpen(true);
+  };
+
+  const handleCreateClientAndContinue = () => {
+    if (!newClientForm.name.trim()) {
+      setSidebarToast({ type: "error", message: "Client name is required." });
+      return;
+    }
+    const createdLead = {
+      id: Date.now(),
+      name: newClientForm.name.trim(),
+      email: newClientForm.email.trim(),
+      phone: newClientForm.phone.trim(),
+      type: newClientForm.type.trim(),
+      stage: newClientForm.scheduleStatus === "Booked" ? "Booked" : "Lead",
+      revenue: 0,
+      balance: 0,
+      eventDate: newClientForm.eventDate || "",
+      location: newClientForm.location.trim(),
+      referralSource: newClientForm.referralSource.trim(),
+      inquiredOn: newClientForm.inquiredOn || new Date().toISOString().slice(0, 10),
+      notes: newClientForm.notes || "",
+    };
+
+    const initialSchedule = newClientForm.scheduleTitle.trim()
+      ? [
+          {
+            id: Date.now() + 1,
+            title: newClientForm.scheduleTitle.trim(),
+            date: newClientForm.scheduleDate || newClientForm.eventDate || "",
+            time: newClientForm.scheduleTime || "",
+            endTime: "",
+            location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
+            status: newClientForm.scheduleStatus || "Tentative",
+            notes: "",
+          },
+        ]
+      : [];
+
+    setLead(createdLead);
     setQuotes([]);
     setRecipients([]);
-    setSchedule([]);
+    setSchedule(initialSchedule);
     setPayments([]);
     setContracts([]);
     setFiles([]);
     setNotes([]);
     setEmailActivity([]);
     setScreen("lead");
-    setActiveTab("overview");
-    setSidebarToast({ type: "success", message: `Created client: ${name.trim()}` });
+    setActiveTab("quotes");
+    setNewClientOpen(false);
+    setSidebarToast({
+      type: "success",
+      message: `Created client: ${createdLead.name}. Continue in Quotes & Orders.`,
+    });
   };
 
   const handleDeleteLead = () => {
@@ -5698,7 +6068,7 @@ export default function NSPBusinessSuite() {
       case "overview":
         return <OverviewTab lead={lead} setLead={setLead} quotes={quotes} />;
       case "schedule":
-        return <ScheduleTab schedule={schedule} setSchedule={setSchedule} />;
+        return <ScheduleTab schedule={schedule} setSchedule={setSchedule} lead={lead} />;
       case "quotes":
         return (
           <QuotesTab
@@ -5886,6 +6256,184 @@ export default function NSPBusinessSuite() {
           ))}
         </div>
       </div>
+
+      {newClientOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.45)",
+            zIndex: 5100,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "min(960px, 96vw)",
+              background: G.card,
+              border: `1px solid ${G.borderLight}`,
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <SectionLabel
+              actions={
+                <Btn variant="ghost" small onClick={() => setNewClientOpen(false)}>
+                  Cancel
+                </Btn>
+              }
+            >
+              New Client Intake
+            </SectionLabel>
+
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+              <div>
+                <Card style={{ padding: 14, marginBottom: 12 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Job Profile</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <InputField
+                      label="Client Name"
+                      value={newClientForm.name}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, name: e.target.value }))}
+                      required
+                    />
+                    <InputField
+                      label="Email"
+                      value={newClientForm.email}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, email: e.target.value }))}
+                    />
+                    <InputField
+                      label="Phone"
+                      value={newClientForm.phone}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, phone: e.target.value }))}
+                    />
+                    <InputField
+                      label="Job Type"
+                      value={newClientForm.type}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, type: e.target.value }))}
+                    />
+                    <InputField
+                      label="Job Date"
+                      type="date"
+                      value={newClientForm.eventDate}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, eventDate: e.target.value }))}
+                    />
+                    <InputField
+                      label="Lead Inquired On"
+                      type="date"
+                      value={newClientForm.inquiredOn}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, inquiredOn: e.target.value }))}
+                    />
+                    <InputField
+                      label="Source"
+                      value={newClientForm.referralSource}
+                      onChange={(e) =>
+                        setNewClientForm((p) => ({ ...p, referralSource: e.target.value }))
+                      }
+                    />
+                    <InputField
+                      label="Location"
+                      value={newClientForm.location}
+                      onChange={(e) => setNewClientForm((p) => ({ ...p, location: e.target.value }))}
+                    />
+                  </div>
+                  <InputField
+                    label="Lead Notes"
+                    value={newClientForm.notes}
+                    onChange={(e) => setNewClientForm((p) => ({ ...p, notes: e.target.value }))}
+                    multiline
+                  />
+                </Card>
+
+                <Card style={{ padding: 14 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Schedule</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 10 }}>
+                    <InputField
+                      label="Event Title"
+                      value={newClientForm.scheduleTitle}
+                      onChange={(e) =>
+                        setNewClientForm((p) => ({ ...p, scheduleTitle: e.target.value }))
+                      }
+                    />
+                    <InputField
+                      label="Date"
+                      type="date"
+                      value={newClientForm.scheduleDate}
+                      onChange={(e) =>
+                        setNewClientForm((p) => ({ ...p, scheduleDate: e.target.value }))
+                      }
+                    />
+                    <InputField
+                      label="Time"
+                      value={newClientForm.scheduleTime}
+                      onChange={(e) =>
+                        setNewClientForm((p) => ({ ...p, scheduleTime: e.target.value }))
+                      }
+                    />
+                    <div style={{ marginBottom: 14 }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: G.text,
+                          marginBottom: 5,
+                        }}
+                      >
+                        Status
+                      </label>
+                      <select
+                        value={newClientForm.scheduleStatus}
+                        onChange={(e) =>
+                          setNewClientForm((p) => ({ ...p, scheduleStatus: e.target.value }))
+                        }
+                        style={{
+                          width: "100%",
+                          background: G.surface,
+                          color: G.text,
+                          border: `1px solid ${G.border}`,
+                          borderRadius: 6,
+                          padding: "9px 12px",
+                          fontSize: 13,
+                        }}
+                      >
+                        <option value="Tentative">Tentative</option>
+                        <option value="Booked">Booked</option>
+                        <option value="Confirmed">Confirmed</option>
+                      </select>
+                    </div>
+                  </div>
+                  <InputField
+                    label="Event Location (optional)"
+                    value={newClientForm.scheduleLocation}
+                    onChange={(e) =>
+                      setNewClientForm((p) => ({ ...p, scheduleLocation: e.target.value }))
+                    }
+                  />
+                </Card>
+              </div>
+
+              <Card style={{ padding: 14, height: "fit-content" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Workflow</div>
+                <div style={{ fontSize: 12, color: G.textDim, lineHeight: 1.6, marginBottom: 12 }}>
+                  Fill client details and schedule first, then continue directly into Quotes &
+                  Orders to build and send approval.
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <Btn variant="ghost" small onClick={() => setNewClientOpen(false)} full>
+                    Cancel
+                  </Btn>
+                  <Btn small onClick={handleCreateClientAndContinue} full>
+                    Save & Continue to Quotes
+                  </Btn>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
 
       {emailComposerOpen && (
         <div
