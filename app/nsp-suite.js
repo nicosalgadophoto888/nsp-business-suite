@@ -955,9 +955,10 @@ function Btn({
   );
 }
 
-function Card({ children, style }) {
+function Card({ children, style, onClick }) {
   return (
     <div
+      onClick={onClick}
       style={{
         background: G.card,
         border: `1px solid ${G.border}`,
@@ -4905,7 +4906,7 @@ function TemplatesTab({ templates, setTemplates }) {
   );
 }
 
-function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
+function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigate }) {
   const totalQuoted = quotes.reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
   const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
   const openQuotes = quotes.filter((q) => q.status !== "Declined").length;
@@ -4933,17 +4934,19 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
           {[
             { label: "Lead Name", value: lead.name || "—", accent: G.gold },
-            { label: "Open Quotes", value: String(openQuotes), accent: G.blue },
-            { label: "Accepted Quotes", value: String(acceptedCount), accent: G.green },
-            { label: "Pipeline Value", value: fmt$(totalQuoted), accent: G.amber },
+            { label: "Open Quotes", value: String(openQuotes), accent: G.blue, tab: "quotes" },
+            { label: "Accepted Quotes", value: String(acceptedCount), accent: G.green, tab: "quotes" },
+            { label: "Pipeline Value", value: fmt$(totalQuoted), accent: G.amber, tab: "financials" },
           ].map((item, i) => (
             <div
               key={i}
+              onClick={() => item.tab && onNavigate?.(item.tab)}
               style={{
                 background: G.surface,
                 border: `1px solid ${G.border}`,
                 borderRadius: 8,
                 padding: 12,
+                cursor: item.tab ? "pointer" : "default",
               }}
             >
               <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 6 }}>{item.label}</div>
@@ -4954,7 +4957,10 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
       </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
-        <Card>
+        <Card
+          style={{ cursor: revenueSeries.length ? "pointer" : "default" }}
+          onClick={revenueSeries.length ? () => onNavigate?.("financials") : undefined}
+        >
           <SectionLabel>Revenue Snapshot</SectionLabel>
           {revenueSeries.length === 0 ? (
             <EmptyState icon="📊" text="No quote data yet" />
@@ -4980,7 +4986,7 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
           )}
         </Card>
 
-        <Card>
+        <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("notes")}>
           <SectionLabel>Client Email Opens</SectionLabel>
           <InfoRow label="Total Email Opens" value={String(totalEmailOpens)} accent={G.blue} />
           <InfoRow label="Last Opened" value={lastOpenIso ? `${fmtShort(lastOpenIso)} ${fmtTime(lastOpenIso)}` : "No opens yet"} />
@@ -4992,7 +4998,7 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <Card>
+        <Card style={{ cursor: schedule.length ? "pointer" : "default" }} onClick={() => schedule.length && onNavigate?.("schedule")}>
           <SectionLabel>Upcoming Schedule</SectionLabel>
           {schedule.length === 0 ? (
             <EmptyState icon="📅" text="No events scheduled" />
@@ -5007,7 +5013,7 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
             </div>
           )}
         </Card>
-        <Card>
+        <Card style={{ cursor: notes.length ? "pointer" : "default" }} onClick={() => notes.length && onNavigate?.("notes")}>
           <SectionLabel>Recent Notes</SectionLabel>
           {notes.length === 0 ? (
             <EmptyState icon="📝" text="No notes yet" />
@@ -5736,6 +5742,7 @@ export default function NSPBusinessSuite() {
               schedule={schedule}
               notes={notes}
               emailActivity={emailActivity}
+              onNavigate={goToTab}
             />
           ) : (
             renderTab()
