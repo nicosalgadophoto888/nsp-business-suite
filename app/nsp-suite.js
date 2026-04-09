@@ -4,25 +4,25 @@ import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 const G = {
-  bg: "#0c0d0f",
-  surface: "#131517",
-  card: "#191b1e",
-  border: "#2a2d31",
-  borderLight: "#353a3f",
-  text: "#e8e6e3",
-  textDim: "#9b9a97",
-  textMuted: "#6b6a68",
-  gold: "#d4a853",
-  goldBg: "rgba(212,168,83,.08)",
-  green: "#34d399",
-  greenBg: "rgba(52,211,153,.08)",
-  red: "#f87171",
-  redBg: "rgba(248,113,113,.08)",
-  blue: "#60a5fa",
-  blueBg: "rgba(96,165,250,.08)",
-  amber: "#fbbf24",
-  amberBg: "rgba(251,191,36,.08)",
-  teal: "#4a9ba5",
+  bg: "#f7f5f0",
+  surface: "#fcfaf6",
+  card: "#ffffff",
+  border: "#e4ddd2",
+  borderLight: "#d7cfc3",
+  text: "#1f2937",
+  textDim: "#5f6875",
+  textMuted: "#7f8794",
+  gold: "#b48a3a",
+  goldBg: "rgba(180,138,58,.14)",
+  green: "#0f9f6e",
+  greenBg: "rgba(15,159,110,.12)",
+  red: "#d14343",
+  redBg: "rgba(209,67,67,.12)",
+  blue: "#2f6fde",
+  blueBg: "rgba(47,111,222,.12)",
+  amber: "#c28518",
+  amberBg: "rgba(194,133,24,.14)",
+  teal: "#2b7f87",
 };
 
 const STAGES = [
@@ -1697,6 +1697,7 @@ function QuotesTab({
   setQuotes,
   recipients,
   setRecipients,
+  templates,
   settings,
   counters,
   setCounters,
@@ -1707,6 +1708,12 @@ function QuotesTab({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
+  const [selectedPackageTemplateId, setSelectedPackageTemplateId] = useState("");
+
+  const quoteTemplates = useMemo(
+    () => (templates || []).filter((t) => t.type === "file"),
+    [templates]
+  );
 
   const emptyQuote = {
     id: "",
@@ -1767,6 +1774,50 @@ function QuotesTab({
           includes: [],
           notes: "",
           lineItems: [{ id: genId("qli"), name: "", price: 0, qty: 1 }],
+        },
+      ],
+    }));
+  };
+
+  const extractTemplatePrice = (tpl) => {
+    if (typeof tpl?.basePrice === "number") return toMoney(tpl.basePrice);
+    const match = String(tpl?.content || "").match(/\$([\d,]+(?:\.\d{1,2})?)/);
+    return match ? toMoney(String(match[1]).replaceAll(",", "")) : 0;
+  };
+
+  const extractTemplateIncludes = (tpl) => {
+    if (Array.isArray(tpl?.includes) && tpl.includes.length) return cleanIncludes(tpl.includes);
+    return cleanIncludes(
+      String(tpl?.content || "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => /^[-•]\s+/.test(line) || /^includes?:/i.test(line))
+        .map((line) => line.replace(/^includes?:\s*/i, "").replace(/^[-•]\s+/, ""))
+    );
+  };
+
+  const addSectionFromTemplate = (tpl) => {
+    if (!tpl) return;
+    const price = extractTemplatePrice(tpl);
+    const includes = extractTemplateIncludes(tpl);
+    setBuilding((prev) => ({
+      ...prev,
+      sections: [
+        ...(prev.sections || []),
+        {
+          id: genId("sec"),
+          packageName: tpl.name || "Package Template",
+          description: tpl.content || "",
+          includes,
+          notes: "",
+          lineItems: [
+            {
+              id: genId("qli"),
+              name: tpl.name || "Package",
+              price,
+              qty: 1,
+            },
+          ],
         },
       ],
     }));
@@ -2113,9 +2164,43 @@ function QuotesTab({
           <Card>
             <SectionLabel
               actions={
-                <Btn variant="ghost" small onClick={addCustomSection}>
-                  + Custom Section
-                </Btn>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <select
+                    value={selectedPackageTemplateId}
+                    onChange={(e) => setSelectedPackageTemplateId(e.target.value)}
+                    style={{
+                      background: G.surface,
+                      color: G.text,
+                      border: `1px solid ${G.border}`,
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: 12,
+                      minWidth: 190,
+                    }}
+                  >
+                    <option value="">Select package template…</option>
+                    {quoteTemplates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Btn
+                    variant="secondary"
+                    small
+                    onClick={() => {
+                      const tpl = quoteTemplates.find((t) => t.id === selectedPackageTemplateId);
+                      if (!tpl) return;
+                      addSectionFromTemplate(tpl);
+                    }}
+                    disabled={!selectedPackageTemplateId}
+                  >
+                    + Use Template
+                  </Btn>
+                  <Btn variant="ghost" small onClick={addCustomSection}>
+                    + Custom Section
+                  </Btn>
+                </div>
               }
             >
               Quote Sections
