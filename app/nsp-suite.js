@@ -343,6 +343,7 @@ const DEFAULT_DATA = {
       date: "2026-03-22T10:30:00",
     },
   ],
+  emailActivity: [],
   payments: [
     {
       id: 1,
@@ -465,6 +466,7 @@ function loadState() {
     contracts: saved.contracts || DEFAULT_DATA.contracts,
     files: saved.files || DEFAULT_DATA.files,
     notes: saved.notes || DEFAULT_DATA.notes,
+    emailActivity: saved.emailActivity || DEFAULT_DATA.emailActivity,
     quotes: saved.quotes || DEFAULT_DATA.quotes,
     recipients: saved.recipients || DEFAULT_DATA.recipients,
     templates: mergeDefaultTemplates(saved.templates),
@@ -4677,7 +4679,7 @@ function TemplatesTab({ templates, setTemplates }) {
   );
 }
 
-function NotesTab({ notes, setNotes }) {
+function NotesTab({ notes, setNotes, emailActivity }) {
   const [text, setText] = useState("");
 
   const add = () => {
@@ -4692,6 +4694,48 @@ function NotesTab({ notes, setNotes }) {
   return (
     <Card>
       <SectionLabel>Notes</SectionLabel>
+
+      <div
+        style={{
+          background: G.surface,
+          border: `1px solid ${G.border}`,
+          borderRadius: 8,
+          padding: 12,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 700, color: G.gold, marginBottom: 8 }}>
+          Email Activity
+        </div>
+        {(!emailActivity || emailActivity.length === 0) ? (
+          <div style={{ fontSize: 12, color: G.textMuted }}>No emails logged yet.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {emailActivity.slice(0, 8).map((e) => (
+              <div
+                key={e.id}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: `1px solid ${G.border}`,
+                  background: G.card,
+                }}
+              >
+                <div style={{ fontSize: 12, color: G.text }}>
+                  ✉ {e.kind || "Email"} to <span style={{ color: G.blue }}>{e.to}</span>
+                </div>
+                <div style={{ fontSize: 12, color: G.textDim, marginTop: 4 }}>
+                  Subject: {e.subject || "—"}
+                  {e.templateName ? ` · Template: ${e.templateName}` : ""}
+                </div>
+                <div style={{ fontSize: 11, color: G.textMuted, marginTop: 4 }}>
+                  {fmtShort(e.date)} · {fmtTime(e.date)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
         <textarea
@@ -4855,6 +4899,7 @@ export default function NSPBusinessSuite() {
   const [files, setFiles] = useState(initial.files);
   const [templates, setTemplates] = useState(initial.templates || []);
   const [notes, setNotes] = useState(initial.notes);
+  const [emailActivity, setEmailActivity] = useState(initial.emailActivity || []);
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
 
@@ -4872,11 +4917,12 @@ export default function NSPBusinessSuite() {
         files,
         templates,
         notes,
+        emailActivity,
         settings,
         counters,
       })
     );
-  }, [lead, quotes, recipients, schedule, payments, contracts, files, templates, notes, settings, counters]);
+  }, [lead, quotes, recipients, schedule, payments, contracts, files, templates, notes, emailActivity, settings, counters]);
 
   const stageIdx = STAGES.findIndex((s) => s.key === lead.stage);
   const quoteBadge = quotes.length;
@@ -4934,6 +4980,20 @@ export default function NSPBusinessSuite() {
     return out;
   };
 
+  const addEmailActivity = ({ to, subject, templateName, kind }) => {
+    setEmailActivity((prev) => [
+      {
+        id: genId("email-log"),
+        to: to || "",
+        subject: subject || "",
+        templateName: templateName || "",
+        kind: kind || "Email",
+        date: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+  };
+
   const applyTemplateToComposer = (tpl) => {
     if (!tpl) return;
     setComposer((prev) => ({
@@ -4979,6 +5039,13 @@ export default function NSPBusinessSuite() {
         }),
       });
       await parseApiResponse(res, "Failed to send email");
+      const selectedTemplate = emailTemplates.find((t) => t.id === composer.templateId);
+      addEmailActivity({
+        to: composer.to.trim(),
+        subject: composer.subject.trim(),
+        templateName: selectedTemplate?.name || "",
+        kind: "Template Email",
+      });
       setSidebarToast({ type: "success", message: `Email sent to ${composer.to.trim()}` });
       setEmailComposerOpen(false);
     } catch (err) {
@@ -5066,6 +5133,12 @@ export default function NSPBusinessSuite() {
           )
         );
       }
+      addEmailActivity({
+        to: lead.email,
+        subject: `Quote ${firstQuote.quoteNumberLabel || ""} - Nico Salgado Photography`.trim(),
+        templateName: "Latest Quote Email",
+        kind: "Quote Email",
+      });
       setSidebarToast({ type: "success", message: `Quote emailed to ${lead.email}` });
     } catch (err) {
       setSidebarToast({ type: "error", message: err.message });
@@ -5124,7 +5197,7 @@ export default function NSPBusinessSuite() {
       case "templates":
         return <TemplatesTab templates={templates} setTemplates={setTemplates} />;
       case "notes":
-        return <NotesTab notes={notes} setNotes={setNotes} />;
+        return <NotesTab notes={notes} setNotes={setNotes} emailActivity={emailActivity} />;
       case "files":
         return <FilesTab files={files} setFiles={setFiles} />;
       default:
