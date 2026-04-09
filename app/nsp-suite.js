@@ -2141,7 +2141,7 @@ function QuotesTab({
           )}</strong> — ${escapeHtml(fmt$(lineTotal))}</li>`;
         })
         .join("");
-      const encoded = encodeClientPayload({
+      const quotePayload = {
         type: "quote",
         document: {
           id: quote.id,
@@ -2170,10 +2170,35 @@ function QuotesTab({
           businessName: settings.businessName || "Nico Salgado Photography",
           businessEmail: settings.email || "nicosalgadophoto@gmail.com",
         },
-      });
-      const reviewLink = encoded
-        ? `${window.location.origin}/client?payload=${encodeURIComponent(encoded)}`
-        : `${window.location.origin}/client`;
+      };
+
+      let reviewLink = "";
+      try {
+        const token = genUuid();
+        const approvalRecord = {
+          token,
+          quote_id: String(quote.id || ""),
+          quote_number_label: quote.quoteNumberLabel || "",
+          client_name: quote.clientName || lead.name || "",
+          client_email: recipient,
+          status: "pending",
+          payload: quotePayload.document,
+          approved_at: null,
+        };
+        const { data, error } = await supabase
+          .from("quote_approvals")
+          .upsert(approvalRecord, { onConflict: "quote_id" })
+          .select("token")
+          .single();
+        if (error) throw error;
+        if (!data?.token) throw new Error("Token not returned");
+        reviewLink = `${window.location.origin}/client?token=${encodeURIComponent(data.token)}`;
+      } catch {
+        const encoded = encodeClientPayload(quotePayload);
+        reviewLink = encoded
+          ? `${window.location.origin}/client?payload=${encodeURIComponent(encoded)}`
+          : `${window.location.origin}/client`;
+      }
 
       const htmlBody = `
 <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto;">
@@ -2197,8 +2222,8 @@ function QuotesTab({
       </a>
     </div>
     <p style="margin-top:16px;font-size:13px;color:#444;line-height:1.6;">
-      Please review and reply to this email with <strong>Approved</strong> to accept this quote.
-      Once approved, we can send your payment link immediately.
+      Please review and approve this quote using the secure button above.
+      Once approved, your status updates in our system and we can send your payment link immediately.
     </p>
     <p style="margin-top:10px;font-size:12px;color:#666;line-height:1.5;">
       Trouble with the button? Copy this link into your browser:<br />
@@ -5715,6 +5740,63 @@ export default function NSPBusinessSuite() {
       })
     );
   }, [lead, quotes, recipients, schedule, payments, contracts, files, templates, notes, emailActivity, settings, counters]);
+
+  useEffect(() => {
+    const applyApprovedQuote = (row) => {
+      if (!row || row.status !== "approved") return;
+      const quoteId = String(row.quote_id || "");
+      const quoteNumber = String(row.quote_number_label || "");
+
+      setQuotes((prev) => {
+        let changed = false;
+        const next = prev.map((q) => {
+          const byId = quoteId && String(q.id) === quoteId;
+          const byNumber = quoteNumber && String(q.quoteNumberLabel) === quoteNumber;
+          if ((byId || byNumber) && q.status !== "Accepted") {
+            changed = true;
+            return { ...q, status: "Accepted", updatedAt: new Date().toISOString() };
+          }
+          return q;
+        });
+        if (!changed) return prev;
+
+        const acceptedRevenue = next
+          .filter((q) => q.status === "Accepted")
+          .reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
+        const latestAccepted = next.find((q) => q.status === "Accepted");
+        setLead((curr) => ({
+          ...curr,
+          revenue: acceptedRevenue,
+          balance: latestAccepted ? calcQuoteTotals(latestAccepted).total : curr.balance,
+        }));
+        return next;
+      });
+    };
+
+    const loadExistingApprovals = async () => {
+      const { data, error } = await supabase
+        .from("quote_approvals")
+        .select("quote_id, quote_number_label, status")
+        .eq("status", "approved")
+        .order("updated_at", { ascending: false });
+      if (error || !data) return;
+      data.forEach(applyApprovedQuote);
+    };
+
+    loadExistingApprovals();
+    const channel = supabase
+      .channel("quote-approvals-sync")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "quote_approvals" },
+        (payload) => applyApprovedQuote(payload.new)
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase.removeChannel) supabase.removeChannel(channel);
+    };
+  }, []);
 
   const stageIdx = STAGES.findIndex((s) => s.key === lead.stage);
   const quoteBadge = quotes.length;

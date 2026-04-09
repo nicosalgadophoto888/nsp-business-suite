@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { supabase } from "../supabaseClient";
 
 function decodePayload(raw) {
   try {
@@ -23,7 +24,11 @@ function money(n) {
 export default function ClientPageContent() {
   const params = useSearchParams();
   const payload = useMemo(() => decodePayload(params.get("payload")), [params]);
+  const token = params.get("token");
   const [legacyResolved, setLegacyResolved] = useState(null);
+  const [tokenResolved, setTokenResolved] = useState(null);
+  const [approveBusy, setApproveBusy] = useState(false);
+  const [approveNotice, setApproveNotice] = useState(null);
   const [showAdminNav, setShowAdminNav] = useState(false);
 
   useEffect(() => {
@@ -58,6 +63,38 @@ export default function ClientPageContent() {
   }, [params, payload]);
 
   useEffect(() => {
+    let canceled = false;
+    async function loadTokenDoc() {
+      if (!token) {
+        setTokenResolved(null);
+        return;
+      }
+      const { data, error } = await supabase.rpc("get_quote_approval_by_token", {
+        p_token: token,
+      });
+      if (canceled) return;
+      if (error) {
+        setTokenResolved(null);
+        return;
+      }
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.payload) {
+        setTokenResolved(null);
+        return;
+      }
+      setTokenResolved({
+        type: "quote",
+        document: row.payload,
+        approvalStatus: row.status || "pending",
+      });
+    }
+    loadTokenDoc();
+    return () => {
+      canceled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
     try {
       setShowAdminNav(Boolean(window.localStorage.getItem("nsp_lead_detail_v2")));
     } catch {
@@ -65,13 +102,18 @@ export default function ClientPageContent() {
     }
   }, []);
 
-  const resolved = payload?.document ? payload : legacyResolved;
+  const resolved = tokenResolved?.document
+    ? tokenResolved
+    : payload?.document
+      ? payload
+      : legacyResolved;
   const isInvoice = resolved?.type === "invoice" && resolved?.document;
   const isQuote = resolved?.type === "quote" && resolved?.document;
   const isSignDoc =
     (resolved?.type === "contract" || resolved?.type === "release") && resolved?.document;
   const inv = isInvoice ? resolved.document : null;
   const quote = isQuote ? resolved.document : null;
+  const quoteStatus = isQuote ? resolved?.approvalStatus || "pending" : "pending";
   const doc = isSignDoc ? resolved.document : null;
 
   if (!isInvoice && !isQuote && !isSignDoc) {
@@ -216,6 +258,27 @@ export default function ClientPageContent() {
     const approveMailto = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(
       subject
     )}&body=${encodeURIComponent(bodyText)}`;
+    const approveByToken = async () => {
+      if (!token) return;
+      setApproveBusy(true);
+      setApproveNotice(null);
+      const { data, error } = await supabase.rpc("approve_quote_by_token", { p_token: token });
+      setApproveBusy(false);
+      if (error) {
+        setApproveNotice({ type: "error", message: "Could not approve quote. Please try again." });
+        return;
+      }
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) {
+        setApproveNotice({ type: "error", message: "Approval failed. Link may be invalid." });
+        return;
+      }
+      setTokenResolved((prev) => (prev ? { ...prev, approvalStatus: "approved" } : prev));
+      setApproveNotice({
+        type: "success",
+        message: "Quote approved. Nico has been notified and will send payment next steps.",
+      });
+    };
 
     return (
       <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
@@ -384,21 +447,65 @@ export default function ClientPageContent() {
             )}
 
             <div style={{ textAlign: "center", marginTop: 24 }}>
-              <a
-                href={approveMailto}
+              {token ? (
+                <button
+                  onClick={approveByToken}
+                  disabled={approveBusy || quoteStatus === "approved"}
+                  style={{
+                    display: "inline-block",
+                    padding: "12px 28px",
+                    background: quoteStatus === "approved" ? "#10b981" : "#d4a853",
+                    color: "#0e0f11",
+                    textDecoration: "none",
+                    borderRadius: 8,
+                    border: "none",
+                    fontWeight: 800,
+                    cursor: approveBusy || quoteStatus === "approved" ? "default" : "pointer",
+                    opacity: approveBusy ? 0.7 : 1,
+                  }}
+                >
+                  {quoteStatus === "approved"
+                    ? "Approved"
+                    : approveBusy
+                      ? "Approving..."
+                      : "Approve Quote"}
+                </button>
+              ) : (
+                <a
+                  href={approveMailto}
+                  style={{
+                    display: "inline-block",
+                    padding: "12px 28px",
+                    background: "#d4a853",
+                    color: "#0e0f11",
+                    textDecoration: "none",
+                    borderRadius: 8,
+                    fontWeight: 800,
+                  }}
+                >
+                  Approve Quote
+                </a>
+              )}
+            </div>
+
+            {approveNotice && (
+              <div
                 style={{
-                  display: "inline-block",
-                  padding: "12px 28px",
-                  background: "#d4a853",
-                  color: "#0e0f11",
-                  textDecoration: "none",
+                  marginTop: 14,
+                  padding: "10px 12px",
                   borderRadius: 8,
-                  fontWeight: 800,
+                  fontSize: 13,
+                  background: approveNotice.type === "success" ? "#ecfdf5" : "#fef2f2",
+                  color: approveNotice.type === "success" ? "#047857" : "#b91c1c",
+                  border:
+                    approveNotice.type === "success"
+                      ? "1px solid #a7f3d0"
+                      : "1px solid #fecaca",
                 }}
               >
-                Approve Quote
-              </a>
-            </div>
+                {approveNotice.message}
+              </div>
+            )}
 
             <div style={{ marginTop: 18, fontSize: 12, color: "#6b7280", textAlign: "center" }}>
               After approval, we'll send your payment link and next booking steps.

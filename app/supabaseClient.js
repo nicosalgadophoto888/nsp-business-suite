@@ -1,5 +1,8 @@
-// Lightweight fallback client for environments where Supabase isn't configured yet.
-// Keeps UI flows functional and prevents build/runtime crashes.
+import { createClient } from "@supabase/supabase-js";
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
 function result(data = null, error = null) {
   return Promise.resolve({ data, error });
 }
@@ -13,9 +16,15 @@ function makeQuery() {
       return result([]);
     },
     eq() {
-      return result(null);
+      return this;
+    },
+    in() {
+      return this;
     },
     single() {
+      return result(null);
+    },
+    maybeSingle() {
       return result(null);
     },
     insert() {
@@ -28,6 +37,9 @@ function makeQuery() {
           };
         },
       };
+    },
+    upsert() {
+      return result(null);
     },
     update() {
       return {
@@ -46,9 +58,36 @@ function makeQuery() {
   };
 }
 
-export const supabase = {
-  from() {
-    return makeQuery();
-  },
-};
+function makeFallbackChannel() {
+  return {
+    on() {
+      return this;
+    },
+    subscribe(callback) {
+      if (typeof callback === "function") callback("CLOSED");
+      return this;
+    },
+  };
+}
 
+function makeFallbackClient() {
+  return {
+    from() {
+      return makeQuery();
+    },
+    rpc() {
+      return result(null);
+    },
+    channel() {
+      return makeFallbackChannel();
+    },
+    removeChannel() {},
+  };
+}
+
+export const supabase =
+  url && anon
+    ? createClient(url, anon, {
+        auth: { persistSession: false },
+      })
+    : makeFallbackClient();
