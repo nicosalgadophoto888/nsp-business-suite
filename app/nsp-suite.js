@@ -5449,6 +5449,7 @@ export default function NSPBusinessSuite() {
             setQuotes={setQuotes}
             recipients={recipients}
             setRecipients={setRecipients}
+            templates={templates}
             settings={settings}
             counters={counters}
             setCounters={setCounters}
