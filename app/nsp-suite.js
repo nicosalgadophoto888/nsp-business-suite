@@ -441,6 +441,15 @@ function safeJsonParse(value, fallback) {
   }
 }
 
+function mergeDefaultTemplates(savedTemplates) {
+  const saved = Array.isArray(savedTemplates) ? savedTemplates : [];
+  const defaults = DEFAULT_DATA.templates || [];
+  const byId = new Map();
+  defaults.forEach((t) => byId.set(t.id, t));
+  saved.forEach((t) => byId.set(t.id, { ...byId.get(t.id), ...t }));
+  return Array.from(byId.values());
+}
+
 function loadState() {
   if (typeof window === "undefined") return DEFAULT_DATA;
   const saved = safeJsonParse(window.localStorage.getItem(STORAGE_KEY), null);
@@ -458,7 +467,7 @@ function loadState() {
     notes: saved.notes || DEFAULT_DATA.notes,
     quotes: saved.quotes || DEFAULT_DATA.quotes,
     recipients: saved.recipients || DEFAULT_DATA.recipients,
-    templates: saved.templates || DEFAULT_DATA.templates,
+    templates: mergeDefaultTemplates(saved.templates),
   };
 }
 
@@ -4349,6 +4358,14 @@ function TemplatesTab({ templates, setTemplates }) {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState(null);
+  const templateIcons = {
+    "Booking Confirmation": "📸",
+    "Client Onboarding": "🚀",
+    "Testimonial Request": "⭐",
+    "Discount Request Response": "💬",
+    "Questionnaire Follow-Up": "📋",
+    "New Client Questionnaire": "📝",
+  };
 
   const folders = ["All", "Made for you", "My Templates"];
   const categories = ["All", "Contracts", "Invoices", "Proposals", "Quotes", "Questionnaires"];
@@ -4521,7 +4538,10 @@ function TemplatesTab({ templates, setTemplates }) {
                   }}
                   onClick={() => setEditing({ ...tpl })}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{tpl.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
+                    {tpl.name}
+                  </div>
                   <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 8 }}>
                     {tpl.category} · {tpl.folder}
                   </div>
@@ -4552,7 +4572,10 @@ function TemplatesTab({ templates, setTemplates }) {
                     padding: "10px 12px",
                   }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{tpl.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
+                    {tpl.name}
+                  </div>
                   <div style={{ fontSize: 12, color: G.textDim }}>{tpl.action}</div>
                   <div style={{ fontSize: 12, color: G.textDim }}>
                     {tpl.type === "email" && tpl.subject ? tpl.subject : tpl.folder}
