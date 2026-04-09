@@ -38,6 +38,7 @@ const TABS = [
   { key: "quotes", label: "Quotes & Orders" },
   { key: "financials", label: "Financials" },
   { key: "contracts", label: "Contracts" },
+  { key: "templates", label: "Templates" },
   { key: "notes", label: "Notes" },
   { key: "files", label: "Files" },
 ];
@@ -187,6 +188,66 @@ const DEFAULT_DATA = {
       lastVisit: null,
     },
   ],
+  templates: [
+    {
+      id: "tpl-file-1",
+      type: "file",
+      action: "Contract",
+      name: "Wedding Services Agreement",
+      category: "Contracts",
+      folder: "Made for you",
+      content:
+        "This Wedding Services Agreement is entered into by {{client_name}} and Nico Salgado Photography...",
+      createdAt: "2026-04-01T10:00:00",
+      updatedAt: "2026-04-01T10:00:00",
+    },
+    {
+      id: "tpl-file-2",
+      type: "file",
+      action: "Invoice, Pay",
+      name: "Simple Invoice",
+      category: "Invoices",
+      folder: "Made for you",
+      content: "Invoice template for {{client_name}} with session {{session_type}} on {{session_date}}.",
+      createdAt: "2026-04-03T10:00:00",
+      updatedAt: "2026-04-03T10:00:00",
+    },
+    {
+      id: "tpl-file-3",
+      type: "file",
+      action: "Proposal",
+      name: "Story Proposal",
+      category: "Proposals",
+      folder: "My Templates",
+      content: "Proposal for {{client_name}} including package options and timeline.",
+      createdAt: "2026-04-04T10:00:00",
+      updatedAt: "2026-04-04T10:00:00",
+    },
+    {
+      id: "tpl-email-1",
+      type: "email",
+      action: "Send",
+      name: "Quote Follow-up Email",
+      category: "Quotes",
+      folder: "Made for you",
+      content:
+        "Hi {{client_name}}, following up on your quote for {{session_type}} on {{session_date}}.",
+      createdAt: "2026-04-05T10:00:00",
+      updatedAt: "2026-04-05T10:00:00",
+    },
+    {
+      id: "tpl-email-2",
+      type: "email",
+      action: "Reminder",
+      name: "Payment Reminder",
+      category: "Invoices",
+      folder: "My Templates",
+      content:
+        "Hi {{client_name}}, this is a reminder that your balance of {{total_amount}} is due.",
+      createdAt: "2026-04-06T10:00:00",
+      updatedAt: "2026-04-06T10:00:00",
+    },
+  ],
   counters: { nextQuoteNumber: 2 },
   settings: DEFAULT_SETTINGS,
 };
@@ -216,6 +277,7 @@ function loadState() {
     notes: saved.notes || DEFAULT_DATA.notes,
     quotes: saved.quotes || DEFAULT_DATA.quotes,
     recipients: saved.recipients || DEFAULT_DATA.recipients,
+    templates: saved.templates || DEFAULT_DATA.templates,
   };
 }
 
@@ -4099,6 +4161,303 @@ function ContractsTab({ contracts, setContracts, lead }) {
   return null;
 }
 
+function TemplatesTab({ templates, setTemplates }) {
+  const [mode, setMode] = useState("file"); // file | email
+  const [layout, setLayout] = useState("cards"); // cards | list
+  const [filter, setFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const folders = ["All", "Made for you", "My Templates"];
+  const categories = ["All", "Contracts", "Invoices", "Proposals", "Quotes", "Questionnaires"];
+
+  const modeTemplates = templates.filter((t) => t.type === mode);
+  const filtered = modeTemplates.filter((t) => {
+    const folderOk = filter === "All" || t.folder === filter;
+    const categoryOk = categoryFilter === "All" || t.category === categoryFilter;
+    const queryOk =
+      !query.trim() ||
+      t.name.toLowerCase().includes(query.toLowerCase()) ||
+      t.category.toLowerCase().includes(query.toLowerCase()) ||
+      (t.action || "").toLowerCase().includes(query.toLowerCase());
+    return folderOk && categoryOk && queryOk;
+  });
+
+  const createTemplate = () => {
+    setEditing({
+      id: genId("tpl"),
+      type: mode,
+      action: mode === "file" ? "Contract" : "Send",
+      name: "",
+      category: "Contracts",
+      folder: "My Templates",
+      content: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const saveTemplate = () => {
+    if (!editing?.name?.trim()) return;
+    setTemplates((prev) => {
+      const exists = prev.some((t) => t.id === editing.id);
+      const next = { ...editing, updatedAt: new Date().toISOString() };
+      if (exists) return prev.map((t) => (t.id === editing.id ? next : t));
+      return [next, ...prev];
+    });
+    setEditing(null);
+  };
+
+  const deleteTemplate = (id) => {
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    if (editing?.id === id) setEditing(null);
+  };
+
+  return (
+    <Card>
+      <SectionLabel
+        actions={
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn variant={layout === "cards" ? "secondary" : "ghost"} small onClick={() => setLayout("cards")}>
+              Cards
+            </Btn>
+            <Btn variant={layout === "list" ? "secondary" : "ghost"} small onClick={() => setLayout("list")}>
+              List
+            </Btn>
+            <Btn small onClick={createTemplate}>+ New Template</Btn>
+          </div>
+        }
+      >
+        My Templates
+      </SectionLabel>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        <Btn variant={mode === "file" ? "secondary" : "ghost"} small onClick={() => setMode("file")}>
+          File templates
+        </Btn>
+        <Btn variant={mode === "email" ? "secondary" : "ghost"} small onClick={() => setMode("email")}>
+          Email templates
+        </Btn>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 14 }}>
+        <div
+          style={{
+            background: G.surface,
+            border: `1px solid ${G.border}`,
+            borderRadius: 8,
+            padding: 12,
+            height: "fit-content",
+          }}
+        >
+          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 8, letterSpacing: ".06em" }}>
+            SMART FILES
+          </div>
+          {folders.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                width: "100%",
+                background: filter === f ? G.goldBg : "transparent",
+                color: filter === f ? G.gold : G.textDim,
+                border: "none",
+                textAlign: "left",
+                padding: "8px 9px",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                marginBottom: 2,
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search templates"
+              style={{
+                flex: 1,
+                minWidth: 180,
+                background: G.surface,
+                color: G.text,
+                border: `1px solid ${G.border}`,
+                borderRadius: 7,
+                padding: "9px 12px",
+                fontSize: 12,
+              }}
+            />
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              style={{
+                background: G.surface,
+                color: G.text,
+                border: `1px solid ${G.border}`,
+                borderRadius: 7,
+                padding: "9px 10px",
+                fontSize: 12,
+                minWidth: 140,
+              }}
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon="📋"
+              text={`No ${mode} templates yet`}
+              action={
+                <Btn small onClick={createTemplate}>
+                  Create Template
+                </Btn>
+              }
+            />
+          ) : layout === "cards" ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 10 }}>
+              {filtered.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  style={{
+                    background: G.surface,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 8,
+                    padding: 12,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setEditing({ ...tpl })}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{tpl.name}</div>
+                  <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 8 }}>
+                    {tpl.category} · {tpl.folder}
+                  </div>
+                  <Pill color={G.gold} bg={G.goldBg}>
+                    {tpl.action || (mode === "file" ? "Contract" : "Send")}
+                  </Pill>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {filtered.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.3fr 1fr 1fr auto",
+                    alignItems: "center",
+                    gap: 10,
+                    background: G.surface,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{tpl.name}</div>
+                  <div style={{ fontSize: 12, color: G.textDim }}>{tpl.action}</div>
+                  <div style={{ fontSize: 12, color: G.textDim }}>{tpl.folder}</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Btn variant="ghost" small onClick={() => setEditing({ ...tpl })}>
+                      Edit
+                    </Btn>
+                    <Btn variant="danger" small onClick={() => deleteTemplate(tpl.id)}>
+                      ×
+                    </Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {editing && (
+        <div
+          style={{
+            marginTop: 16,
+            background: G.surface,
+            border: `1px solid ${G.borderLight}`,
+            borderRadius: 8,
+            padding: 14,
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <InputField
+              label="Template Name"
+              value={editing.name || ""}
+              onChange={(e) => setEditing((p) => ({ ...p, name: e.target.value }))}
+            />
+            <InputField
+              label="Action"
+              value={editing.action || ""}
+              onChange={(e) => setEditing((p) => ({ ...p, action: e.target.value }))}
+            />
+            <div style={{ marginBottom: 14 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: G.text,
+                  marginBottom: 5,
+                }}
+              >
+                Folder
+              </label>
+              <select
+                value={editing.folder || "My Templates"}
+                onChange={(e) => setEditing((p) => ({ ...p, folder: e.target.value }))}
+                style={{
+                  width: "100%",
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 6,
+                  padding: "9px 12px",
+                  fontSize: 13,
+                }}
+              >
+                {folders.filter((f) => f !== "All").map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <InputField
+            label="Template Body"
+            value={editing.content || ""}
+            onChange={(e) => setEditing((p) => ({ ...p, content: e.target.value }))}
+            multiline
+            style={{ marginBottom: 8 }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <Btn variant="ghost" small onClick={() => setEditing(null)}>
+              Cancel
+            </Btn>
+            <Btn small onClick={saveTemplate} disabled={!editing.name?.trim()}>
+              Save Template
+            </Btn>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function NotesTab({ notes, setNotes }) {
   const [text, setText] = useState("");
 
@@ -4275,6 +4634,7 @@ export default function NSPBusinessSuite() {
   const [payments, setPayments] = useState(initial.payments);
   const [contracts, setContracts] = useState(initial.contracts);
   const [files, setFiles] = useState(initial.files);
+  const [templates, setTemplates] = useState(initial.templates || []);
   const [notes, setNotes] = useState(initial.notes);
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
@@ -4291,12 +4651,13 @@ export default function NSPBusinessSuite() {
         payments,
         contracts,
         files,
+        templates,
         notes,
         settings,
         counters,
       })
     );
-  }, [lead, quotes, recipients, schedule, payments, contracts, files, notes, settings, counters]);
+  }, [lead, quotes, recipients, schedule, payments, contracts, files, templates, notes, settings, counters]);
 
   const stageIdx = STAGES.findIndex((s) => s.key === lead.stage);
   const quoteBadge = quotes.length;
@@ -4437,6 +4798,8 @@ export default function NSPBusinessSuite() {
         return <FinancialsTab payments={payments} setPayments={setPayments} quotes={quotes} lead={lead} />;
       case "contracts":
         return <ContractsTab contracts={contracts} setContracts={setContracts} lead={lead} />;
+      case "templates":
+        return <TemplatesTab templates={templates} setTemplates={setTemplates} />;
       case "notes":
         return <NotesTab notes={notes} setNotes={setNotes} />;
       case "files":
