@@ -56,6 +56,246 @@ const DEFAULT_SETTINGS = {
   statuses: ["Draft", "Sent", "Accepted", "Declined"],
 };
 
+const DEFAULT_FILE_TEMPLATES = [
+  {
+    id: "tpl-file-1",
+    type: "file",
+    action: "Contract",
+    name: "Wedding Services Agreement",
+    category: "Contracts",
+    folder: "Made for you",
+    content:
+      "This Wedding Services Agreement is entered into by {{client_name}} and Nico Salgado Photography...",
+    createdAt: "2026-04-01T10:00:00",
+    updatedAt: "2026-04-01T10:00:00",
+  },
+  {
+    id: "tpl-file-2",
+    type: "file",
+    action: "Invoice, Pay",
+    name: "Simple Invoice",
+    category: "Invoices",
+    folder: "Made for you",
+    content: "Invoice template for {{client_name}} with session {{session_type}} on {{session_date}}.",
+    createdAt: "2026-04-03T10:00:00",
+    updatedAt: "2026-04-03T10:00:00",
+  },
+  {
+    id: "tpl-file-3",
+    type: "file",
+    action: "Proposal",
+    name: "Story Proposal",
+    category: "Proposals",
+    folder: "My Templates",
+    content: "Proposal for {{client_name}} including package options and timeline.",
+    createdAt: "2026-04-04T10:00:00",
+    updatedAt: "2026-04-04T10:00:00",
+  },
+];
+
+const DEFAULT_EMAIL_TEMPLATES = [
+  {
+    id: "tpl-email-booking",
+    type: "email",
+    action: "Send",
+    name: "Booking Confirmation",
+    category: "Booking",
+    folder: "Made for you",
+    subject: "You're Booked! - {{service_type}} Session Confirmed",
+    content: `Hi {{client_name}},
+
+Great news - your {{service_type}} session is officially confirmed! I'm excited to work with you.
+
+Here are the details:
+
+Session: {{package_name}} ({{package_tier}})
+Date: {{session_date}}
+Time: {{session_time}}
+Location: {{location}}
+Investment: {{total_price}}
+
+Your 50% retainer of {{retainer_amount}} has been received - thank you! The remaining balance of {{balance_due}} is due before your session date.
+
+What happens next:
+1. You'll receive a New Client Questionnaire shortly - please complete it at least 3 days before our session so I can tailor the experience to you.
+2. If you haven't already, please review and sign your contract via the link I'll send separately.
+3. Start thinking about wardrobe! I'll share a style guide to help you prepare.
+
+If you have any questions at all, don't hesitate to reach out. I'm here to make this process seamless and fun.
+
+Looking forward to creating something amazing together!
+
+Warm regards,
+Nico Salgado
+Nico Salgado Photography
+nico@nicosalgadophotography.com
+www.nicosalgadophotography.com`,
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-email-onboarding",
+    type: "email",
+    action: "Send",
+    name: "Client Onboarding",
+    category: "Onboarding",
+    folder: "Made for you",
+    subject: "Welcome to NSP! Here's What to Expect",
+    content: `Hi {{client_name}},
+
+Welcome aboard - I'm thrilled to have you as a client!
+
+I wanted to take a moment to walk you through the process so you know exactly what to expect as we move forward together.
+
+Your Session Roadmap:
+
+Step 1 - Questionnaire
+I'll be sending you a brief questionnaire to learn more about your goals, preferences, and vision. This helps me design a session that's uniquely yours.
+
+Step 2 - Contract & Retainer
+You'll receive a contract for review and e-signature, along with a secure payment link for your 50% retainer to lock in your date.
+
+Step 3 - Pre-Session Prep
+About a week before your session, I'll send over a prep guide covering wardrobe tips, location details, and what to expect on shoot day.
+
+Step 4 - Shoot Day
+This is the fun part! I'll guide you through every pose and angle - no modeling experience needed.
+
+Step 5 - Gallery Delivery
+Your professionally edited images will be delivered within 2-3 weeks via a private online gallery.
+
+If anything comes up between now and then, you can always reach me at nico@nicosalgadophotography.com.
+
+Let's make something incredible.
+
+Best,
+Nico Salgado
+Nico Salgado Photography
+www.nicosalgadophotography.com`,
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-email-testimonial",
+    type: "email",
+    action: "Reminder",
+    name: "Testimonial Request",
+    category: "Testimonials",
+    folder: "Made for you",
+    subject: "Quick Favor? I'd Love Your Feedback!",
+    content: `Hi {{client_name}},
+
+I hope you've been enjoying your images from our {{service_type}} session! It was such a pleasure working with you.
+
+I have a small favor to ask - would you be willing to share a brief testimonial about your experience? Your words mean the world to me and help future clients feel confident about booking.
+
+It doesn't have to be long! Even 2-3 sentences about what stood out to you would be amazing.
+
+You can simply reply to this email with your thoughts, or leave a review on Google here:
+{{google_review_link}}
+
+As a thank you, I'd love to offer you {{testimonial_incentive}} toward your next session.
+
+Thank you so much for your trust and your time - it truly means a lot.
+
+Gratefully,
+Nico Salgado
+Nico Salgado Photography
+nico@nicosalgadophotography.com`,
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-email-discount",
+    type: "email",
+    action: "Reply",
+    name: "Discount Request Response",
+    category: "Sales",
+    folder: "Made for you",
+    subject: "Re: Pricing for {{service_type}} Session",
+    content: `Hi {{client_name}},
+
+Thank you for reaching out and for your interest in working with me - I really appreciate it!
+
+I completely understand that budget is an important consideration. My rates reflect the time, expertise, and care that goes into every session.
+
+That said, I want to help make this work for you. Here are a few options:
+
+Option 1 - Flexible Payment Plan
+I can split your investment into two or three payments.
+
+Option 2 - A Different Package
+If {{current_package}} feels like a stretch, my {{alternative_package}} package at {{alternative_price}} might be a great fit.
+
+Option 3 - Mini Session Waitlist
+I occasionally offer limited mini sessions at a reduced rate.
+
+I never want price to be the only thing standing between you and images you'll love.
+
+Looking forward to hearing from you!
+
+Best,
+Nico Salgado
+Nico Salgado Photography
+nico@nicosalgadophotography.com`,
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-email-questionnaire-followup",
+    type: "email",
+    action: "Reminder",
+    name: "Questionnaire Follow-Up",
+    category: "Onboarding",
+    folder: "Made for you",
+    subject: "Friendly Reminder - Your Session Questionnaire",
+    content: `Hi {{client_name}},
+
+Just a quick, friendly reminder - I haven't received your completed questionnaire yet, and your {{service_type}} session is coming up on {{session_date}}!
+
+It only takes about 5-10 minutes. You can complete it here:
+{{questionnaire_link}}
+
+Ideally, I'd love to have it back at least 3 days before your session so I have time to prepare.
+
+Can't wait to start planning your session!
+
+Best,
+Nico Salgado
+Nico Salgado Photography
+nico@nicosalgadophotography.com`,
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-email-questionnaire",
+    type: "email",
+    action: "Send",
+    name: "New Client Questionnaire",
+    category: "Onboarding",
+    folder: "Made for you",
+    subject: "Let's Get to Know You - Your Session Questionnaire",
+    content: `Hi {{client_name}},
+
+I'm so excited for your upcoming {{service_type}} session!
+
+Please take a few minutes to fill out this questionnaire:
+{{questionnaire_link}}
+
+There are no wrong answers - this is all about making your session feel personal, comfortable, and you.
+
+Please complete this at least 3 days before our session.
+
+Cheers,
+Nico Salgado
+Nico Salgado Photography
+nico@nicosalgadophotography.com
+www.nicosalgadophotography.com`,
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+];
+
 const DEFAULT_DATA = {
   lead: {
     id: 1,
@@ -188,66 +428,7 @@ const DEFAULT_DATA = {
       lastVisit: null,
     },
   ],
-  templates: [
-    {
-      id: "tpl-file-1",
-      type: "file",
-      action: "Contract",
-      name: "Wedding Services Agreement",
-      category: "Contracts",
-      folder: "Made for you",
-      content:
-        "This Wedding Services Agreement is entered into by {{client_name}} and Nico Salgado Photography...",
-      createdAt: "2026-04-01T10:00:00",
-      updatedAt: "2026-04-01T10:00:00",
-    },
-    {
-      id: "tpl-file-2",
-      type: "file",
-      action: "Invoice, Pay",
-      name: "Simple Invoice",
-      category: "Invoices",
-      folder: "Made for you",
-      content: "Invoice template for {{client_name}} with session {{session_type}} on {{session_date}}.",
-      createdAt: "2026-04-03T10:00:00",
-      updatedAt: "2026-04-03T10:00:00",
-    },
-    {
-      id: "tpl-file-3",
-      type: "file",
-      action: "Proposal",
-      name: "Story Proposal",
-      category: "Proposals",
-      folder: "My Templates",
-      content: "Proposal for {{client_name}} including package options and timeline.",
-      createdAt: "2026-04-04T10:00:00",
-      updatedAt: "2026-04-04T10:00:00",
-    },
-    {
-      id: "tpl-email-1",
-      type: "email",
-      action: "Send",
-      name: "Quote Follow-up Email",
-      category: "Quotes",
-      folder: "Made for you",
-      content:
-        "Hi {{client_name}}, following up on your quote for {{session_type}} on {{session_date}}.",
-      createdAt: "2026-04-05T10:00:00",
-      updatedAt: "2026-04-05T10:00:00",
-    },
-    {
-      id: "tpl-email-2",
-      type: "email",
-      action: "Reminder",
-      name: "Payment Reminder",
-      category: "Invoices",
-      folder: "My Templates",
-      content:
-        "Hi {{client_name}}, this is a reminder that your balance of {{total_amount}} is due.",
-      createdAt: "2026-04-06T10:00:00",
-      updatedAt: "2026-04-06T10:00:00",
-    },
-  ],
+  templates: [...DEFAULT_FILE_TEMPLATES, ...DEFAULT_EMAIL_TEMPLATES],
   counters: { nextQuoteNumber: 2 },
   settings: DEFAULT_SETTINGS,
 };
@@ -4190,8 +4371,9 @@ function TemplatesTab({ templates, setTemplates }) {
       type: mode,
       action: mode === "file" ? "Contract" : "Send",
       name: "",
-      category: "Contracts",
+      category: mode === "file" ? "Contracts" : "Onboarding",
       folder: "My Templates",
+      subject: mode === "email" ? "New message for {{client_name}}" : "",
       content: "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -4343,6 +4525,11 @@ function TemplatesTab({ templates, setTemplates }) {
                   <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 8 }}>
                     {tpl.category} · {tpl.folder}
                   </div>
+                  {tpl.type === "email" && tpl.subject ? (
+                    <div style={{ fontSize: 11, color: G.textDim, marginBottom: 8 }}>
+                      Subject: {tpl.subject}
+                    </div>
+                  ) : null}
                   <Pill color={G.gold} bg={G.goldBg}>
                     {tpl.action || (mode === "file" ? "Contract" : "Send")}
                   </Pill>
@@ -4367,7 +4554,9 @@ function TemplatesTab({ templates, setTemplates }) {
                 >
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{tpl.name}</div>
                   <div style={{ fontSize: 12, color: G.textDim }}>{tpl.action}</div>
-                  <div style={{ fontSize: 12, color: G.textDim }}>{tpl.folder}</div>
+                  <div style={{ fontSize: 12, color: G.textDim }}>
+                    {tpl.type === "email" && tpl.subject ? tpl.subject : tpl.folder}
+                  </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <Btn variant="ghost" small onClick={() => setEditing({ ...tpl })}>
                       Edit
@@ -4437,6 +4626,13 @@ function TemplatesTab({ templates, setTemplates }) {
               </select>
             </div>
           </div>
+          {editing.type === "email" && (
+            <InputField
+              label="Email Subject"
+              value={editing.subject || ""}
+              onChange={(e) => setEditing((p) => ({ ...p, subject: e.target.value }))}
+            />
+          )}
           <InputField
             label="Template Body"
             value={editing.content || ""}
