@@ -4905,6 +4905,128 @@ function TemplatesTab({ templates, setTemplates }) {
   );
 }
 
+function DashboardView({ lead, quotes, schedule, notes, emailActivity }) {
+  const totalQuoted = quotes.reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
+  const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
+  const openQuotes = quotes.filter((q) => q.status !== "Declined").length;
+  const totalEmailOpens = quotes.reduce((sum, q) => sum + (Number(q.pageViews) || 0), 0);
+  const lastOpenIso = quotes
+    .map((q) => q.lastViewed)
+    .filter(Boolean)
+    .sort()
+    .slice(-1)[0];
+
+  const revenueSeries = quotes
+    .slice()
+    .sort((a, b) => new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0))
+    .map((q, i) => ({
+      x: i + 1,
+      y: calcQuoteTotals(q).total,
+      label: q.quoteNumberLabel || `Quote ${i + 1}`,
+    }));
+  const maxY = Math.max(1, ...revenueSeries.map((p) => p.y));
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <Card>
+        <SectionLabel>Leads Dashboard</SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          {[
+            { label: "Lead Name", value: lead.name || "—", accent: G.gold },
+            { label: "Open Quotes", value: String(openQuotes), accent: G.blue },
+            { label: "Accepted Quotes", value: String(acceptedCount), accent: G.green },
+            { label: "Pipeline Value", value: fmt$(totalQuoted), accent: G.amber },
+          ].map((item, i) => (
+            <div
+              key={i}
+              style={{
+                background: G.surface,
+                border: `1px solid ${G.border}`,
+                borderRadius: 8,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 6 }}>{item.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: item.accent }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
+        <Card>
+          <SectionLabel>Revenue Snapshot</SectionLabel>
+          {revenueSeries.length === 0 ? (
+            <EmptyState icon="📊" text="No quote data yet" />
+          ) : (
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 180 }}>
+              {revenueSeries.map((p) => (
+                <div key={p.label} style={{ flex: 1, textAlign: "center" }}>
+                  <div
+                    title={`${p.label}: ${fmt$(p.y)}`}
+                    style={{
+                      height: `${Math.max(8, Math.round((p.y / maxY) * 140))}px`,
+                      background: "linear-gradient(180deg, #d4a853 0%, #b48a3a 100%)",
+                      borderRadius: "6px 6px 0 0",
+                      border: `1px solid ${G.borderLight}`,
+                    }}
+                  />
+                  <div style={{ fontSize: 10, color: G.textMuted, marginTop: 6, whiteSpace: "nowrap" }}>
+                    {p.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <SectionLabel>Client Email Opens</SectionLabel>
+          <InfoRow label="Total Email Opens" value={String(totalEmailOpens)} accent={G.blue} />
+          <InfoRow label="Last Opened" value={lastOpenIso ? `${fmtShort(lastOpenIso)} ${fmtTime(lastOpenIso)}` : "No opens yet"} />
+          <InfoRow label="Emails Sent" value={String((emailActivity || []).length)} />
+          <div style={{ marginTop: 10, fontSize: 12, color: G.textDim }}>
+            Tracks when clients open quote links and logs sent emails from this lead.
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Card>
+          <SectionLabel>Upcoming Schedule</SectionLabel>
+          {schedule.length === 0 ? (
+            <EmptyState icon="📅" text="No events scheduled" />
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {schedule.slice(0, 5).map((ev) => (
+                <div key={ev.id} style={{ padding: "10px 12px", border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{ev.title}</div>
+                  <div style={{ fontSize: 12, color: G.textDim }}>{fmtShort(ev.date)} · {ev.time || "—"} · {ev.location || "—"}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+        <Card>
+          <SectionLabel>Recent Notes</SectionLabel>
+          {notes.length === 0 ? (
+            <EmptyState icon="📝" text="No notes yet" />
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {notes.slice(0, 4).map((n) => (
+                <div key={n.id} style={{ padding: "10px 12px", border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+                  <div style={{ fontSize: 12, color: G.text }}>{n.text}</div>
+                  <div style={{ fontSize: 11, color: G.textMuted, marginTop: 4 }}>{fmtShort(n.date)} · {fmtTime(n.date)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function NotesTab({ notes, setNotes, emailActivity }) {
   const [text, setText] = useState("");
 
@@ -5116,6 +5238,7 @@ export default function NSPBusinessSuite() {
   const initial = loadState();
 
   const [lead, setLead] = useState(initial.lead);
+  const [screen, setScreen] = useState("lead"); // lead | dashboard
   const [activeTab, setActiveTab] = useState("overview");
   const [quotes, setQuotes] = useState(initial.quotes);
   const [recipients, setRecipients] = useState(initial.recipients);
@@ -5413,6 +5536,7 @@ export default function NSPBusinessSuite() {
     setFiles([]);
     setNotes([]);
     setEmailActivity([]);
+    setScreen("lead");
     setActiveTab("overview");
     setSidebarToast({ type: "success", message: `Created client: ${name.trim()}` });
   };
@@ -5425,7 +5549,11 @@ export default function NSPBusinessSuite() {
 
   const SIDEBAR_ACTIONS = [
     { label: "+ New Client", variant: "secondary", onClick: handleNewClient },
-    { label: "← Return to Leads", variant: "primary", onClick: () => window.history.back() },
+    {
+      label: screen === "dashboard" ? "→ Open Lead Workspace" : "← Return to Leads Dashboard",
+      variant: "primary",
+      onClick: () => setScreen((prev) => (prev === "dashboard" ? "lead" : "dashboard")),
+    },
     { label: "✉ New Email", variant: "secondary", onClick: openNewEmailComposer },
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
     { label: "View / Print PDF", variant: "secondary", onClick: handlePdf },
@@ -5595,7 +5723,19 @@ export default function NSPBusinessSuite() {
           minHeight: "calc(100vh - 170px)",
         }}
       >
-        <div style={{ padding: "24px 28px", overflowY: "auto" }}>{renderTab()}</div>
+        <div style={{ padding: "24px 28px", overflowY: "auto" }}>
+          {screen === "dashboard" ? (
+            <DashboardView
+              lead={lead}
+              quotes={quotes}
+              schedule={schedule}
+              notes={notes}
+              emailActivity={emailActivity}
+            />
+          ) : (
+            renderTab()
+          )}
+        </div>
 
         <div
           style={{
