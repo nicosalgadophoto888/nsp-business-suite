@@ -93,6 +93,117 @@ const DEFAULT_FILE_TEMPLATES = [
   },
 ];
 
+const DEFAULT_PACKAGE_TEMPLATES = [
+  {
+    id: "tpl-package-hs-first",
+    type: "file",
+    action: "Services, Quote",
+    name: "Headshots - The First Impression",
+    category: "Headshots",
+    folder: "Made for you",
+    content:
+      "Price: $349\nDuration: 30-minute session\nIncludes:\n- Pre-session consultation\n- Expert posing and expression coaching\n- 3 fully retouched digital images\n- Professional licensing included\nAdd-on: Additional headshots $125 each",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-hs-statement",
+    type: "file",
+    action: "Services, Quote",
+    name: "Headshots - The Statement",
+    category: "Headshots",
+    folder: "Made for you",
+    content:
+      "Price: $649\nDuration: 45-minute session\nIncludes:\n- Brand consultation\n- 2 background / lighting setups\n- Wardrobe guidance\n- 5 fully retouched digital images\n- Professional licensing included",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-hs-authority",
+    type: "file",
+    action: "Services, Quote",
+    name: "Headshots - The Authority",
+    category: "Headshots",
+    folder: "Made for you",
+    content:
+      "Price: $895\nDuration: 75-minute session\nIncludes:\n- 3 background / lighting setups\n- Full wardrobe and styling guidance\n- 8 fully retouched digital images\n- Same-week delivery\n- Professional licensing included",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-br-foundation",
+    type: "file",
+    action: "Services, Proposal",
+    name: "Branding - The Foundation",
+    category: "Personal Branding",
+    folder: "Made for you",
+    content:
+      "Price: $1,400\nDuration: Up to 1.5 hours\nIncludes:\n- Brand strategy call\n- 2-3 lighting / background setups\n- Wardrobe consultation\n- 15 fully retouched digital images\n- Full licensing",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-br-identity",
+    type: "file",
+    action: "Services, Proposal",
+    name: "Branding - The Identity",
+    category: "Personal Branding",
+    folder: "Made for you",
+    content:
+      "Price: $2,400\nDuration: Up to 2.5 hours\nIncludes:\n- In-depth brand discovery\n- Studio plus optional location\n- 4-5 setups and 3 wardrobe changes\n- 30 fully retouched images\n- Full licensing",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-br-campaign",
+    type: "file",
+    action: "Services, Proposal",
+    name: "Branding - The Brand Campaign",
+    category: "Personal Branding",
+    folder: "Made for you",
+    content:
+      "Price: $3,800\nDuration: Half-day (4+ hours)\nIncludes:\n- Comprehensive brand strategy\n- Studio plus 1-2 on-location setups\n- 50+ retouched images\n- Priority delivery within 8 days\n- Social-ready crop package",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-ev-coverage",
+    type: "file",
+    action: "Services, Quote",
+    name: "Events - The Coverage",
+    category: "Events",
+    folder: "Made for you",
+    content:
+      "Price: $500\nDuration: 2 hours on-site\nIncludes:\n- Planning call\n- Candid and posed shots\n- Professional editing\n- 50+ digital images\n- Online gallery",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-ev-production",
+    type: "file",
+    action: "Services, Quote",
+    name: "Events - The Production",
+    category: "Events",
+    folder: "Made for you",
+    content:
+      "Price: $1,200\nDuration: 4 hours on-site\nIncludes:\n- Shot list and planning\n- Speaker and keynote coverage\n- 100+ digital images\n- Next-day highlights\n- Full licensing",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+  {
+    id: "tpl-package-ev-showcase",
+    type: "file",
+    action: "Services, Quote",
+    name: "Events - The Showcase",
+    category: "Events",
+    folder: "Made for you",
+    content:
+      "Price: $2,400\nDuration: 8 hours on-site\nIncludes:\n- Full event narrative coverage\n- VIP and panel coverage\n- 200+ digital images\n- 48-hour highlights\n- Full licensing",
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+];
+
 const DEFAULT_EMAIL_TEMPLATES = [
   {
     id: "tpl-email-booking",
@@ -429,7 +540,7 @@ const DEFAULT_DATA = {
       lastVisit: null,
     },
   ],
-  templates: [...DEFAULT_FILE_TEMPLATES, ...DEFAULT_EMAIL_TEMPLATES],
+  templates: [...DEFAULT_FILE_TEMPLATES, ...DEFAULT_PACKAGE_TEMPLATES, ...DEFAULT_EMAIL_TEMPLATES],
   counters: { nextQuoteNumber: 2 },
   settings: DEFAULT_SETTINGS,
 };
@@ -4354,6 +4465,16 @@ function ContractsTab({ contracts, setContracts, lead }) {
 }
 
 function TemplatesTab({ templates, setTemplates }) {
+  const LT = {
+    panel: "#f8f6f2",
+    card: "#ffffff",
+    border: "#e7e1d8",
+    text: "#2e2a25",
+    dim: "#70685f",
+    muted: "#8a7f74",
+    brand: "#a68b5b",
+    brandBg: "rgba(166,139,91,.12)",
+  };
   const [mode, setMode] = useState("file"); // file | email
   const [layout, setLayout] = useState("cards"); // cards | list
   const [filter, setFilter] = useState("All");
@@ -4370,7 +4491,19 @@ function TemplatesTab({ templates, setTemplates }) {
   };
 
   const folders = ["All", "Made for you", "My Templates"];
-  const categories = ["All", "Contracts", "Invoices", "Proposals", "Quotes", "Questionnaires"];
+  const categories = [
+    "All",
+    "Contracts",
+    "Invoices",
+    "Proposals",
+    "Quotes",
+    "Questionnaires",
+    "Headshots",
+    "Personal Branding",
+    "Events",
+    "Booking",
+    "Onboarding",
+  ];
 
   const modeTemplates = templates.filter((t) => t.type === mode);
   const filtered = modeTemplates.filter((t) => {
@@ -4416,7 +4549,15 @@ function TemplatesTab({ templates, setTemplates }) {
   };
 
   return (
-    <Card>
+    <div
+      style={{
+        background: LT.panel,
+        border: `1px solid ${LT.border}`,
+        borderRadius: 12,
+        padding: 18,
+        color: LT.text,
+      }}
+    >
       <SectionLabel
         actions={
           <div style={{ display: "flex", gap: 8 }}>
@@ -4445,14 +4586,14 @@ function TemplatesTab({ templates, setTemplates }) {
       <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 14 }}>
         <div
           style={{
-            background: G.surface,
-            border: `1px solid ${G.border}`,
+            background: LT.card,
+            border: `1px solid ${LT.border}`,
             borderRadius: 8,
             padding: 12,
             height: "fit-content",
           }}
         >
-          <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 8, letterSpacing: ".06em" }}>
+          <div style={{ fontSize: 11, color: LT.muted, marginBottom: 8, letterSpacing: ".06em" }}>
             SMART FILES
           </div>
           {folders.map((f) => (
@@ -4461,8 +4602,8 @@ function TemplatesTab({ templates, setTemplates }) {
               onClick={() => setFilter(f)}
               style={{
                 width: "100%",
-                background: filter === f ? G.goldBg : "transparent",
-                color: filter === f ? G.gold : G.textDim,
+                background: filter === f ? LT.brandBg : "transparent",
+                color: filter === f ? LT.brand : LT.dim,
                 border: "none",
                 textAlign: "left",
                 padding: "8px 9px",
@@ -4487,9 +4628,9 @@ function TemplatesTab({ templates, setTemplates }) {
               style={{
                 flex: 1,
                 minWidth: 180,
-                background: G.surface,
-                color: G.text,
-                border: `1px solid ${G.border}`,
+                background: LT.card,
+                color: LT.text,
+                border: `1px solid ${LT.border}`,
                 borderRadius: 7,
                 padding: "9px 12px",
                 fontSize: 12,
@@ -4499,9 +4640,9 @@ function TemplatesTab({ templates, setTemplates }) {
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               style={{
-                background: G.surface,
-                color: G.text,
-                border: `1px solid ${G.border}`,
+                background: LT.card,
+                color: LT.text,
+                border: `1px solid ${LT.border}`,
                 borderRadius: 7,
                 padding: "9px 10px",
                 fontSize: 12,
@@ -4532,8 +4673,8 @@ function TemplatesTab({ templates, setTemplates }) {
                 <div
                   key={tpl.id}
                   style={{
-                    background: G.surface,
-                    border: `1px solid ${G.border}`,
+                    background: LT.card,
+                    border: `1px solid ${LT.border}`,
                     borderRadius: 8,
                     padding: 12,
                     cursor: "pointer",
@@ -4544,15 +4685,15 @@ function TemplatesTab({ templates, setTemplates }) {
                     {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
                     {tpl.name}
                   </div>
-                  <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, color: LT.muted, marginBottom: 8 }}>
                     {tpl.category} · {tpl.folder}
                   </div>
                   {tpl.type === "email" && tpl.subject ? (
-                    <div style={{ fontSize: 11, color: G.textDim, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: LT.dim, marginBottom: 8 }}>
                       Subject: {tpl.subject}
                     </div>
                   ) : null}
-                  <Pill color={G.gold} bg={G.goldBg}>
+                  <Pill color={LT.brand} bg={LT.brandBg}>
                     {tpl.action || (mode === "file" ? "Contract" : "Send")}
                   </Pill>
                 </div>
@@ -4568,8 +4709,8 @@ function TemplatesTab({ templates, setTemplates }) {
                     gridTemplateColumns: "1.3fr 1fr 1fr auto",
                     alignItems: "center",
                     gap: 10,
-                    background: G.surface,
-                    border: `1px solid ${G.border}`,
+                    background: LT.card,
+                    border: `1px solid ${LT.border}`,
                     borderRadius: 8,
                     padding: "10px 12px",
                   }}
@@ -4578,8 +4719,8 @@ function TemplatesTab({ templates, setTemplates }) {
                     {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
                     {tpl.name}
                   </div>
-                  <div style={{ fontSize: 12, color: G.textDim }}>{tpl.action}</div>
-                  <div style={{ fontSize: 12, color: G.textDim }}>
+                  <div style={{ fontSize: 12, color: LT.dim }}>{tpl.action}</div>
+                  <div style={{ fontSize: 12, color: LT.dim }}>
                     {tpl.type === "email" && tpl.subject ? tpl.subject : tpl.folder}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -4601,8 +4742,8 @@ function TemplatesTab({ templates, setTemplates }) {
         <div
           style={{
             marginTop: 16,
-            background: G.surface,
-            border: `1px solid ${G.borderLight}`,
+            background: LT.card,
+            border: `1px solid ${LT.border}`,
             borderRadius: 8,
             padding: 14,
           }}
@@ -4624,7 +4765,7 @@ function TemplatesTab({ templates, setTemplates }) {
                   display: "block",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: G.text,
+                  color: LT.text,
                   marginBottom: 5,
                 }}
               >
@@ -4635,9 +4776,9 @@ function TemplatesTab({ templates, setTemplates }) {
                 onChange={(e) => setEditing((p) => ({ ...p, folder: e.target.value }))}
                 style={{
                   width: "100%",
-                  background: G.surface,
-                  color: G.text,
-                  border: `1px solid ${G.border}`,
+                  background: LT.card,
+                  color: LT.text,
+                  border: `1px solid ${LT.border}`,
                   borderRadius: 6,
                   padding: "9px 12px",
                   fontSize: 13,
@@ -4675,7 +4816,7 @@ function TemplatesTab({ templates, setTemplates }) {
           </div>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -5154,6 +5295,43 @@ export default function NSPBusinessSuite() {
     setQuotes((prev) => prev.map((q) => ({ ...q, lastViewed: null, pageViews: 0 })));
   };
 
+  const handleNewClient = () => {
+    const name = window.prompt("New client name:");
+    if (!name || !name.trim()) return;
+    const email = window.prompt("Client email (optional):", "") || "";
+    const type = window.prompt("Session type (optional):", "") || "";
+    const eventDate = window.prompt(
+      "Event/session date (YYYY-MM-DD, optional):",
+      new Date().toISOString().slice(0, 10)
+    ) || "";
+
+    setLead({
+      id: Date.now(),
+      name: name.trim(),
+      email: email.trim(),
+      phone: "",
+      type: type.trim(),
+      stage: "Lead",
+      revenue: 0,
+      balance: 0,
+      eventDate,
+      location: "",
+      referralSource: "",
+      inquiredOn: new Date().toISOString().slice(0, 10),
+      notes: "",
+    });
+    setQuotes([]);
+    setRecipients([]);
+    setSchedule([]);
+    setPayments([]);
+    setContracts([]);
+    setFiles([]);
+    setNotes([]);
+    setEmailActivity([]);
+    setActiveTab("overview");
+    setSidebarToast({ type: "success", message: `Created client: ${name.trim()}` });
+  };
+
   const handleDeleteLead = () => {
     if (!window.confirm("Delete local lead data for this page?")) return;
     if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
@@ -5161,6 +5339,7 @@ export default function NSPBusinessSuite() {
   };
 
   const SIDEBAR_ACTIONS = [
+    { label: "+ New Client", variant: "secondary", onClick: handleNewClient },
     { label: "← Return to Leads", variant: "primary", onClick: () => window.history.back() },
     { label: "✉ New Email", variant: "secondary", onClick: openNewEmailComposer },
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
