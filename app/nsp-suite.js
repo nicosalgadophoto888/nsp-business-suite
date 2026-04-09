@@ -236,6 +236,20 @@ function isUuid(value) {
   );
 }
 
+async function parseApiResponse(res, fallbackMessage) {
+  const raw = await res.text();
+  const data = safeJsonParse(raw, null);
+  if (!res.ok) {
+    const msg =
+      (data && (data.error || data.message)) ||
+      (raw && !raw.startsWith("<!DOCTYPE") ? raw : "") ||
+      fallbackMessage ||
+      "Request failed";
+    throw new Error(msg);
+  }
+  return data || {};
+}
+
 function toMoney(value) {
   return Math.max(0, Number(value) || 0);
 }
@@ -2306,8 +2320,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
           description: [inv.sessionType, inv.packageName].filter(Boolean).join(" — "),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate link");
+      const data = await parseApiResponse(res, "Failed to generate link");
 
       // Save link to invoice in Supabase only when id is UUID-shaped.
       if (isUuid(inv.id)) {
@@ -2398,8 +2411,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
           htmlBody,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send email");
+      const data = await parseApiResponse(res, "Failed to send email");
 
       // Mark as sent
       if (inv.status === "Draft") {
@@ -2960,8 +2972,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
                         description: form.sessionType || "",
                       }),
                     });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error);
+                    const data = await parseApiResponse(res, "Failed to generate Square link");
                     setForm(p => ({ ...p, squareLink: data.url }));
                     setToast({ type: "success", message: "Square pay link generated!" });
                   } catch (err) {
@@ -3666,8 +3677,7 @@ function ContractsTab({ contracts, setContracts, lead }) {
           htmlBody,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send");
+      await parseApiResponse(res, "Failed to send");
 
       // Update status to Sent
       const table = isRel ? "model_releases" : "contracts";
@@ -4361,8 +4371,7 @@ export default function NSPBusinessSuite() {
           htmlBody,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send");
+      await parseApiResponse(res, "Failed to send");
 
       // Update quote status to Sent
       if (firstQuote.status === "Draft") {
