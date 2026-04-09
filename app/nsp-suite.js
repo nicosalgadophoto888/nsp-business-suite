@@ -4917,15 +4917,77 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigat
     .sort()
     .slice(-1)[0];
 
-  const revenueSeries = quotes
-    .slice()
-    .sort((a, b) => new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0))
-    .map((q, i) => ({
-      x: i + 1,
-      y: calcQuoteTotals(q).total,
-      label: q.quoteNumberLabel || `Quote ${i + 1}`,
-    }));
-  const maxY = Math.max(1, ...revenueSeries.map((p) => p.y));
+  const monthKeys = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (11 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const monthLabel = (key) => {
+    const [y, m] = key.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  };
+  const monthly = monthKeys.reduce((acc, k) => {
+    acc[k] = { receipts: 0, invoiced: 0, pastDue: 0 };
+    return acc;
+  }, {});
+  const getMonthKey = (isoLike) => {
+    const d = new Date(isoLike);
+    if (Number.isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  quotes.forEach((q) => {
+    const amount = calcQuoteTotals(q).total;
+    const invKey = getMonthKey(q.createdAt || q.updatedAt);
+    if (invKey && monthly[invKey]) monthly[invKey].invoiced += amount;
+    if (q.status === "Accepted") {
+      const recKey = getMonthKey(q.updatedAt || q.createdAt);
+      if (recKey && monthly[recKey]) monthly[recKey].receipts += amount;
+    }
+    if (q.status === "Sent" && q.expiration) {
+      const exp = new Date(q.expiration);
+      if (!Number.isNaN(exp.getTime()) && exp < new Date()) {
+        const pastDueKey = getMonthKey(q.expiration);
+        if (pastDueKey && monthly[pastDueKey]) monthly[pastDueKey].pastDue += amount;
+      }
+    }
+  });
+
+  const financeSeries = monthKeys.map((k) => ({
+    key: k,
+    label: monthLabel(k),
+    receipts: monthly[k].receipts,
+    invoiced: monthly[k].invoiced,
+    pastDue: monthly[k].pastDue,
+  }));
+  let runningCash = 0;
+  const cashFlowSeries = financeSeries.map((m) => {
+    runningCash += m.receipts - m.pastDue;
+    return runningCash;
+  });
+  const barMax = Math.max(
+    1,
+    ...financeSeries.map((m) => Math.max(m.receipts, m.invoiced, m.pastDue)),
+    ...cashFlowSeries.map((v) => Math.abs(v))
+  );
+  const chartH = 180;
+  const linePoints = cashFlowSeries
+    .map((v, i) => {
+      const x = (i / Math.max(1, cashFlowSeries.length - 1)) * 100;
+      const y = 100 - ((v + barMax) / (barMax * 2)) * 100;
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const stageCounts = STAGES.reduce((acc, s) => {
+    acc[s.key] = lead.stage === s.key ? 1 : 0;
+    return acc;
+  }, {});
+
+  const bookingByType = {};
+  const bookingBySource = {};
+  bookingByType[lead.type || "Unspecified"] = 1;
+  bookingBySource[lead.referralSource || "Unspecified"] = 1;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -4956,34 +5018,92 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigat
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
-        <Card
-          style={{ cursor: revenueSeries.length ? "pointer" : "default" }}
-          onClick={revenueSeries.length ? () => onNavigate?.("financials") : undefined}
-        >
-          <SectionLabel>Revenue Snapshot</SectionLabel>
-          {revenueSeries.length === 0 ? (
-            <EmptyState icon="📊" text="No quote data yet" />
-          ) : (
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 180 }}>
-              {revenueSeries.map((p) => (
-                <div key={p.label} style={{ flex: 1, textAlign: "center" }}>
-                  <div
-                    title={`${p.label}: ${fmt$(p.y)}`}
-                    style={{
-                      height: `${Math.max(8, Math.round((p.y / maxY) * 140))}px`,
-                      background: "linear-gradient(180deg, #d4a853 0%, #b48a3a 100%)",
-                      borderRadius: "6px 6px 0 0",
-                      border: `1px solid ${G.borderLight}`,
-                    }}
-                  />
-                  <div style={{ fontSize: 10, color: G.textMuted, marginTop: 6, whiteSpace: "nowrap" }}>
-                    {p.label}
-                  </div>
-                </div>
+      <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("financials")}>
+        <SectionLabel>Financial Outlook</SectionLabel>
+        <div style={{ position: "relative", height: chartH, border: `1px solid ${G.border}`, borderRadius: 8, padding: "14px 10px 26px" }}>
+          <div style={{ position: "absolute", inset: "14px 10px 26px", display: "flex", alignItems: "flex-end", gap: 6 }}>
+            {financeSeries.map((m) => (
+              <div key={m.key} style={{ flex: 1, display: "flex", gap: 2, alignItems: "flex-end", height: "100%" }} title={`${m.label} · Receipts ${fmt$(m.receipts)} · Invoiced ${fmt$(m.invoiced)} · Past Due ${fmt$(m.pastDue)}`}>
+                <div style={{ width: "33%", height: `${Math.max(2, (m.receipts / barMax) * 100)}%`, background: "#16a085", borderRadius: "4px 4px 0 0" }} />
+                <div style={{ width: "33%", height: `${Math.max(2, (m.invoiced / barMax) * 100)}%`, background: "#4fd1b8", borderRadius: "4px 4px 0 0" }} />
+                <div style={{ width: "33%", height: `${Math.max(2, (m.pastDue / barMax) * 100)}%`, background: "#d14343", borderRadius: "4px 4px 0 0" }} />
+              </div>
+            ))}
+          </div>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: "absolute", inset: "14px 10px 26px", width: "calc(100% - 20px)", height: `calc(100% - 40px)` }}>
+            <polyline fill="none" stroke="#6b46c1" strokeWidth="1.3" points={linePoints} />
+          </svg>
+          <div style={{ position: "absolute", left: 10, right: 10, bottom: 6, display: "flex", justifyContent: "space-between" }}>
+            {financeSeries.map((m) => (
+              <div key={m.key} style={{ flex: 1, fontSize: 10, color: G.textMuted, textAlign: "center", whiteSpace: "nowrap" }}>
+                {m.label.split(" ")[0]}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 10, fontSize: 12, color: G.textDim }}>
+          <span>■ Receipts</span>
+          <span>■ Invoiced</span>
+          <span>■ Past Due</span>
+          <span style={{ color: "#6b46c1" }}>━ Cash Flow</span>
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("financials")}>
+          <SectionLabel>Accounting</SectionLabel>
+          <div style={{ display: "grid", gap: 7 }}>
+            <div style={{ fontSize: 13, color: G.text }}>
+              Accounts Receivable: <span style={{ color: G.blue }}>Ledger, Aging</span>
+            </div>
+            <div style={{ fontSize: 13, color: G.text }}>
+              Revenue Pipeline: <span style={{ color: G.blue }}>{fmt$(totalQuoted)}</span>
+            </div>
+            <div style={{ fontSize: 13, color: G.text }}>
+              Past Due Exposure: <span style={{ color: G.red }}>{fmt$(financeSeries.reduce((s, m) => s + m.pastDue, 0))}</span>
+            </div>
+            <div style={{ fontSize: 12, color: G.textMuted }}>Click to open Financials tab</div>
+          </div>
+        </Card>
+
+        <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("schedule")}>
+          <SectionLabel>Progress Reports</SectionLabel>
+          <div style={{ display: "grid", gap: 7 }}>
+            <div style={{ fontSize: 13, color: G.text }}>
+              Lead & Job Progress by stage
+            </div>
+            {STAGES.map((s) => (
+              <div key={s.key} style={{ fontSize: 13, color: G.textDim }}>
+                • {s.key}: <span style={{ color: s.color }}>{stageCounts[s.key]}</span>
+              </div>
+            ))}
+            <div style={{ fontSize: 12, color: G.textMuted }}>Click to open Schedule tab</div>
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("quotes")}>
+          <SectionLabel>Booking Trends</SectionLabel>
+          <div style={{ display: "grid", gap: 7 }}>
+            <div style={{ fontSize: 13, color: G.text }}>
+              By Type:
+              {Object.entries(bookingByType).map(([k, v]) => (
+                <span key={k} style={{ marginLeft: 8, color: G.blue }}>
+                  {k} ({v})
+                </span>
               ))}
             </div>
-          )}
+            <div style={{ fontSize: 13, color: G.text }}>
+              By Source:
+              {Object.entries(bookingBySource).map(([k, v]) => (
+                <span key={k} style={{ marginLeft: 8, color: G.blue }}>
+                  {k} ({v})
+                </span>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: G.textMuted }}>Click to open Quotes tab</div>
+          </div>
         </Card>
 
         <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("notes")}>
@@ -4992,7 +5112,7 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigat
           <InfoRow label="Last Opened" value={lastOpenIso ? `${fmtShort(lastOpenIso)} ${fmtTime(lastOpenIso)}` : "No opens yet"} />
           <InfoRow label="Emails Sent" value={String((emailActivity || []).length)} />
           <div style={{ marginTop: 10, fontSize: 12, color: G.textDim }}>
-            Tracks when clients open quote links and logs sent emails from this lead.
+            Tracks quote-link opens plus sent-email history per client.
           </div>
         </Card>
       </div>
