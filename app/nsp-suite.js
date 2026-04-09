@@ -223,6 +223,19 @@ function genId(prefix = "id") {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function genUuid() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return genId("uuid");
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+}
+
 function toMoney(value) {
   return Math.max(0, Number(value) || 0);
 }
@@ -2296,8 +2309,10 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate link");
 
-      // Save link to invoice in Supabase
-      await supabase.from("invoices").update({ square_link: data.url }).eq("id", inv.id);
+      // Save link to invoice in Supabase only when id is UUID-shaped.
+      if (isUuid(inv.id)) {
+        await supabase.from("invoices").update({ square_link: data.url }).eq("id", inv.id);
+      }
       setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, squareLink: data.url } : i));
       setToast({ type: "success", message: `Pay link generated for ${inv.invoiceNumber}` });
     } catch (err) {
@@ -2388,7 +2403,12 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
 
       // Mark as sent
       if (inv.status === "Draft") {
-        await supabase.from("invoices").update({ status: "Sent", issued_on: new Date().toISOString().split("T")[0] }).eq("id", inv.id);
+        if (isUuid(inv.id)) {
+          await supabase
+            .from("invoices")
+            .update({ status: "Sent", issued_on: new Date().toISOString().split("T")[0] })
+            .eq("id", inv.id);
+        }
         setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: "Sent", issuedOn: new Date().toISOString().split("T")[0] } : i));
       }
       setToast({ type: "success", message: `Invoice emailed to ${inv.clientEmail}` });
@@ -2495,7 +2515,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
     const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
 
     setForm({
-      id: genId("inv"), invoiceNumber: nextInvNum,
+      id: genUuid(), invoiceNumber: nextInvNum,
       title: isRetainer ? "Retainer (50%)" : "Full Balance",
       clientName: lead?.name || "", clientEmail: lead?.email || "",
       sessionType: lead?.type || "", sessionDate: lead?.eventDate || "",
@@ -2519,7 +2539,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
   const saveInvoice = async () => {
     const dbRow = invoiceToDb(form);
     const existing = invoices.find(i => i.id === form.id);
-    if (existing) {
+    if (existing && isUuid(form.id)) {
       await supabase.from("invoices").update(dbRow).eq("id", form.id);
       setInvoices(prev => prev.map(i => i.id === form.id ? { ...form } : i));
     } else {
@@ -2530,15 +2550,22 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
   };
 
   const deleteInvoice = async (id) => {
-    await supabase.from("invoices").delete().eq("id", id);
-    await supabase.from("payments").delete().eq("invoice_id", id);
+    if (isUuid(id)) {
+      await supabase.from("invoices").delete().eq("id", id);
+      await supabase.from("payments").delete().eq("invoice_id", id);
+    }
     setInvoices(prev => prev.filter(i => i.id !== id));
     setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
     setView("list"); setActiveInvoice(null);
   };
 
   const markSent = async (id) => {
-    await supabase.from("invoices").update({ status: "Sent", issued_on: new Date().toISOString().split("T")[0] }).eq("id", id);
+    if (isUuid(id)) {
+      await supabase
+        .from("invoices")
+        .update({ status: "Sent", issued_on: new Date().toISOString().split("T")[0] })
+        .eq("id", id);
+    }
     setInvoices(prev => prev.map(i => i.id === id ? { ...i, status: "Sent", issuedOn: new Date().toISOString().split("T")[0] } : i));
   };
 
@@ -2554,21 +2581,30 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
 
   const savePayment = async () => {
     const paymentRow = {
-      id: genId("pay"), invoice_id: activeInvoice.id,
+      id: genUuid(), invoice_id: activeInvoice.id,
       amount: Number(payForm.amount) || 0, method: payForm.method,
       reference: payForm.reference, note: payForm.note,
       paid_on: payForm.paidOn,
     };
-    await supabase.from("payments").insert(paymentRow);
+    if (isUuid(activeInvoice.id)) {
+      await supabase.from("payments").insert(paymentRow);
+    }
     setPaymentRecords(prev => [paymentRow, ...prev]);
 
     // Update invoice
     const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
     const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
     const newStatus = newBalance <= 0 ? "Paid" : "Partial";
-    await supabase.from("invoices").update({
-      amount_paid: newPaid, balance_due: newBalance, status: newStatus,
-    }).eq("id", activeInvoice.id);
+    if (isUuid(activeInvoice.id)) {
+      await supabase
+        .from("invoices")
+        .update({
+          amount_paid: newPaid,
+          balance_due: newBalance,
+          status: newStatus,
+        })
+        .eq("id", activeInvoice.id);
+    }
     setInvoices(prev => prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i));
 
     setView("list"); setPayForm({}); setActiveInvoice(null);
