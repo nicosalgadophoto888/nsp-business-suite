@@ -168,6 +168,7 @@ export default function ClientPageContent() {
           overflow: "hidden",
           background: "#fff",
           border: "1px solid #e5e7eb",
+          color: "#111827",
         }}
       >
         <div
@@ -250,6 +251,23 @@ export default function ClientPageContent() {
                   </td>
                 </tr>
               )}
+              {Number(inv.balanceDue || 0) <= 0 && (
+                <tr>
+                  <td style={{ padding: "6px 0", color: "#059669", fontWeight: 700 }}>
+                    Status
+                  </td>
+                  <td
+                    style={{
+                      padding: "6px 0",
+                      textAlign: "right",
+                      color: "#059669",
+                      fontWeight: 800,
+                    }}
+                  >
+                    Paid in full
+                  </td>
+                </tr>
+              )}
               {!!inv.dueDate && (
                 <tr>
                   <td style={{ padding: "6px 0", color: "#6b7280" }}>Due Date</td>
@@ -291,6 +309,10 @@ export default function ClientPageContent() {
               {inv.notes}
             </div>
           )}
+
+          <div style={{ marginTop: 18, fontSize: 12, color: "#6b7280", textAlign: "center" }}>
+            Questions? Reply to Nico Salgado Photography for assistance.
+          </div>
         </div>
       </div>
     </div>
