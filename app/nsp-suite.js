@@ -4883,9 +4883,112 @@ export default function NSPBusinessSuite() {
 
   const [sidebarEmailLoading, setSidebarEmailLoading] = useState(false);
   const [sidebarToast, setSidebarToast] = useState(null);
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
+  const [composer, setComposer] = useState({
+    templateId: "",
+    to: "",
+    subject: "",
+    body: "",
+  });
+  const emailTemplates = useMemo(
+    () => (templates || []).filter((t) => t.type === "email"),
+    [templates]
+  );
+  const firstQuote = quotes[0];
+
+  const mergeEmailTemplate = (text = "") => {
+    const quoteTotals = firstQuote ? calcQuoteTotals(firstQuote) : { total: lead.balance || 0 };
+    const total = Number(quoteTotals.total || 0);
+    const retainer = total > 0 ? total * 0.5 : 0;
+    const map = {
+      "{{client_name}}": lead.name || "",
+      "{{service_type}}": lead.type || "",
+      "{{package_name}}": firstQuote?.sections?.[0]?.packageName || lead.type || "",
+      "{{package_tier}}": firstQuote?.eventName || "",
+      "{{session_date}}": lead.eventDate ? fmtLong(lead.eventDate) : "",
+      "{{session_time}}": firstQuote?.eventTime || "",
+      "{{location}}": lead.location || "",
+      "{{total_price}}": fmt$(total),
+      "{{retainer_amount}}": fmt$(retainer),
+      "{{balance_due}}": fmt$(Math.max(0, lead.balance || total - retainer)),
+      "{{google_review_link}}": "https://g.page/r/CfYOURREVIEWLINK",
+      "{{testimonial_incentive}}": "$50 credit",
+      "{{current_package}}": firstQuote?.sections?.[0]?.packageName || "",
+      "{{alternative_package}}": "Essential Collection",
+      "{{alternative_price}}": "$2,800",
+      "{{questionnaire_link}}":
+        typeof window !== "undefined" ? `${window.location.origin}/client` : "",
+      "{{client_email}}": lead.email || "",
+      "{{session_type}}": lead.type || "",
+      "{{total_amount}}": fmt$(Math.max(0, lead.balance || total)),
+      "{{photographer_name}}": "Nico Salgado",
+      "{{business_name}}": settings.businessName || "Nico Salgado Photography",
+      "{{today_date}}": fmtLong(new Date().toISOString().slice(0, 10)),
+    };
+
+    let out = String(text || "");
+    Object.entries(map).forEach(([k, v]) => {
+      out = out.replaceAll(k, v ?? "");
+    });
+    return out;
+  };
+
+  const applyTemplateToComposer = (tpl) => {
+    if (!tpl) return;
+    setComposer((prev) => ({
+      ...prev,
+      templateId: tpl.id,
+      to: lead.email || prev.to || "",
+      subject: mergeEmailTemplate(tpl.subject || `Message from ${settings.businessName || "Nico Salgado Photography"}`),
+      body: mergeEmailTemplate(tpl.content || ""),
+    }));
+  };
+
+  const openNewEmailComposer = () => {
+    setEmailComposerOpen(true);
+    if (emailTemplates.length) applyTemplateToComposer(emailTemplates[0]);
+    else {
+      setComposer({
+        templateId: "",
+        to: lead.email || "",
+        subject: `Message from ${settings.businessName || "Nico Salgado Photography"}`,
+        body: "",
+      });
+    }
+  };
+
+  const sendComposerEmail = async () => {
+    if (!composer.to.trim() || !composer.subject.trim() || !composer.body.trim()) {
+      setSidebarToast({ type: "error", message: "Email needs To, Subject, and Body." });
+      return;
+    }
+    setEmailSending(true);
+    setSidebarToast(null);
+    try {
+      const htmlBody = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#1f2937;">${escapeHtml(
+        composer.body
+      ).replace(/\n/g, "<br/>")}</div>`;
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: composer.to.trim(),
+          subject: composer.subject.trim(),
+          htmlBody,
+        }),
+      });
+      await parseApiResponse(res, "Failed to send email");
+      setSidebarToast({ type: "success", message: `Email sent to ${composer.to.trim()}` });
+      setEmailComposerOpen(false);
+    } catch (err) {
+      setSidebarToast({ type: "error", message: err.message || "Failed to send email" });
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   const handleEmailQuote = async () => {
-    const firstQuote = quotes[0];
     if (!firstQuote || !lead.email) return;
     setSidebarEmailLoading(true);
     setSidebarToast(null);
@@ -4986,6 +5089,7 @@ export default function NSPBusinessSuite() {
 
   const SIDEBAR_ACTIONS = [
     { label: "← Return to Leads", variant: "primary", onClick: () => window.history.back() },
+    { label: "✉ New Email", variant: "secondary", onClick: openNewEmailComposer },
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
     { label: "View / Print PDF", variant: "secondary", onClick: handlePdf },
     { label: "Reset Client Activity", variant: "secondary", onClick: handleResetActivity },
@@ -5172,6 +5276,112 @@ export default function NSPBusinessSuite() {
           ))}
         </div>
       </div>
+
+      {emailComposerOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.55)",
+            zIndex: 5000,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "min(840px, 95vw)",
+              background: G.card,
+              border: `1px solid ${G.borderLight}`,
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
+            <SectionLabel
+              actions={
+                <Btn variant="ghost" small onClick={() => setEmailComposerOpen(false)}>
+                  Close
+                </Btn>
+              }
+            >
+              New Email for {lead.name}
+            </SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: G.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Template
+                </label>
+                <select
+                  value={composer.templateId}
+                  onChange={(e) => {
+                    const tpl = emailTemplates.find((t) => t.id === e.target.value);
+                    if (tpl) applyTemplateToComposer(tpl);
+                  }}
+                  style={{
+                    width: "100%",
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "9px 12px",
+                    fontSize: 13,
+                  }}
+                >
+                  {emailTemplates.length === 0 ? (
+                    <option value="">No email templates found</option>
+                  ) : (
+                    emailTemplates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+              <InputField
+                label="To"
+                value={composer.to}
+                onChange={(e) => setComposer((p) => ({ ...p, to: e.target.value }))}
+                placeholder="client@email.com"
+              />
+            </div>
+            <InputField
+              label="Subject"
+              value={composer.subject}
+              onChange={(e) => setComposer((p) => ({ ...p, subject: e.target.value }))}
+            />
+            <InputField
+              label="Body"
+              value={composer.body}
+              onChange={(e) => setComposer((p) => ({ ...p, body: e.target.value }))}
+              multiline
+              style={{ marginBottom: 8 }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 11, color: G.textMuted }}>
+                Merge tags in templates auto-fill from this client profile.
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="ghost" small onClick={() => setEmailComposerOpen(false)}>
+                  Cancel
+                </Btn>
+                <Btn small onClick={sendComposerEmail} disabled={emailSending}>
+                  {emailSending ? "Sending..." : "Send Email"}
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
