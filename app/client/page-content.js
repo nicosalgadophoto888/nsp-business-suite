@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 function decodePayload(raw) {
@@ -23,11 +23,45 @@ function money(n) {
 export default function ClientPageContent() {
   const params = useSearchParams();
   const payload = useMemo(() => decodePayload(params.get("payload")), [params]);
-  const isInvoice = payload?.type === "invoice" && payload?.document;
+  const [legacyResolved, setLegacyResolved] = useState(null);
+
+  useEffect(() => {
+    if (payload?.document) return;
+    const legacyType = params.get("type");
+    const legacyId = params.get("id");
+    if (!legacyType || !legacyId) return;
+
+    try {
+      const raw = window.localStorage.getItem("nsp_lead_detail_v2");
+      if (!raw) return;
+      const state = JSON.parse(raw);
+
+      if (legacyType === "contract") {
+        const contract = (state?.contracts || []).find((c) => String(c.id) === String(legacyId));
+        if (contract) {
+          setLegacyResolved({
+            type: "contract",
+            document: {
+              title: contract.title || "",
+              clientName: contract.signer || "",
+              sessionType: contract.sessionType || "",
+              version: contract.version || "v1",
+              body: contract.body || "Contract body unavailable in this link.",
+            },
+          });
+        }
+      }
+    } catch {
+      setLegacyResolved(null);
+    }
+  }, [params, payload]);
+
+  const resolved = payload?.document ? payload : legacyResolved;
+  const isInvoice = resolved?.type === "invoice" && resolved?.document;
   const isSignDoc =
-    (payload?.type === "contract" || payload?.type === "release") && payload?.document;
-  const inv = isInvoice ? payload.document : null;
-  const doc = isSignDoc ? payload.document : null;
+    (resolved?.type === "contract" || resolved?.type === "release") && resolved?.document;
+  const inv = isInvoice ? resolved.document : null;
+  const doc = isSignDoc ? resolved.document : null;
 
   if (!isInvoice && !isSignDoc) {
     return (
@@ -68,7 +102,7 @@ export default function ClientPageContent() {
   }
 
   if (isSignDoc) {
-    const label = payload.type === "release" ? "Model Release" : "Contract";
+    const label = resolved.type === "release" ? "Model Release" : "Contract";
     return (
       <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
         <div
@@ -262,4 +296,3 @@ export default function ClientPageContent() {
     </div>
   );
 }
-
