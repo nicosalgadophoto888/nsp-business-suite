@@ -5547,6 +5547,11 @@ export default function NSPBusinessSuite() {
     window.location.reload();
   };
 
+  const goToTab = (tabKey) => {
+    setActiveTab(tabKey);
+    setScreen("lead");
+  };
+
   const SIDEBAR_ACTIONS = [
     { label: "+ New Client", variant: "secondary", onClick: handleNewClient },
     {
@@ -5558,7 +5563,7 @@ export default function NSPBusinessSuite() {
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
     { label: "View / Print PDF", variant: "secondary", onClick: handlePdf },
     { label: "Reset Client Activity", variant: "secondary", onClick: handleResetActivity },
-    { label: "Revision History", variant: "secondary", onClick: () => setActiveTab("notes") },
+    { label: "Revision History", variant: "secondary", onClick: () => goToTab("notes") },
     { label: "Delete", variant: "danger", onClick: handleDeleteLead },
   ];
 
@@ -5693,7 +5698,7 @@ export default function NSPBusinessSuite() {
           return (
             <button
               key={t.key}
-              onClick={() => setActiveTab(t.key)}
+              onClick={() => goToTab(t.key)}
               style={{
                 padding: "12px 18px",
                 fontSize: 12,
