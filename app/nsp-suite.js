@@ -711,8 +711,17 @@ function encodeClientPayload(payload) {
   }
 }
 
+function toAbsoluteAssetUrl(path) {
+  const raw = String(path || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+  if (typeof window === "undefined") return raw.startsWith("/") ? raw : `/${raw}`;
+  return raw.startsWith("/") ? `${window.location.origin}${raw}` : `${window.location.origin}/${raw}`;
+}
+
 function quoteToPrintableHtml(quote, settings) {
   const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
+  const logoUrl = toAbsoluteAssetUrl(settings.logoUrl || "/nsp-logo.jpg");
   const sectionsHtml = (quote.sections || [])
     .map((section) => {
       const includesHtml = cleanIncludes(section.includes)
@@ -794,6 +803,13 @@ function quoteToPrintableHtml(quote, settings) {
         <div style="max-width:800px;margin:0 auto;">
           <div style="display:flex;justify-content:space-between;margin-bottom:32px;gap:24px;">
             <div>
+              ${
+                logoUrl
+                  ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
+                      settings.businessName || "Business"
+                    )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
+                  : ""
+              }
               <div style="font-size:22px;font-weight:800;color:${G.teal};letter-spacing:-.02em;">${escapeHtml(
     settings.businessName || "Business"
   )}</div>
@@ -3083,7 +3099,7 @@ function QuotesTab({
   );
 }
 
-function FinancialsTab({ payments, setPayments, quotes, lead }) {
+function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
   const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
   const [invoices, setInvoices] = useState([]);
@@ -3418,6 +3434,12 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
 
   // ── Invoice PDF ──
   const printInvoice = (inv) => {
+    const logoUrl = toAbsoluteAssetUrl(settings?.logoUrl || "/nsp-logo.jpg");
+    const businessName = settings?.businessName || "Nico Salgado Photography";
+    const businessAddress1 = settings?.address1 || "30317 Glenmuer";
+    const businessAddress2 = settings?.address2 || "Farmington Hills, MI 48334";
+    const businessEmail = settings?.email || "nicosalgadophoto@gmail.com";
+    const businessWebsite = settings?.website || "nicosalgadophotography.com";
     const payments = paymentRecords.filter(p => p.invoice_id === inv.id);
     const paymentsHtml = payments.length ? payments.map(p =>
       `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">
@@ -3439,8 +3461,9 @@ function FinancialsTab({ payments, setPayments, quotes, lead }) {
     <div style="max-width:800px;margin:0 auto;">
       <div style="display:flex;justify-content:space-between;margin-bottom:28px;">
         <div>
-          <div style="font-size:20px;font-weight:800;color:#4a9ba5;letter-spacing:-.02em;">Nico Salgado Photography</div>
-          <div style="font-size:12px;color:#666;line-height:1.7;margin-top:4px;">30317 Glenmuer<br>Farmington Hills, MI 48334<br>nicosalgadophoto@gmail.com</div>
+          ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />` : ""}
+          <div style="font-size:20px;font-weight:800;color:#4a9ba5;letter-spacing:-.02em;">${escapeHtml(businessName)}</div>
+          <div style="font-size:12px;color:#666;line-height:1.7;margin-top:4px;">${escapeHtml(businessAddress1)}<br>${escapeHtml(businessAddress2)}<br>${escapeHtml(businessEmail)}<br>${escapeHtml(businessWebsite)}</div>
         </div>
         <div style="text-align:right;">
           <div style="font-size:18px;font-weight:700;">${escapeHtml(inv.invoiceNumber || "INVOICE")}</div>
@@ -4165,8 +4188,13 @@ function mergeVarsInBody(body, data) {
   return out;
 }
 
-function contractToPrintHtml(contract, templateBody) {
+function contractToPrintHtml(contract, templateBody, settings = {}) {
   const merged = mergeVarsInBody(templateBody, contract);
+  const logoUrl = toAbsoluteAssetUrl(settings.logoUrl || "/nsp-logo.jpg");
+  const businessName = settings.businessName || "Nico Salgado Photography";
+  const businessEmail = settings.email || "nicosalgadophoto@gmail.com";
+  const businessWebsite = settings.website || "nicosalgadophotography.com";
+  const businessAddress = settings.address2 || "Farmington Hills, MI";
   return `<!doctype html><html><head><meta charset="utf-8" /><title>${escapeHtml(contract.title || "Contract")}</title>
 <style>body{font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;padding:40px 56px;line-height:1.8;font-size:14px;}
 @media print{body{padding:0;}}
@@ -4177,7 +4205,13 @@ function contractToPrintHtml(contract, templateBody) {
 pre{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:13.5px;line-height:1.85;color:#2a2a2a;margin:0;}
 </style></head><body>
 <div style="max-width:780px;margin:0 auto;">
-<div class="header"><h2>Nico Salgado Photography</h2><p>Farmington Hills, MI · nicosalgadophoto@gmail.com · nicosalgadophotography.com</p></div>
+<div class="header">${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
+    businessName
+  )}" style="max-height:52px;width:auto;display:block;margin:0 auto 8px;" />` : ""}<h2>${escapeHtml(
+    businessName
+  )}</h2><p>${escapeHtml(businessAddress)} · ${escapeHtml(businessEmail)} · ${escapeHtml(
+    businessWebsite
+  )}</p></div>
 <pre>${escapeHtml(merged)}</pre>
 <div class="footer">${escapeHtml(contract.title || "Contract")} · ${escapeHtml(contract.version || "v1")} · ${escapeHtml(formatDateLocal(new Date().toISOString().split("T")[0], { month: "short", day: "numeric", year: "numeric" }))}</div>
 </div></body></html>`;
@@ -4186,7 +4220,7 @@ pre{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:1
 /* ═══════════════════════════════════════════════════════
    CONTRACTS TAB — FULL VERSION
    ═══════════════════════════════════════════════════════ */
-function ContractsTab({ contracts, setContracts, lead }) {
+function ContractsTab({ contracts, setContracts, lead, settings }) {
   const [subTab, setSubTab] = useState("contracts"); // contracts | releases | templates
   const [view, setView] = useState("list"); // list | create | edit | preview | templateEdit
   const [form, setForm] = useState({});
@@ -4415,7 +4449,7 @@ function ContractsTab({ contracts, setContracts, lead }) {
   // ── Print/PDF ──
   const handlePrint = (item) => {
     const body = item.body || getTemplateBody(item);
-    openPrintWindow(contractToPrintHtml(item, body));
+    openPrintWindow(contractToPrintHtml(item, body, settings));
   };
 
   // ── Email Contract/Release ──
@@ -6167,9 +6201,24 @@ export default function NSPBusinessSuite() {
           />
         );
       case "financials":
-        return <FinancialsTab payments={payments} setPayments={setPayments} quotes={quotes} lead={lead} />;
+        return (
+          <FinancialsTab
+            payments={payments}
+            setPayments={setPayments}
+            quotes={quotes}
+            lead={lead}
+            settings={settings}
+          />
+        );
       case "contracts":
-        return <ContractsTab contracts={contracts} setContracts={setContracts} lead={lead} />;
+        return (
+          <ContractsTab
+            contracts={contracts}
+            setContracts={setContracts}
+            lead={lead}
+            settings={settings}
+          />
+        );
       case "templates":
         return <TemplatesTab templates={templates} setTemplates={setTemplates} />;
       case "notes":
