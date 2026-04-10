@@ -5754,6 +5754,11 @@ export default function NSPBusinessSuite() {
   const [emailActivity, setEmailActivity] = useState(initial.emailActivity || []);
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
+  const [dashboardTotals, setDashboardTotals] = useState({
+    totalLeads: 1,
+    pipelineValue: Number(initial.lead?.balance || 0),
+    acceptedRevenue: Number(initial.lead?.revenue || 0),
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -5832,6 +5837,39 @@ export default function NSPBusinessSuite() {
       if (supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    let canceled = false;
+    const fallback = {
+      totalLeads: 1,
+      pipelineValue: Number(lead?.balance || 0),
+      acceptedRevenue: Number(lead?.revenue || 0),
+    };
+
+    const loadDashboardTotals = async () => {
+      try {
+        const { data, error } = await supabase.from("leads").select("id, revenue, balance");
+        if (canceled) return;
+        if (error || !Array.isArray(data) || data.length === 0) {
+          setDashboardTotals(fallback);
+          return;
+        }
+        const next = {
+          totalLeads: data.length,
+          pipelineValue: data.reduce((sum, row) => sum + Number(row.balance || 0), 0),
+          acceptedRevenue: data.reduce((sum, row) => sum + Number(row.revenue || 0), 0),
+        };
+        setDashboardTotals(next);
+      } catch {
+        if (!canceled) setDashboardTotals(fallback);
+      }
+    };
+
+    loadDashboardTotals();
+    return () => {
+      canceled = true;
+    };
+  }, [lead?.balance, lead?.revenue]);
 
   const quoteBadge = quotes.length;
 
@@ -6272,8 +6310,49 @@ export default function NSPBusinessSuite() {
                   Leads Dashboard
                 </h1>
               </div>
-              <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 13 }}>
-                <span style={{ color: G.textDim }}>Business Overview</span>
+              <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    background: G.card,
+                    minWidth: 140,
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Leads</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.text }}>
+                    {dashboardTotals.totalLeads}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    background: G.card,
+                    minWidth: 160,
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Pipeline</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.gold }}>
+                    {fmt$(dashboardTotals.pipelineValue)}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    background: G.card,
+                    minWidth: 190,
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Accepted Revenue</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.green }}>
+                    {fmt$(dashboardTotals.acceptedRevenue)}
+                  </div>
+                </div>
               </div>
             </>
           ) : (
