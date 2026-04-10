@@ -6265,28 +6265,56 @@ export default function NSPBusinessSuite() {
               }}
             />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-.02em" }}>
-              {lead.name}
-            </h1>
-            <span style={{ color: G.textMuted, fontSize: 16 }}>📌</span>
-          </div>
-          <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 13 }}>
-            <span>
-              Revenue: <span style={{ color: G.green, fontWeight: 600 }}>{fmt$(lead.revenue)}</span>
-            </span>
-            <span>
-              Balance: <span style={{ color: G.amber, fontWeight: 600 }}>{fmt$(lead.balance)}</span>
-            </span>
-          </div>
+          {screen === "dashboard" ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-.02em" }}>
+                  Leads Dashboard
+                </h1>
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 13 }}>
+                <span style={{ color: G.textDim }}>Business Overview</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-.02em" }}>
+                  {lead.name}
+                </h1>
+                <span style={{ color: G.textMuted, fontSize: 16 }}>📌</span>
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 13 }}>
+                <span>
+                  Revenue: <span style={{ color: G.green, fontWeight: 600 }}>{fmt$(lead.revenue)}</span>
+                </span>
+                <span>
+                  Balance: <span style={{ color: G.amber, fontWeight: 600 }}>{fmt$(lead.balance)}</span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtLong(lead.eventDate)}</div>
-          <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
-            Inquired on{" "}
-            <span style={{ fontWeight: 700, color: G.text }}>{fmtShort(lead.inquiredOn)}</span>
-          </div>
+          {screen === "dashboard" ? (
+            <>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>
+                {fmtLong(new Date().toISOString().slice(0, 10))}
+              </div>
+              <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
+                Global CRM view
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtLong(lead.eventDate)}</div>
+              <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
+                Inquired on{" "}
+                <span style={{ fontWeight: 700, color: G.text }}>{fmtShort(lead.inquiredOn)}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
