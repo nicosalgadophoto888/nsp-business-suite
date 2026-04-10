@@ -47,6 +47,7 @@ const STORAGE_KEY = "nsp_lead_detail_v2";
 
 const DEFAULT_SETTINGS = {
   businessName: "Nico Salgado Photography",
+  logoUrl: "/nsp-logo.jpg",
   address1: "30317 Glenmuer",
   address2: "Farmington Hills, MI 48334",
   website: "https://www.nicosalgadophotography.com",
@@ -5798,7 +5799,6 @@ export default function NSPBusinessSuite() {
     };
   }, []);
 
-  const stageIdx = STAGES.findIndex((s) => s.key === lead.stage);
   const quoteBadge = quotes.length;
 
   const [sidebarEmailLoading, setSidebarEmailLoading] = useState(false);
@@ -6190,42 +6190,6 @@ export default function NSPBusinessSuite() {
         minHeight: "100vh",
       }}
     >
-      <div style={{ display: "flex", height: 44, overflow: "hidden" }}>
-        {STAGES.map((s, i) => {
-          const active = i <= stageIdx;
-          const current = s.key === lead.stage;
-          return (
-            <button
-              key={s.key}
-              onClick={() => setLead((p) => ({ ...p, stage: s.key }))}
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                background: active ? s.color : G.surface,
-                color: active ? "#0e0f11" : G.textMuted,
-                border: "none",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: current ? 800 : 600,
-                letterSpacing: ".02em",
-                clipPath:
-                  i < STAGES.length - 1
-                    ? "polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%)"
-                    : "polygon(0 0, 100% 0, 100% 100%, 0 100%, 16px 50%)",
-                marginLeft: i > 0 ? -8 : 0,
-                paddingLeft: i > 0 ? 20 : 0,
-                transition: "all .2s",
-              }}
-            >
-              {s.icon} {s.key}
-            </button>
-          );
-        })}
-      </div>
-
       <div
         style={{
           padding: "20px 28px",
@@ -6237,6 +6201,21 @@ export default function NSPBusinessSuite() {
         }}
       >
         <div>
+          <div style={{ marginBottom: 12 }}>
+            <img
+              src={settings.logoUrl || "/nsp-logo.jpg"}
+              alt={settings.businessName || "Nico Salgado Photography"}
+              style={{
+                maxHeight: 56,
+                width: "auto",
+                objectFit: "contain",
+                display: "block",
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-.02em" }}>
               {lead.name}
@@ -6303,7 +6282,7 @@ export default function NSPBusinessSuite() {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 220px",
-          minHeight: "calc(100vh - 170px)",
+          minHeight: "calc(100vh - 126px)",
         }}
       >
         <div style={{ padding: "24px 28px", overflowY: "auto" }}>
