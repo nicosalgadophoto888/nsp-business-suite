@@ -4003,8 +4003,9 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
   useEffect(() => {
     async function load() {
       try {
+        const currentLeadId = lead?.id?.toString();
         const [invRes, payRes] = await Promise.all([
-          supabase.from("invoices").select("*").order("created_at", { ascending: false }),
+          supabase.from("invoices").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
           supabase.from("payments").select("*").order("paid_on", { ascending: false }),
         ]);
         if (invRes.data) setInvoices(invRes.data.map(dbToInvoice));
@@ -4120,8 +4121,8 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
 
   const deleteInvoice = async (id) => {
     if (isUuid(id)) {
-      await supabase.from("invoices").delete().eq("id", id);
       await supabase.from("payments").delete().eq("invoice_id", id);
+      await supabase.from("invoices").delete().eq("id", id);
     }
     setInvoices(prev => prev.filter(i => i.id !== id));
     setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
@@ -4984,11 +4985,12 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   useEffect(() => {
     async function load() {
       try {
+        const currentLeadId = lead?.id?.toString();
         const [cTplRes, rTplRes, conRes, relRes] = await Promise.all([
           supabase.from("contract_templates").select("*").order("created_at"),
           supabase.from("release_templates").select("*").order("created_at"),
-          supabase.from("contracts").select("*").order("created_at", { ascending: false }),
-          supabase.from("model_releases").select("*").order("created_at", { ascending: false }),
+          supabase.from("contracts").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
+          supabase.from("model_releases").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
         ]);
         if (cTplRes.data?.length) setCTemplates(cTplRes.data);
         if (rTplRes.data?.length) setRTemplates(rTplRes.data);
