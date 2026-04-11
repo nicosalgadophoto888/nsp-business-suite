@@ -2211,6 +2211,7 @@ function QuotesTab({
   settings,
   counters,
   setCounters,
+  onNavigateToFinancials,
 }) {
   const [building, setBuilding] = useState(null);
   const [previewQuote, setPreviewQuote] = useState(null);
@@ -2476,6 +2477,8 @@ function QuotesTab({
     () => (building ? calcQuoteTotals(building) : { subtotal: 0, discountAmount: 0, total: 0 }),
     [building]
   );
+
+  const acceptedQuoteCount = quotes.filter((q) => q.status === "Accepted").length;
 
   const validate = () => {
     const nextErrors = [];
@@ -3579,6 +3582,20 @@ function QuotesTab({
             </div>
           </Card>
 
+          {acceptedQuoteCount > 0 && (
+            <Card style={{ marginBottom: 16, background: G.goldBg, border: `1px solid ${G.goldBg}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "14px 16px" }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: G.text }}>Accepted quote{acceptedQuoteCount === 1 ? "" : "s"} ready for invoicing</div>
+                  <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
+                    {acceptedQuoteCount} accepted quote{acceptedQuoteCount === 1 ? "" : "s"} can now be converted into an invoice in Financials.
+                  </div>
+                </div>
+                <Btn small onClick={() => onNavigateToFinancials?.("financials")}>Go to Financials</Btn>
+              </div>
+            </Card>
+          )}
+
           {visibleQuotes.length === 0 ? (
             <EmptyState
               icon="🔎"
@@ -3676,7 +3693,11 @@ function QuotesTab({
                   >
                     Email Approval
                   </Btn>
-                  {q.status !== "Accepted" && (
+                  {q.status === "Accepted" ? (
+                    <Btn variant="secondary" small onClick={() => onNavigateToFinancials?.("financials") }>
+                      Create Invoice
+                    </Btn>
+                  ) : (
                     <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
                       Mark Accepted
                     </Btn>
@@ -8124,6 +8145,7 @@ export default function NSPBusinessSuite() {
             settings={settings}
             counters={counters}
             setCounters={setCounters}
+            onNavigateToFinancials={goToTab}
           />
         );
       case "financials":
