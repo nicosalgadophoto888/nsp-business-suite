@@ -917,6 +917,35 @@ function toAbsoluteAssetUrl(path) {
 function quoteToPrintableHtml(quote, settings) {
   const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
   const logoUrl = toAbsoluteAssetUrl(settings.logoUrl || "/nsp-logo.jpg");
+  const bookingHtml =
+    quote.paymentSchedule || quote.questionnaire || quote.contractTemplate
+      ? `
+        <div style="margin-top:28px;padding:18px 20px;border:1px solid #e5e5e5;border-radius:12px;background:#faf7f2;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">Booking Process</div>
+          ${
+            quote.paymentSchedule
+              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
+                  quote.paymentSchedule
+                )}</div>`
+              : ""
+          }
+          ${
+            quote.questionnaire
+              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
+                  quote.questionnaire
+                )}</div>`
+              : ""
+          }
+          ${
+            quote.contractTemplate
+              ? `<div style="font-size:13px;color:#444;"><strong>Contract:</strong> ${escapeHtml(
+                  quote.contractTemplate
+                )}</div>`
+              : ""
+          }
+        </div>
+      `
+      : "";
   const sectionsHtml = (quote.sections || [])
     .map((section) => {
       const includesHtml = cleanIncludes(section.includes)
@@ -1075,6 +1104,7 @@ function quoteToPrintableHtml(quote, settings) {
                 )}</div>`
               : ""
           }
+          ${bookingHtml}
 
           <div style="border-top:2px solid #1a1a1a;padding-top:16px;margin-top:20px;">
             <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
@@ -1806,6 +1836,8 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
 
 function QuotePreview({ quote, settings, onBack, onDownloadPdf }) {
   const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
+  const hasBookingProcess =
+    quote.paymentSchedule || quote.questionnaire || quote.contractTemplate;
 
   return (
     <div>
@@ -2009,6 +2041,37 @@ function QuotePreview({ quote, settings, onBack, onDownloadPdf }) {
           </div>
         )}
 
+        {hasBookingProcess && (
+          <div
+            style={{
+              marginTop: 28,
+              padding: "18px 20px",
+              border: "1px solid #e5e5e5",
+              borderRadius: 12,
+              background: "#faf7f2",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
+              Booking Process
+            </div>
+            {quote.paymentSchedule && (
+              <div style={{ fontSize: 13, color: "#444", marginBottom: 6 }}>
+                <strong>Payment Schedule:</strong> {quote.paymentSchedule}
+              </div>
+            )}
+            {quote.questionnaire && (
+              <div style={{ fontSize: 13, color: "#444", marginBottom: 6 }}>
+                <strong>Questionnaire:</strong> {quote.questionnaire}
+              </div>
+            )}
+            {quote.contractTemplate && (
+              <div style={{ fontSize: 13, color: "#444" }}>
+                <strong>Contract:</strong> {quote.contractTemplate}
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ borderTop: "2px solid #1a1a1a", paddingTop: 16, marginTop: 20 }}>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 16, marginBottom: 6 }}>
             <div style={{ fontSize: 14, color: "#666" }}>Subtotal:</div>
@@ -2053,6 +2116,9 @@ function QuotesTab({
   recipients,
   setRecipients,
   templates,
+  payments,
+  contracts,
+  workspaceRows,
   settings,
   counters,
   setCounters,
@@ -2071,6 +2137,65 @@ function QuotesTab({
     () => (templates || []).filter((t) => t.type === "file"),
     [templates]
   );
+  const paymentScheduleOptions = useMemo(
+    () =>
+      (payments || [])
+        .map((plan) => ({
+          value: plan.name || "",
+          detail: plan.description || "",
+        }))
+        .filter((plan) => plan.value),
+    [payments]
+  );
+  const questionnaireOptions = useMemo(() => {
+    const all = new Map();
+    (templates || []).forEach((tpl) => {
+      const haystack = [tpl.name, tpl.subject, tpl.category, tpl.content].join(" ").toLowerCase();
+      if (!/questionnaire/.test(haystack)) return;
+      const value = String(tpl.name || tpl.subject || "").trim();
+      if (!value) return;
+      all.set(value.toLowerCase(), { value, detail: tpl.subject || tpl.category || "" });
+    });
+    return Array.from(all.values());
+  }, [templates]);
+  const contractOptions = useMemo(() => {
+    const all = new Map();
+    (contracts || []).forEach((item) => {
+      const value = String(item.title || item.name || "").trim();
+      if (!value) return;
+      all.set(value.toLowerCase(), { value, detail: item.status || "" });
+    });
+    quoteTemplates.forEach((tpl) => {
+      const haystack = [tpl.name, tpl.action, tpl.category].join(" ").toLowerCase();
+      if (!/contract|agreement/.test(haystack)) return;
+      const value = String(tpl.name || "").trim();
+      if (!value) return;
+      all.set(value.toLowerCase(), { value, detail: tpl.category || tpl.action || "" });
+    });
+    return Array.from(all.values());
+  }, [contracts, quoteTemplates]);
+  const clientDirectory = useMemo(() => {
+    const map = new Map();
+    const pushClient = (client) => {
+      const name = String(client?.name || "").trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      const existing = map.get(key) || {};
+      map.set(key, {
+        name,
+        email: String(client?.email || existing.email || "").trim(),
+        type: String(client?.type || existing.type || "").trim(),
+        eventDate: String(client?.eventDate || existing.eventDate || "").trim(),
+        location: String(client?.location || existing.location || "").trim(),
+      });
+    };
+    pushClient(lead);
+    (workspaceRows || []).forEach((row) => {
+      const snapshot = workspaceRowToSnapshot(row);
+      pushClient(snapshot?.lead || {});
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [lead, workspaceRows]);
 
   const emptyQuote = {
     id: "",
@@ -2088,6 +2213,9 @@ function QuotesTab({
     promoCode: "",
     discountType: "amount",
     discountValue: 0,
+    paymentSchedule: "",
+    questionnaire: "",
+    contractTemplate: "",
     createdAt: null,
     updatedAt: null,
     lastViewed: null,
@@ -2118,6 +2246,31 @@ function QuotesTab({
   };
 
   const setField = (key, value) => setBuilding((prev) => ({ ...prev, [key]: value }));
+  const applyClientSuggestion = (client) => {
+    if (!client) return;
+    setBuilding((prev) => ({
+      ...prev,
+      clientName: client.name || prev.clientName,
+      clientEmail: client.email || prev.clientEmail,
+      eventName: prev.eventName || client.type || "",
+      eventDate: prev.eventDate || client.eventDate || "",
+    }));
+  };
+  const clientSuggestions = useMemo(() => {
+    const search = String(building?.clientName || "").trim().toLowerCase();
+    if (search.length < 3) return [];
+    const matches = clientDirectory
+      .filter((client) => client.name.toLowerCase().includes(search))
+      .sort((a, b) => {
+        const aStarts = a.name.toLowerCase().startsWith(search);
+        const bStarts = b.name.toLowerCase().startsWith(search);
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    if (matches.some((client) => client.name.toLowerCase() === search)) return [];
+    return matches
+      .slice(0, 6);
+  }, [building?.clientName, clientDirectory]);
 
   const addCustomSection = () => {
     setBuilding((prev) => ({
@@ -2368,6 +2521,11 @@ function QuotesTab({
           subtotal: Number(totals.subtotal || 0),
           discountAmount: Number(totals.discountAmount || 0),
           totalAmount: Number(totals.total || 0),
+          bookingProcess: {
+            paymentSchedule: quote.paymentSchedule || "",
+            questionnaire: quote.questionnaire || "",
+            contractTemplate: quote.contractTemplate || "",
+          },
           sections: (quote.sections || []).map((s) => ({
             packageName: s.packageName || "",
             description: s.description || "",
@@ -2425,6 +2583,16 @@ function QuotesTab({
       quote.quoteNumberLabel || ""
     )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
     <ul style="padding-left:18px;margin:0 0 14px;">${sectionSummary}</ul>
+    ${
+      quote.paymentSchedule || quote.questionnaire || quote.contractTemplate
+        ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Booking Process Included</div>
+      ${quote.paymentSchedule ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Payment Schedule:</strong> ${escapeHtml(quote.paymentSchedule)}</div>` : ""}
+      ${quote.questionnaire ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Questionnaire:</strong> ${escapeHtml(quote.questionnaire)}</div>` : ""}
+      ${quote.contractTemplate ? `<div style="font-size:13px;color:#444;"><strong>Contract:</strong> ${escapeHtml(quote.contractTemplate)}</div>` : ""}
+    </div>`
+        : ""
+    }
     <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;font-size:14px;">
       <strong>Total:</strong> ${escapeHtml(fmt$(totals.total))}
     </div>
@@ -2620,12 +2788,57 @@ function QuotesTab({
           <Card>
             <SectionLabel>Client & Event Info</SectionLabel>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <InputField
-                label="Client Name"
-                value={building.clientName}
-                onChange={(e) => setField("clientName", e.target.value)}
-                required
-              />
+              <div style={{ position: "relative" }}>
+                <InputField
+                  label="Client Name"
+                  value={building.clientName}
+                  onChange={(e) => setField("clientName", e.target.value)}
+                  required
+                  style={{ marginBottom: 0 }}
+                />
+                {clientSuggestions.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 66,
+                      zIndex: 20,
+                      background: "#fff",
+                      border: `1px solid ${G.border}`,
+                      borderRadius: 10,
+                      boxShadow: "0 12px 30px rgba(15,23,42,0.12)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {clientSuggestions.map((client) => (
+                      <button
+                        key={client.name}
+                        type="button"
+                        onClick={() => applyClientSuggestion(client)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          border: "none",
+                          background: "transparent",
+                          padding: "10px 12px",
+                          cursor: "pointer",
+                          borderBottom: `1px solid ${G.borderLight}`,
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 700, color: G.text }}>
+                          {client.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: G.textDim }}>
+                          {[client.email, client.type, client.eventDate ? fmtShort(client.eventDate) : ""]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <InputField
                 label="Client Email"
                 value={building.clientEmail}
@@ -2699,6 +2912,111 @@ function QuotesTab({
                 readOnly
                 onChange={() => {}}
               />
+            </div>
+          </Card>
+
+          <Card>
+            <SectionLabel>Booking Process</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: G.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Payment Schedule
+                </label>
+                <select
+                  value={building.paymentSchedule || ""}
+                  onChange={(e) => setField("paymentSchedule", e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "9px 12px",
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">Select a payment schedule…</option>
+                  {paymentScheduleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: G.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Questionnaire
+                </label>
+                <select
+                  value={building.questionnaire || ""}
+                  onChange={(e) => setField("questionnaire", e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "9px 12px",
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">Select a questionnaire…</option>
+                  {questionnaireOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: G.text,
+                    marginBottom: 5,
+                  }}
+                >
+                  Contract
+                </label>
+                <select
+                  value={building.contractTemplate || ""}
+                  onChange={(e) => setField("contractTemplate", e.target.value)}
+                  style={{
+                    width: "100%",
+                    background: G.surface,
+                    color: G.text,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 6,
+                    padding: "9px 12px",
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">Select a contract…</option>
+                  {contractOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </Card>
 
@@ -7134,6 +7452,9 @@ export default function NSPBusinessSuite() {
             recipients={recipients}
             setRecipients={setRecipients}
             templates={templates}
+            payments={payments}
+            contracts={contracts}
+            workspaceRows={workspaceRows}
             settings={settings}
             counters={counters}
             setCounters={setCounters}
