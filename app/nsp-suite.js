@@ -3979,6 +3979,18 @@ function FinancialsTab({
     };
   }
   function invoiceToDb(item) {
+    const resolvedClientId = isUuid(item.clientId)
+      ? item.clientId
+      : isUuid(workspaceId)
+        ? workspaceId
+        : isUuid(lead?.id)
+          ? lead.id
+          : null;
+    const resolvedLeadId = isUuid(item.leadId)
+      ? item.leadId
+      : isUuid(lead?.id)
+        ? lead.id
+        : null;
     return {
       id: item.id, invoice_number: item.invoiceNumber, title: item.title || `Invoice ${item.invoiceNumber || ""}`,
       client_name: item.clientName || "", client_email: item.clientEmail || "",
@@ -3991,8 +4003,8 @@ function FinancialsTab({
       invoice_type: item.invoiceType || "full",
       payment_method: item.paymentMethod || "square",
       square_link: item.squareLink || "", notes: item.notes || "",
-      issued_on: item.issuedOn || null, lead_id: item.leadId || null,
-      client_id: item.clientId || workspaceId || null,
+      issued_on: item.issuedOn || null, lead_id: resolvedLeadId,
+      client_id: resolvedClientId,
       quote_id: item.quoteId || null, contract_id: item.contractId || null,
       updated_at: new Date().toISOString(),
     };
@@ -4080,32 +4092,36 @@ function FinancialsTab({
   };
 
   const saveInvoice = async () => {
-    const dbRow = invoiceToDb(form);
-    const existing = invoices.find(i => i.id === form.id);
-    if (existing && isUuid(form.id)) {
-      const { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
-      if (error) {
-        setToast({ type: "error", message: error.message || "Failed to update invoice." });
-        return;
+    try {
+      const dbRow = invoiceToDb(form);
+      const existing = invoices.find(i => i.id === form.id);
+      if (existing && isUuid(form.id)) {
+        const { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+        if (error) {
+          setToast({ type: "error", message: error.message || "Failed to update invoice." });
+          return;
+        }
+        setInvoices(prev => {
+          const next = prev.map(i => i.id === form.id ? { ...form } : i);
+          syncLeadBalance(next);
+          return next;
+        });
+      } else {
+        const { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
+        if (error) {
+          setToast({ type: "error", message: error.message || "Failed to create invoice." });
+          return;
+        }
+        setInvoices(prev => {
+          const next = [dbToInvoice(data || dbRow), ...prev];
+          syncLeadBalance(next);
+          return next;
+        });
       }
-      setInvoices(prev => {
-        const next = prev.map(i => i.id === form.id ? { ...form } : i);
-        syncLeadBalance(next);
-        return next;
-      });
-    } else {
-      const { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
-      if (error) {
-        setToast({ type: "error", message: error.message || "Failed to create invoice." });
-        return;
-      }
-      setInvoices(prev => {
-        const next = [dbToInvoice(data || dbRow), ...prev];
-        syncLeadBalance(next);
-        return next;
-      });
+      setView("list"); setForm({}); setActiveInvoice(null);
+    } catch (err) {
+      setToast({ type: "error", message: err.message || "Failed to save invoice." });
     }
-    setView("list"); setForm({}); setActiveInvoice(null);
   };
 
   const deleteInvoice = async (id) => {
@@ -4143,38 +4159,44 @@ function FinancialsTab({
   };
 
   const savePayment = async () => {
-    const paymentRow = {
-      id: genUuid(), invoice_id: activeInvoice.id,
-      amount: Number(payForm.amount) || 0, method: payForm.method,
-      reference: payForm.reference, note: payForm.note,
-      paid_on: payForm.paidOn,
-    };
-    if (isUuid(activeInvoice.id)) {
-      await supabase.from("payments").insert(paymentRow);
-    }
-    setPaymentRecords(prev => [paymentRow, ...prev]);
+    try {
+      const paymentRow = {
+        id: genUuid(), invoice_id: activeInvoice.id,
+        amount: Number(payForm.amount) || 0, method: payForm.method,
+        reference: payForm.reference, note: payForm.note,
+        paid_on: payForm.paidOn,
+      };
+      if (isUuid(activeInvoice.id)) {
+        const { error } = await supabase.from("payments").insert(paymentRow);
+        if (error) throw error;
+      }
+      setPaymentRecords(prev => [paymentRow, ...prev]);
 
-    // Update invoice
-    const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
-    const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
-    const newStatus = newBalance <= 0 ? "Paid" : "Partial";
-    if (isUuid(activeInvoice.id)) {
-      await supabase
-        .from("invoices")
-        .update({
-          amount_paid: newPaid,
-          balance_due: newBalance,
-          status: newStatus,
-        })
-        .eq("id", activeInvoice.id);
-    }
-    setInvoices(prev => {
-      const next = prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i);
-      syncLeadBalance(next);
-      return next;
-    });
+      // Update invoice
+      const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
+      const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
+      const newStatus = newBalance <= 0 ? "Paid" : "Partial";
+      if (isUuid(activeInvoice.id)) {
+        const { error } = await supabase
+          .from("invoices")
+          .update({
+            amount_paid: newPaid,
+            balance_due: newBalance,
+            status: newStatus,
+          })
+          .eq("id", activeInvoice.id);
+        if (error) throw error;
+      }
+      setInvoices(prev => {
+        const next = prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i);
+        syncLeadBalance(next);
+        return next;
+      });
 
-    setView("list"); setPayForm({}); setActiveInvoice(null);
+      setView("list"); setPayForm({}); setActiveInvoice(null);
+    } catch (err) {
+      setToast({ type: "error", message: err.message || "Failed to record payment." });
+    }
   };
 
   // ── Invoice PDF ──
@@ -4188,7 +4210,9 @@ function FinancialsTab({
     const payments = paymentRecords.filter(p => p.invoice_id === inv.id);
     const paymentsHtml = payments.length ? payments.map(p =>
       `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">
-        <span>${escapeHtml(fmtShort(p.paid_on))} — ${escapeHtml(p.method === "zelle" ? "Zelle" : "Square")}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
+        <span>${escapeHtml(fmtShort(p.paid_on))} — ${escapeHtml(
+          p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
+        )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
         <span style="color:#16a34a;font-weight:700;">+ ${escapeHtml(fmt$(p.amount))}</span>
       </div>`
     ).join("") : '<div style="font-size:13px;color:#999;padding:8px 0;">No payments recorded yet.</div>';
@@ -4197,6 +4221,12 @@ function FinancialsTab({
       <strong>Zelle Payment:</strong> To pay via Zelle, please text Nico at the number on file to arrange payment. Reference this invoice number: <strong>${escapeHtml(inv.invoiceNumber || "")}</strong>
     </div>` : "";
 
+    const cashNote = inv.paymentMethod === "cash" ? `<div style="margin-top:16px;padding:14px;background:#ecfdf3;border:1px solid #86efac;border-radius:8px;font-size:13px;color:#166534;">
+      <strong>Cash Payment:</strong> Pay in cash and record receipt in payment history.
+    </div>` : "";
+    const checkNote = inv.paymentMethod === "check" ? `<div style="margin-top:16px;padding:14px;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;font-size:13px;color:#1d4ed8;">
+      <strong>Check Payment:</strong> Pay by check and include check number in reference.
+    </div>` : "";
     const squareNote = inv.paymentMethod === "square" && inv.squareLink ? `<div style="margin-top:16px;text-align:center;">
       <a href="${escapeHtml(inv.squareLink)}" style="display:inline-block;padding:12px 32px;background:#0070f3;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Pay with Square</a>
     </div>` : "";
@@ -4233,7 +4263,7 @@ function FinancialsTab({
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:16px;font-weight:800;border-top:1px solid #ddd;"><span>Balance Due</span><span style="color:${inv.balanceDue > 0 ? '#dc2626' : '#16a34a'};">${escapeHtml(fmt$(inv.balanceDue))}</span></div>
       </div>
       <div style="margin-top:24px;"><div style="font-size:14px;font-weight:700;margin-bottom:8px;">Payment History</div>${paymentsHtml}</div>
-      ${zelleNote}${squareNote}
+      ${zelleNote}${cashNote}${checkNote}${squareNote}
       ${inv.notes ? `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;font-size:12px;color:#666;white-space:pre-wrap;">${escapeHtml(inv.notes)}</div>` : ""}
     </div></body></html>`;
     openPrintWindow(html);
@@ -4386,6 +4416,17 @@ function FinancialsTab({
   if (view === "recordPayment" && activeInvoice) {
     return (
       <Card>
+        {toast && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: toast.type === "success" ? G.greenBg : G.redBg,
+            color: toast.type === "success" ? G.green : G.red,
+            border: `1px solid ${toast.type === "success" ? G.green : G.red}33`,
+            marginBottom: 12,
+          }}>
+            {toast.type === "success" ? "✓ " : "✕ "}{toast.message}
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}><Btn variant="ghost" small onClick={() => { setView("list"); setActiveInvoice(null); }}>← Back</Btn></div>
         <SectionLabel>Record Payment — {activeInvoice.invoiceNumber}</SectionLabel>
 
@@ -4400,16 +4441,16 @@ function FinancialsTab({
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Payment Method</label>
             <div style={{ display: "flex", gap: 0 }}>
-              {["square", "zelle"].map((m, i) => (
+              {["square", "zelle", "cash", "check"].map((m, i) => (
                 <button key={m} onClick={() => setPayForm(p => ({ ...p, method: m }))}
                   style={{
                     flex: 1, padding: "9px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
                     background: payForm.method === m ? G.gold : G.surface,
                     color: payForm.method === m ? "#0e0f11" : G.textDim,
                     border: `1px solid ${payForm.method === m ? G.gold : G.border}`,
-                    borderRadius: i === 0 ? "6px 0 0 6px" : "0 6px 6px 0",
+                    borderRadius: i === 0 ? "6px 0 0 6px" : i === 3 ? "0 6px 6px 0" : 0,
                   }}>
-                  {m === "square" ? "◼ Square" : "⚡ Zelle"}
+                  {m === "square" ? "◼ Square" : m === "zelle" ? "⚡ Zelle" : m === "cash" ? "💵 Cash" : "🧾 Check"}
                 </button>
               ))}
             </div>
@@ -4422,6 +4463,16 @@ function FinancialsTab({
         {payForm.method === "zelle" && (
           <div style={{ padding: "12px 16px", background: G.amberBg, border: `1px solid ${G.amber}33`, borderRadius: 8, fontSize: 12, color: G.amber, marginBottom: 14 }}>
             ⚡ Zelle payment — verify you've received the funds before recording.
+          </div>
+        )}
+        {payForm.method === "cash" && (
+          <div style={{ padding: "12px 16px", background: G.greenBg, border: `1px solid ${G.green}33`, borderRadius: 8, fontSize: 12, color: G.green, marginBottom: 14 }}>
+            💵 Cash payment — collect funds and save a reference note.
+          </div>
+        )}
+        {payForm.method === "check" && (
+          <div style={{ padding: "12px 16px", background: G.blueBg, border: `1px solid ${G.blue}33`, borderRadius: 8, fontSize: 12, color: G.blue, marginBottom: 14 }}>
+            🧾 Check payment — include check number in reference.
           </div>
         )}
 
@@ -4437,6 +4488,17 @@ function FinancialsTab({
   if (view === "create" || view === "edit") {
     return (
       <Card>
+        {toast && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: toast.type === "success" ? G.greenBg : G.redBg,
+            color: toast.type === "success" ? G.green : G.red,
+            border: `1px solid ${toast.type === "success" ? G.green : G.red}33`,
+            marginBottom: 12,
+          }}>
+            {toast.type === "success" ? "✓ " : "✕ "}{toast.message}
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}><Btn variant="ghost" small onClick={() => { setView("list"); setForm({}); setActiveInvoice(null); }}>← Back</Btn></div>
         <SectionLabel>{view === "create" ? "New Invoice" : "Edit Invoice"}</SectionLabel>
 
@@ -4499,16 +4561,16 @@ function FinancialsTab({
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Payment Method</label>
               <div style={{ display: "flex", gap: 0 }}>
-                {["square", "zelle"].map((m, i) => (
+                {["square", "zelle", "cash", "check"].map((m, i) => (
                   <button key={m} onClick={() => setForm(p => ({ ...p, paymentMethod: m }))}
                     style={{
                       flex: 1, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer",
                       background: form.paymentMethod === m ? G.gold : G.surface,
                       color: form.paymentMethod === m ? "#0e0f11" : G.textDim,
                       border: `1px solid ${form.paymentMethod === m ? G.gold : G.border}`,
-                      borderRadius: i === 0 ? "6px 0 0 6px" : "0 6px 6px 0",
+                      borderRadius: i === 0 ? "6px 0 0 6px" : i === 3 ? "0 6px 6px 0" : 0,
                     }}>
-                    {m === "square" ? "◼ Square" : "⚡ Zelle"}
+                    {m === "square" ? "◼ Square" : m === "zelle" ? "⚡ Zelle" : m === "cash" ? "💵 Cash" : "🧾 Check"}
                   </button>
                 ))}
               </div>
@@ -4551,6 +4613,16 @@ function FinancialsTab({
           {form.paymentMethod === "zelle" && (
             <div style={{ padding: "12px 16px", background: G.amberBg, border: `1px solid ${G.amber}33`, borderRadius: 8, fontSize: 12, color: G.amber }}>
               ⚡ Zelle — Client will see a message to text you to arrange payment.
+            </div>
+          )}
+          {form.paymentMethod === "cash" && (
+            <div style={{ padding: "12px 16px", background: G.greenBg, border: `1px solid ${G.green}33`, borderRadius: 8, fontSize: 12, color: G.green }}>
+              💵 Cash — collect payment and record it in the payment log.
+            </div>
+          )}
+          {form.paymentMethod === "check" && (
+            <div style={{ padding: "12px 16px", background: G.blueBg, border: `1px solid ${G.blue}33`, borderRadius: 8, fontSize: 12, color: G.blue }}>
+              🧾 Check — use payment reference for check number.
             </div>
           )}
         </div>
