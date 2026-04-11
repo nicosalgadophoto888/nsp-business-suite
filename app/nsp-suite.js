@@ -33,11 +33,11 @@ const STAGES = [
 ];
 
 const TABS = [
-  { key: "overview", label: "Overview" },
+  { key: "overview", label: "Info" },
   { key: "clients", label: "Clients" },
   { key: "schedule", label: "Schedule" },
   { key: "quotes", label: "Quotes & Orders" },
-  { key: "financials", label: "Financials" },
+  { key: "financials", label: "Accounting & Payments" },
   { key: "contracts", label: "Contracts" },
   { key: "templates", label: "Templates" },
   { key: "notes", label: "Notes" },
@@ -1456,7 +1456,7 @@ function OverviewTab({ lead, setLead, quotes }) {
   if (editing) {
     return (
       <Card>
-        <SectionLabel>Edit Lead Details</SectionLabel>
+        <SectionLabel>Edit Client Info</SectionLabel>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <InputField
             label="Name"
@@ -1564,7 +1564,7 @@ function OverviewTab({ lead, setLead, quotes }) {
             </Btn>
           }
         >
-          Lead Details
+          Client Info
         </SectionLabel>
         <InfoRow label="Name" value={lead.name} />
         <InfoRow label="Email" value={lead.email} accent={G.blue} />
@@ -1576,7 +1576,7 @@ function OverviewTab({ lead, setLead, quotes }) {
         <InfoRow label="Referral" value={lead.referralSource} accent={G.gold} />
         <InfoRow label="Inquired On" value={fmtShort(lead.inquiredOn)} />
         <div style={{ marginTop: 12, fontSize: 13, color: G.textDim, lineHeight: 1.7 }}>
-          {lead.notes || "No lead notes yet."}
+          {lead.notes || "No client notes yet."}
         </div>
       </Card>
 
@@ -3846,7 +3846,7 @@ function QuotesTab({
   );
 }
 
-function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
+function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings }) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
   const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
   const [invoices, setInvoices] = useState([]);
@@ -4004,17 +4004,38 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
     async function load() {
       try {
         const currentLeadId = lead?.id?.toString();
-        const [invRes, payRes] = await Promise.all([
-          supabase.from("invoices").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
-          supabase.from("payments").select("*").order("paid_on", { ascending: false }),
-        ]);
+        const { data: invData, error: invError } = await supabase
+          .from("invoices")
+          .select("*")
+          .eq("lead_id", currentLeadId)
+          .order("created_at", { ascending: false });
+        if (invError) throw invError;
+        const invoiceIds = (invData || []).map((row) => row.id).filter(Boolean);
+        const { data: payData, error: payError } = invoiceIds.length
+          ? await supabase.from("payments").select("*").in("invoice_id", invoiceIds).order("paid_on", { ascending: false })
+          : { data: [], error: null };
+        if (payError) throw payError;
+        const invRes = { data: invData };
+        const payRes = { data: payData };
         if (invRes.data) setInvoices(invRes.data.map(dbToInvoice));
         if (payRes.data) setPaymentRecords(payRes.data);
       } catch (err) { console.error("Failed to load invoices:", err); }
       setLoading(false);
     }
     load();
-  }, []);
+  }, [lead?.id]);
+
+  useEffect(() => {
+    const paidTotal = invoices.reduce((sum, item) => sum + Number(item.amountPaid || 0), 0);
+    const balanceTotal = invoices.reduce((sum, item) => sum + Number(item.balanceDue || 0), 0);
+    setLead((prev) => {
+      if (!prev) return prev;
+      if (Number(prev.revenue || 0) === paidTotal && Number(prev.balance || 0) === balanceTotal) {
+        return prev;
+      }
+      return { ...prev, revenue: paidTotal, balance: balanceTotal };
+    });
+  }, [invoices, setLead]);
 
   // ── DB mappers ──
   function dbToInvoice(row) {
@@ -5002,7 +5023,7 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [lead?.id, setContracts]);
 
   const isReleases = subTab === "releases";
   const isTemplates = subTab === "templates";
@@ -8120,6 +8141,7 @@ export default function NSPBusinessSuite() {
     },
     { label: "✉ New Email", variant: "secondary", onClick: openNewEmailComposer },
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
+    { label: "Record Payment", variant: "secondary", onClick: () => goToTab("financials") },
     { label: "Reports", variant: "secondary", onClick: () => goToTab("reports") },
     { label: "View / Print PDF", variant: "secondary", onClick: handlePdf },
     { label: "Reset Client Activity", variant: "secondary", onClick: handleResetActivity },
@@ -8173,6 +8195,7 @@ export default function NSPBusinessSuite() {
             setPayments={setPayments}
             quotes={quotes}
             lead={lead}
+            setLead={setLead}
             settings={settings}
           />
         );
