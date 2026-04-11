@@ -1,6 +1,34 @@
 -- Backfill relational links for existing CRM data.
 -- This migration is intentionally conservative: it only links rows when a confident match exists.
 
+-- 0) Ensure relational columns exist before backfill.
+do $$
+begin
+  if to_regclass('public.invoices') is not null then
+    alter table public.invoices add column if not exists client_id uuid references public.clients(id) on delete set null;
+    alter table public.invoices add column if not exists quote_id uuid;
+    alter table public.invoices add column if not exists template_kind text;
+  end if;
+
+  if to_regclass('public.contracts') is not null then
+    alter table public.contracts add column if not exists client_id uuid references public.clients(id) on delete set null;
+    alter table public.contracts add column if not exists quote_id uuid;
+    alter table public.contracts add column if not exists template_kind text;
+  end if;
+
+  if to_regclass('public.payments') is not null then
+    alter table public.payments add column if not exists client_id uuid references public.clients(id) on delete set null;
+  end if;
+
+  if to_regclass('public.sessions') is not null then
+    alter table public.sessions add column if not exists quote_id uuid;
+  end if;
+
+  if to_regclass('public.templates') is not null then
+    alter table public.templates add column if not exists template_kind text;
+  end if;
+end $$;
+
 -- 1) INVOICES → CLIENTS
 do $$
 begin
