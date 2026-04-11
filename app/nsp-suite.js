@@ -3954,8 +3954,26 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
 
   // ── CRUD ──
   const startCreate = (type) => {
-    const quoteTotal = quotes.filter(q => q.status === "Accepted").reduce((s, q) => s + calcQuoteTotals(q).total, 0);
-    const total = quoteTotal || 0;
+    const acceptedQuotes = [...(quotes || [])]
+      .filter((q) => q.status === "Accepted")
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt || 0).getTime() -
+          new Date(a.updatedAt || a.createdAt || 0).getTime()
+      );
+    const sourceQuote = acceptedQuotes[0] || null;
+    const sourceTotals = sourceQuote
+      ? calcQuoteTotals(sourceQuote)
+      : { subtotal: 0, discountAmount: 0, total: 0 };
+    const subtotal = Number(sourceTotals.subtotal || 0);
+    const discountAmount = Number(sourceTotals.discountAmount || 0);
+    const total = Number(sourceTotals.total || 0);
+    const packageName = sourceQuote
+      ? (sourceQuote.sections || [])
+          .map((section) => String(section.packageName || "").trim())
+          .filter(Boolean)
+          .join(" / ")
+      : "";
     const isRetainer = type === "retainer";
     const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
 
@@ -3963,14 +3981,17 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
       id: genUuid(), invoiceNumber: nextInvNum,
       title: isRetainer ? "Retainer (50%)" : "Full Balance",
       clientName: lead?.name || "", clientEmail: lead?.email || "",
-      sessionType: lead?.type || "", sessionDate: lead?.eventDate || "",
-      packageName: "", subtotal: total, discountAmount: 0,
+      sessionType: sourceQuote?.eventName || lead?.type || "",
+      sessionDate: sourceQuote?.eventDate || lead?.eventDate || "",
+      packageName, subtotal, discountAmount,
       totalAmount: amt, amountPaid: 0, balanceDue: amt,
       status: "Draft", dueDate: "",
       invoiceType: isRetainer ? "retainer" : "full",
       paymentMethod: "square", squareLink: "", notes: "",
       issuedOn: new Date().toISOString().split("T")[0],
-      leadId: lead?.id?.toString() || null, quoteId: null, contractId: null,
+      leadId: lead?.id?.toString() || null,
+      quoteId: isUuid(sourceQuote?.id) ? sourceQuote.id : null,
+      contractId: null,
     });
     setView("create");
   };
@@ -4358,9 +4379,10 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
               <div style={{ display: "flex", gap: 0 }}>
                 {[{ k: "retainer", l: "50% Retainer" }, { k: "balance", l: "Balance Due" }, { k: "full", l: "Full Amount" }].map((t, i) => (
                   <button key={t.k} onClick={() => {
-                    let amt = form.subtotal || 0;
+                    const baseTotal = Math.max(0, (Number(form.subtotal) || 0) - (Number(form.discountAmount) || 0));
+                    let amt = baseTotal;
                     if (t.k === "retainer") amt = Math.round(amt * 0.5 * 100) / 100;
-                    if (t.k === "balance") amt = Math.max(0, (form.subtotal || 0) - (form.amountPaid || 0));
+                    if (t.k === "balance") amt = Math.max(0, baseTotal - (form.amountPaid || 0));
                     setForm(p => ({ ...p, invoiceType: t.k, totalAmount: amt, balanceDue: Math.max(0, amt - (p.amountPaid || 0)), title: t.k === "retainer" ? "Retainer (50%)" : t.k === "balance" ? "Balance Due" : "Full Payment" }));
                   }}
                   style={{
