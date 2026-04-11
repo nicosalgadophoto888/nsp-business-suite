@@ -693,6 +693,11 @@ function upsertWorkspaceRow(list, row) {
   return next.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
 }
 
+function normalizeEntityId(value) {
+  if (value === null || value === undefined || value === "") return null;
+  return String(value);
+}
+
 function normalizeHeaderKey(value) {
   return String(value || "")
     .trim()
@@ -3741,6 +3746,7 @@ function FinancialsTab({
   setLead,
   settings,
   workspaceId,
+  clientRecordId,
   invoiceSeedQuote,
   onInvoiceSeedConsumed,
 }) {
@@ -3766,7 +3772,7 @@ function FinancialsTab({
     (invoice) => {
       if (!invoice) return false;
       const byClientId =
-        workspaceId && String(invoice.clientId || "") === String(workspaceId);
+        clientRecordId && String(invoice.clientId || "") === String(clientRecordId);
       const byLeadId = lead?.id && String(invoice.leadId || "") === String(lead.id);
       const byEmail =
         lead?.email &&
@@ -3778,7 +3784,7 @@ function FinancialsTab({
           String(lead.name || "").trim().toLowerCase();
       return Boolean(byClientId || byLeadId || byEmail || byName);
     },
-    [workspaceId, lead?.id, lead?.email, lead?.name]
+    [clientRecordId, lead?.id, lead?.email, lead?.name]
   );
 
   const syncLeadBalance = React.useCallback(
@@ -3944,8 +3950,8 @@ function FinancialsTab({
             .select("*")
             .order("created_at", { ascending: false });
           const filters = [];
-          if (includeClientIdFilter && workspaceId) {
-            filters.push(`client_id.eq.${workspaceId}`);
+          if (includeClientIdFilter && clientRecordId) {
+            filters.push(`client_id.eq.${clientRecordId}`);
           }
           if (lead?.id) filters.push(`lead_id.eq.${lead.id}`);
           if (lead?.email) filters.push(`client_email.eq.${String(lead.email).replace(/,/g, "")}`);
@@ -3976,7 +3982,7 @@ function FinancialsTab({
       setLoading(false);
     }
     load();
-  }, [workspaceId, lead?.id, lead?.email, syncLeadBalance, supportsInvoiceClientId]);
+  }, [clientRecordId, lead?.id, lead?.email, syncLeadBalance, supportsInvoiceClientId]);
 
   // ── DB mappers ──
   function dbToInvoice(row) {
@@ -4000,11 +4006,7 @@ function FinancialsTab({
   function invoiceToDb(item) {
     const resolvedClientId = isUuid(item.clientId)
       ? item.clientId
-      : isUuid(workspaceId)
-        ? workspaceId
-        : isUuid(lead?.id)
-          ? lead.id
-          : null;
+      : clientRecordId || null;
     const resolvedLeadId = isUuid(item.leadId)
       ? item.leadId
       : isUuid(lead?.id)
@@ -4093,7 +4095,7 @@ function FinancialsTab({
       invoiceType: isRetainer ? "retainer" : "full",
       paymentMethod: "square", squareLink: "", notes: "",
       issuedOn: new Date().toISOString().split("T")[0],
-      clientId: isUuid(workspaceId) ? workspaceId : null,
+      clientId: clientRecordId || null,
       leadId: lead?.id?.toString() || null,
       quoteId: isUuid(sourceQuote?.id) ? sourceQuote.id : null,
       contractId: null,
@@ -7338,6 +7340,7 @@ export default function NSPBusinessSuite() {
   const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
 
   const [workspaceId, setWorkspaceId] = useState(null);
+  const [clientRecordId, setClientRecordId] = useState(null);
   const [workspaceRows, setWorkspaceRows] = useState([]);
   const [workspaceSummaries, setWorkspaceSummaries] = useState([]);
   const [workspaceInvoices, setWorkspaceInvoices] = useState([]);
@@ -7369,6 +7372,7 @@ export default function NSPBusinessSuite() {
     hydratingWorkspaceRef.current = true;
     lastPersistedRef.current = serializeWorkspace(normalized);
     setInvoiceSeedQuote(null);
+    setClientRecordId(null);
     setLead(normalized.lead);
     setQuotes(normalized.quotes);
     setRecipients(normalized.recipients);
@@ -7496,6 +7500,66 @@ export default function NSPBusinessSuite() {
   }, [activeTab, workspaceId]);
 
   useEffect(() => {
+    let canceled = false;
+
+    const loadClientRecordId = async () => {
+      if (!workspaceId) {
+        setClientRecordId(null);
+        return;
+      }
+
+      try {
+        let query = supabase
+          .from(CLIENTS_TABLE)
+          .select("id, workspace_id, email, name")
+          .limit(1);
+
+        const workspaceMatch = await query.eq("workspace_id", workspaceId).maybeSingle();
+        if (!canceled && workspaceMatch?.data?.id !== undefined) {
+          setClientRecordId(normalizeEntityId(workspaceMatch.data.id));
+          return;
+        }
+
+        if (lead?.email) {
+          const byEmail = await supabase
+            .from(CLIENTS_TABLE)
+            .select("id")
+            .eq("email", String(lead.email).trim())
+            .limit(1)
+            .maybeSingle();
+          if (!canceled && byEmail?.data?.id !== undefined) {
+            setClientRecordId(normalizeEntityId(byEmail.data.id));
+            return;
+          }
+        }
+
+        if (lead?.name) {
+          const byName = await supabase
+            .from(CLIENTS_TABLE)
+            .select("id")
+            .eq("name", String(lead.name).trim())
+            .limit(1)
+            .maybeSingle();
+          if (!canceled && byName?.data?.id !== undefined) {
+            setClientRecordId(normalizeEntityId(byName.data.id));
+            return;
+          }
+        }
+
+        if (!canceled) setClientRecordId(null);
+      } catch (err) {
+        console.error("Failed to resolve client record id:", err);
+        if (!canceled) setClientRecordId(null);
+      }
+    };
+
+    loadClientRecordId();
+    return () => {
+      canceled = true;
+    };
+  }, [workspaceId, lead?.email, lead?.name]);
+
+  useEffect(() => {
     if (workspaceLoading) return;
     if (hydratingWorkspaceRef.current) {
       hydratingWorkspaceRef.current = false;
@@ -7541,26 +7605,31 @@ export default function NSPBusinessSuite() {
       try {
         const clientName = String(lead?.name || "").trim();
         const clientEmail = String(lead?.email || "").trim();
+        const clientPayload = {
+          workspace_id: workspaceId,
+          name: clientName,
+          email: clientEmail,
+          phone: String(lead?.phone || "").trim(),
+          type: String(lead?.type || "").trim(),
+          stage: String(lead?.stage || "Lead").trim() || "Lead",
+          event_date: isoDateOrNull(lead?.eventDate),
+          inquired_on: isoDateOrNull(lead?.inquiredOn),
+          location: String(lead?.location || "").trim(),
+          referral_source: String(lead?.referralSource || "").trim(),
+          notes: String(lead?.notes || "").trim(),
+          total_revenue: Number(lead?.revenue || 0),
+          balance_due: Number(lead?.balance || 0),
+        };
+        const { data: clientRow, error: clientError } = await supabase
+          .from(CLIENTS_TABLE)
+          .upsert(clientPayload, { onConflict: "workspace_id" })
+          .select("id")
+          .single();
+        if (clientError) throw clientError;
 
-        await supabase.from(CLIENTS_TABLE).upsert(
-          {
-            id: workspaceId,
-            workspace_id: workspaceId,
-            name: clientName,
-            email: clientEmail,
-            phone: String(lead?.phone || "").trim(),
-            type: String(lead?.type || "").trim(),
-            stage: String(lead?.stage || "Lead").trim() || "Lead",
-            event_date: isoDateOrNull(lead?.eventDate),
-            inquired_on: isoDateOrNull(lead?.inquiredOn),
-            location: String(lead?.location || "").trim(),
-            referral_source: String(lead?.referralSource || "").trim(),
-            notes: String(lead?.notes || "").trim(),
-            total_revenue: Number(lead?.revenue || 0),
-            balance_due: Number(lead?.balance || 0),
-          },
-          { onConflict: "id" }
-        );
+        const resolvedClientId = normalizeEntityId(clientRow?.id);
+        if (resolvedClientId) setClientRecordId(resolvedClientId);
+        if (!resolvedClientId) return;
 
         const templateRows = (templates || []).map((tpl) => ({
           external_id: makeExternalId("template", tpl.id || genId("tpl")),
@@ -7582,7 +7651,7 @@ export default function NSPBusinessSuite() {
           const totals = calcQuoteTotals(q);
           return {
             external_id: makeExternalId("quote", workspaceId, q.id || q.quoteNumberLabel || genId("q")),
-            client_id: workspaceId,
+            client_id: resolvedClientId,
             quote_number: Number(q.quoteNumber || 0) || null,
             quote_number_label: String(q.quoteNumberLabel || "").trim(),
             status: String(q.status || "Draft").trim() || "Draft",
@@ -7616,7 +7685,7 @@ export default function NSPBusinessSuite() {
           const { data: existingQuotes } = await supabase
             .from(QUOTES_TABLE)
             .select("id, external_id")
-            .eq("client_id", workspaceId);
+            .eq("client_id", resolvedClientId);
           const staleQuoteIds = (existingQuotes || [])
             .filter((row) => !externalIds.includes(row.external_id))
             .map((row) => row.id);
@@ -7630,7 +7699,7 @@ export default function NSPBusinessSuite() {
             const { data: existingInvoices } = await supabase
               .from("invoices")
               .select("quote_id")
-              .eq("client_id", workspaceId)
+              .eq("client_id", resolvedClientId)
               .in("quote_id", acceptedIds);
             const existingSet = new Set((existingInvoices || []).map((inv) => String(inv.quote_id)));
             const missing = acceptedQuotes.filter((q) => !existingSet.has(String(q.id)));
@@ -7647,19 +7716,19 @@ export default function NSPBusinessSuite() {
                 status: "Draft",
                 issued_on: new Date().toISOString().slice(0, 10),
                 lead_id: lead?.id || null,
-                client_id: workspaceId,
+                client_id: resolvedClientId,
                 quote_id: q.id,
               }));
               await supabase.from("invoices").insert(invoiceRows);
             }
           }
         } else {
-          await supabase.from(QUOTES_TABLE).delete().eq("client_id", workspaceId);
+          await supabase.from(QUOTES_TABLE).delete().eq("client_id", resolvedClientId);
         }
 
         const sessionRows = (schedule || []).map((session) => ({
           external_id: makeExternalId("session", workspaceId, session.id || genId("s")),
-          client_id: workspaceId,
+          client_id: resolvedClientId,
           title: String(session.title || "").trim(),
           session_date: isoDateOrNull(session.date),
           session_time: String(session.time || "").trim(),
@@ -7675,7 +7744,7 @@ export default function NSPBusinessSuite() {
           const { data: existingSessions } = await supabase
             .from(SESSIONS_TABLE)
             .select("id, external_id")
-            .eq("client_id", workspaceId);
+            .eq("client_id", resolvedClientId);
           const staleSessionIds = (existingSessions || [])
             .filter((row) => !externalIds.includes(row.external_id))
             .map((row) => row.id);
@@ -7683,7 +7752,7 @@ export default function NSPBusinessSuite() {
             await supabase.from(SESSIONS_TABLE).delete().in("id", staleSessionIds);
           }
         } else {
-          await supabase.from(SESSIONS_TABLE).delete().eq("client_id", workspaceId);
+          await supabase.from(SESSIONS_TABLE).delete().eq("client_id", resolvedClientId);
         }
       } catch (err) {
         console.error("Failed to sync relational CRM tables:", err);
@@ -8396,6 +8465,7 @@ export default function NSPBusinessSuite() {
             setLead={setLead}
             settings={settings}
             workspaceId={workspaceId}
+            clientRecordId={clientRecordId}
             invoiceSeedQuote={invoiceSeedQuote}
             onInvoiceSeedConsumed={() => setInvoiceSeedQuote(null)}
           />
