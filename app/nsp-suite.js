@@ -1647,6 +1647,19 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
     return { color: G.textDim, bg: G.surface };
   };
 
+  const removeEvent = (id) => {
+    if (!id) return;
+    if (!window.confirm("Delete this event from the schedule?")) return;
+    setSchedule((prev) => {
+      const next = (prev || []).filter((ev) => String(ev.id) !== String(id));
+      const nextSelected = next[0]?.id || null;
+      setSelectedEventId((current) =>
+        String(current) === String(id) ? nextSelected : current
+      );
+      return next;
+    });
+  };
+
   return (
     <Card>
       <SectionLabel actions={<Btn small onClick={() => setAdding(true)}>+ New Event</Btn>}>
@@ -1820,6 +1833,25 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
                     <Pill color={pill.color} bg={pill.bg}>
                       {ev.status || "Tentative"}
                     </Pill>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeEvent(ev.id);
+                      }}
+                      title="Delete event"
+                      style={{
+                        marginLeft: 8,
+                        border: "none",
+                        background: "transparent",
+                        color: G.red,
+                        fontSize: 18,
+                        lineHeight: 1,
+                        cursor: "pointer",
+                        padding: "0 4px",
+                      }}
+                    >
+                      ×
+                    </button>
                   </div>
                 );
               })}
@@ -1872,6 +1904,16 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
                   {selectedEvent.time || "TBD"} {selectedEvent.endTime ? `- ${selectedEvent.endTime}` : ""}
                 </div>
                 <div style={{ fontSize: 12, color: G.textDim }}>{selectedEvent.location || "Location TBD"}</div>
+                <div style={{ marginTop: 10 }}>
+                  <Btn
+                    variant="danger"
+                    small
+                    full
+                    onClick={() => removeEvent(selectedEvent.id)}
+                  >
+                    Delete Event
+                  </Btn>
+                </div>
               </div>
             ) : null}
           </div>
