@@ -1440,7 +1440,7 @@ function InfoRow({ label, value, accent }) {
   );
 }
 
-function OverviewTab({ lead, setLead, quotes }) {
+function OverviewTab({ lead, setLead, quotes, workspaceId }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...lead });
 
@@ -1577,6 +1577,24 @@ function OverviewTab({ lead, setLead, quotes }) {
         <InfoRow label="Inquired On" value={fmtShort(lead.inquiredOn)} />
         <div style={{ marginTop: 12, fontSize: 13, color: G.textDim, lineHeight: 1.7 }}>
           {lead.notes || "No lead notes yet."}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionLabel>Client Portal</SectionLabel>
+        <div style={{ padding: "4px 0 12px 0" }}>
+          <Btn onClick={() => {
+            if (!workspaceId) { alert("Please save the workspace first."); return; }
+            const url = `${window.location.origin}/portal/${workspaceId}`;
+            navigator.clipboard.writeText(url).then(() => {
+              alert("Client portal link copied to clipboard:\n" + url);
+            }).catch(e => {
+              alert("Failed to copy. Here is the link:\n" + url);
+            });
+          }}>🔗 Copy Portal Link</Btn>
+          <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.5, color: G.textDim }}>
+            This link provides your client secure access to their proposals, contracts, schedule, and invoices in a beautiful portal.
+          </div>
         </div>
       </Card>
 
@@ -7978,7 +7996,7 @@ export default function NSPBusinessSuite() {
   const renderTab = () => {
     switch (activeTab) {
       case "overview":
-        return <OverviewTab lead={lead} setLead={setLead} quotes={quotes} />;
+        return <OverviewTab lead={lead} setLead={setLead} quotes={quotes} workspaceId={workspaceId} />;
       case "clients":
         return (
           <ClientsTab
