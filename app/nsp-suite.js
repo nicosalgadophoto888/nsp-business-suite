@@ -2212,6 +2212,7 @@ function QuotesTab({
   counters,
   setCounters,
   onNavigateToFinancials,
+  onCreateInvoiceFromQuote,
 }) {
   const [building, setBuilding] = useState(null);
   const [previewQuote, setPreviewQuote] = useState(null);
@@ -3694,7 +3695,17 @@ function QuotesTab({
                     Email Approval
                   </Btn>
                   {q.status === "Accepted" ? (
-                    <Btn variant="secondary" small onClick={() => onNavigateToFinancials?.("financials") }>
+                    <Btn
+                      variant="secondary"
+                      small
+                      onClick={() => {
+                        if (onCreateInvoiceFromQuote) {
+                          onCreateInvoiceFromQuote(q);
+                          return;
+                        }
+                        onNavigateToFinancials?.("financials");
+                      }}
+                    >
                       Create Invoice
                     </Btn>
                   ) : (
@@ -3722,7 +3733,17 @@ function QuotesTab({
   );
 }
 
-function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings, workspaceId }) {
+function FinancialsTab({
+  payments,
+  setPayments,
+  quotes,
+  lead,
+  setLead,
+  settings,
+  workspaceId,
+  invoiceSeedQuote,
+  onInvoiceSeedConsumed,
+}) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
   const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
   const [invoices, setInvoices] = useState([]);
@@ -4001,7 +4022,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings,
   const totalInvoiced = invoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
 
   // ── CRUD ──
-  const startCreate = (type) => {
+  const startCreate = (type, forcedQuote = null) => {
     const acceptedQuotes = [...(quotes || [])]
       .filter((q) => q.status === "Accepted")
       .sort(
@@ -4009,7 +4030,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings,
           new Date(b.updatedAt || b.createdAt || 0).getTime() -
           new Date(a.updatedAt || a.createdAt || 0).getTime()
       );
-    const sourceQuote = acceptedQuotes[0] || null;
+    const sourceQuote = forcedQuote || acceptedQuotes[0] || null;
     const sourceTotals = sourceQuote
       ? calcQuoteTotals(sourceQuote)
       : { subtotal: 0, discountAmount: 0, total: 0 };
@@ -4044,6 +4065,13 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings,
     });
     setView("create");
   };
+
+  useEffect(() => {
+    if (!invoiceSeedQuote) return;
+    const fromList = (quotes || []).find((q) => String(q.id) === String(invoiceSeedQuote.id));
+    startCreate("full", fromList || invoiceSeedQuote);
+    onInvoiceSeedConsumed?.();
+  }, [invoiceSeedQuote]); // intentionally one-shot per seed
 
   const startEdit = (inv) => {
     setForm({ ...inv });
@@ -7229,11 +7257,13 @@ export default function NSPBusinessSuite() {
   const [emailActivity, setEmailActivity] = useState(initial.emailActivity || []);
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
+  const [invoiceSeedQuote, setInvoiceSeedQuote] = useState(null);
 
   const applyWorkspaceSnapshot = (snapshot, nextWorkspaceId = null) => {
     const normalized = normalizeWorkspaceSnapshot(snapshot);
     hydratingWorkspaceRef.current = true;
     lastPersistedRef.current = serializeWorkspace(normalized);
+    setInvoiceSeedQuote(null);
     setLead(normalized.lead);
     setQuotes(normalized.quotes);
     setRecipients(normalized.recipients);
@@ -8182,6 +8212,13 @@ export default function NSPBusinessSuite() {
     setScreen("lead");
   };
 
+  const handleCreateInvoiceFromQuote = (quote) => {
+    if (!quote) return;
+    setInvoiceSeedQuote(quote);
+    setActiveTab("financials");
+    setScreen("lead");
+  };
+
   const SIDEBAR_ACTIONS = [
     { label: "+ New Client", variant: "secondary", onClick: handleNewClient },
     {
@@ -8241,6 +8278,7 @@ export default function NSPBusinessSuite() {
             counters={counters}
             setCounters={setCounters}
             onNavigateToFinancials={goToTab}
+            onCreateInvoiceFromQuote={handleCreateInvoiceFromQuote}
           />
         );
       case "financials":
@@ -8253,6 +8291,8 @@ export default function NSPBusinessSuite() {
             setLead={setLead}
             settings={settings}
             workspaceId={workspaceId}
+            invoiceSeedQuote={invoiceSeedQuote}
+            onInvoiceSeedConsumed={() => setInvoiceSeedQuote(null)}
           />
         );
       case "contracts":
