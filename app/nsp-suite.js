@@ -410,37 +410,6 @@ www.nicosalgadophotography.com`,
   },
 ];
 
-const DEFAULT_QUESTIONNAIRE_TEMPLATES = [
-  {
-    id: "tpl-questionnaire-branding",
-    type: "questionnaire",
-    action: "Collect",
-    name: "Branding Client Intake",
-    category: "Questionnaires",
-    folder: "Made for you",
-    content: `Please share the details below so I can finalize your session and prep everything properly.
-
-- Best phone number
-- Preferred location / venue
-- Final event or session title
-- Goals for this session
-- Shot priorities or must-have images
-- Wardrobe / styling notes
-- Anything else I should know`,
-    fields: [
-      { key: "phone", label: "Best phone number", type: "text" },
-      { key: "location", label: "Preferred location / venue", type: "text" },
-      { key: "eventName", label: "Final event or session title", type: "text" },
-      { key: "goals", label: "Goals for this session", type: "textarea" },
-      { key: "mustHaves", label: "Shot priorities or must-have images", type: "textarea" },
-      { key: "styleNotes", label: "Wardrobe / styling notes", type: "textarea" },
-      { key: "additionalNotes", label: "Anything else I should know", type: "textarea" },
-    ],
-    createdAt: "2026-04-07T10:00:00",
-    updatedAt: "2026-04-07T10:00:00",
-  },
-];
-
 const DEFAULT_DATA = {
   lead: {
     id: 1,
@@ -574,12 +543,7 @@ const DEFAULT_DATA = {
       lastVisit: null,
     },
   ],
-  templates: [
-    ...DEFAULT_FILE_TEMPLATES,
-    ...DEFAULT_PACKAGE_TEMPLATES,
-    ...DEFAULT_EMAIL_TEMPLATES,
-    ...DEFAULT_QUESTIONNAIRE_TEMPLATES,
-  ],
+  templates: [...DEFAULT_FILE_TEMPLATES, ...DEFAULT_PACKAGE_TEMPLATES, ...DEFAULT_EMAIL_TEMPLATES],
   counters: { nextQuoteNumber: 2 },
   settings: DEFAULT_SETTINGS,
 };
@@ -2155,10 +2119,7 @@ function QuotesTab({
   templates,
   payments,
   contracts,
-  setContracts,
   workspaceRows,
-  workspaceId,
-  onNavigate,
   settings,
   counters,
   setCounters,
@@ -2190,17 +2151,11 @@ function QuotesTab({
   const questionnaireOptions = useMemo(() => {
     const all = new Map();
     (templates || []).forEach((tpl) => {
-      if (tpl.type === "questionnaire") {
-        const value = String(tpl.name || "").trim();
-        if (!value) return;
-        all.set(value.toLowerCase(), { value, detail: tpl.category || "Questionnaire", templateId: tpl.id });
-        return;
-      }
       const haystack = [tpl.name, tpl.subject, tpl.category, tpl.content].join(" ").toLowerCase();
       if (!/questionnaire/.test(haystack)) return;
       const value = String(tpl.name || tpl.subject || "").trim();
       if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: tpl.subject || tpl.category || "", templateId: tpl.id });
+      all.set(value.toLowerCase(), { value, detail: tpl.subject || tpl.category || "" });
     });
     return Array.from(all.values());
   }, [templates]);
@@ -2209,10 +2164,17 @@ function QuotesTab({
     (contracts || []).forEach((item) => {
       const value = String(item.title || item.name || "").trim();
       if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: item.status || "Contract", templateId: item.templateId || item.id });
+      all.set(value.toLowerCase(), { value, detail: item.status || "" });
+    });
+    quoteTemplates.forEach((tpl) => {
+      const haystack = [tpl.name, tpl.action, tpl.category].join(" ").toLowerCase();
+      if (!/contract|agreement/.test(haystack)) return;
+      const value = String(tpl.name || "").trim();
+      if (!value) return;
+      all.set(value.toLowerCase(), { value, detail: tpl.category || tpl.action || "" });
     });
     return Array.from(all.values());
-  }, [contracts]);
+  }, [contracts, quoteTemplates]);
   const clientDirectory = useMemo(() => {
     const map = new Map();
     const pushClient = (client) => {
@@ -2254,10 +2216,7 @@ function QuotesTab({
     discountValue: 0,
     paymentSchedule: "",
     questionnaire: "",
-    questionnaireTemplateId: "",
     contractTemplate: "",
-    contractTemplateId: "",
-    workspaceId: workspaceId || "",
     createdAt: null,
     updatedAt: null,
     lastViewed: null,
@@ -2537,11 +2496,6 @@ function QuotesTab({
       setEmailingApproval(true);
       setQuoteNotice(null);
       const totals = calcQuoteTotals(quote);
-      const selectedQuestionnaireTemplate = (templates || []).find(
-        (tpl) =>
-          tpl.id === quote.questionnaireTemplateId ||
-          (tpl.type === "questionnaire" && tpl.name === quote.questionnaire)
-      );
       const sectionSummary = (quote.sections || [])
         .map((s) => {
           const lineTotal = (s.lineItems || []).reduce(
@@ -2571,13 +2525,8 @@ function QuotesTab({
           bookingProcess: {
             paymentSchedule: quote.paymentSchedule || "",
             questionnaire: quote.questionnaire || "",
-            questionnaireTemplateId: quote.questionnaireTemplateId || "",
-            questionnaireTemplateContent: selectedQuestionnaireTemplate?.content || "",
-            questionnaireFields: selectedQuestionnaireTemplate?.fields || [],
             contractTemplate: quote.contractTemplate || "",
-            contractTemplateId: quote.contractTemplateId || "",
           },
-          workspaceId: quote.workspaceId || workspaceId || "",
           sections: (quote.sections || []).map((s) => ({
             packageName: s.packageName || "",
             description: s.description || "",
@@ -2699,150 +2648,13 @@ function QuotesTab({
     if (ok) setBuilding(null);
   };
 
-  const markQuoteAccepted = async (quoteId) => {
-    const acceptedQuote = quotes.find((q) => q.id === quoteId);
-    if (!acceptedQuote) return;
-
-    // 1. Update quote status
+  const markQuoteAccepted = (quoteId) => {
     const nextQuotes = quotes.map((q) =>
       q.id === quoteId ? { ...q, status: "Accepted", updatedAt: new Date().toISOString() } : q
     );
     setQuotes(nextQuotes);
     recalcLeadNumbers(nextQuotes);
-
-    // 2. Auto-advance lead stage to Booked
-    setLead((prev) => ({ ...prev, stage: "Booked" }));
-
-    const summaryParts = ["Quote accepted", "Stage → Booked"];
-    const totals = calcQuoteTotals(acceptedQuote);
-
-    // 3. Auto-generate contract from Booking Process template
-    if (acceptedQuote.contractTemplateId || acceptedQuote.contractTemplate) {
-      try {
-        const contractId = genUuid();
-        const newContract = {
-          id: contractId,
-          templateId: acceptedQuote.contractTemplateId || null,
-          title: acceptedQuote.contractTemplate || "Photography Agreement",
-          clientName: acceptedQuote.clientName || lead.name || "",
-          clientEmail: acceptedQuote.clientEmail || lead.email || "",
-          sessionType: acceptedQuote.eventName || lead.type || "",
-          sessionDate: acceptedQuote.eventDate || lead.eventDate || "",
-          location: lead.location || "",
-          packageName: (acceptedQuote.sections || [])[0]?.packageName || "",
-          totalAmount: totals.total,
-          status: "Draft",
-          sentOn: "",
-          signedOn: "",
-          signer: acceptedQuote.clientName || lead.name || "",
-          version: "v1",
-          body: "",
-          leadId: lead.id?.toString() || null,
-          type: "contract",
-        };
-        const dbRow = {
-          id: contractId,
-          template_id: newContract.templateId,
-          title: newContract.title,
-          client_name: newContract.clientName,
-          client_email: newContract.clientEmail,
-          session_type: newContract.sessionType,
-          session_date: newContract.sessionDate || null,
-          location: newContract.location,
-          package_name: newContract.packageName,
-          total_amount: newContract.totalAmount,
-          status: "Draft",
-          signer: newContract.signer,
-          version: "v1",
-          body: "",
-          lead_id: newContract.leadId,
-        };
-        const { data: savedContract } = await supabase.from("contracts").insert(dbRow).select().single();
-        if (savedContract) {
-          setContracts((prev) => [{
-            ...newContract,
-            id: savedContract.id,
-          }, ...prev]);
-        } else {
-          setContracts((prev) => [newContract, ...prev]);
-        }
-        summaryParts.push("Contract drafted");
-      } catch (err) {
-        console.error("Auto-create contract failed:", err);
-      }
-    }
-
-    // 4. Auto-generate invoice from Booking Process payment schedule
-    if (acceptedQuote.paymentSchedule) {
-      try {
-        const matchedSchedule = (payments || []).find(
-          (p) => p.name === acceptedQuote.paymentSchedule
-        );
-        const total = totals.total;
-        let invoiceAmount = total;
-        let invoiceTitle = "Full Balance";
-        let invoiceType = "full";
-
-        if (matchedSchedule) {
-          const pct = Number(matchedSchedule.initialPayment || 0);
-          if (matchedSchedule.initialType === "Percent of Order" && pct > 0 && pct < 100) {
-            invoiceAmount = Math.round(total * (pct / 100) * 100) / 100;
-            invoiceTitle = `Retainer (${pct}%)`;
-            invoiceType = "retainer";
-          } else if (matchedSchedule.initialType === "Fixed amount" && pct > 0) {
-            invoiceAmount = pct;
-            invoiceTitle = `Retainer ($${pct})`;
-            invoiceType = "retainer";
-          }
-        }
-
-        // Find next invoice number
-        const { data: existingInvs } = await supabase
-          .from("invoices")
-          .select("invoice_number")
-          .order("created_at", { ascending: false })
-          .limit(1);
-        let nextNum = 1;
-        if (existingInvs?.length) {
-          const match = (existingInvs[0].invoice_number || "").match(/(\d+)/);
-          if (match) nextNum = parseInt(match[1]) + 1;
-        }
-        const invoiceNumber = `INV-${String(nextNum).padStart(3, "0")}`;
-
-        const invoiceId = genUuid();
-        const dbInvoice = {
-          id: invoiceId,
-          invoice_number: invoiceNumber,
-          title: invoiceTitle,
-          client_name: acceptedQuote.clientName || lead.name || "",
-          client_email: acceptedQuote.clientEmail || lead.email || "",
-          session_type: acceptedQuote.eventName || lead.type || "",
-          session_date: acceptedQuote.eventDate || lead.eventDate || null,
-          package_name: (acceptedQuote.sections || [])[0]?.packageName || "",
-          subtotal: total,
-          discount_amount: 0,
-          total_amount: invoiceAmount,
-          amount: invoiceAmount,
-          amount_paid: 0,
-          balance_due: invoiceAmount,
-          status: "Draft",
-          due_date: null,
-          invoice_type: invoiceType,
-          payment_method: "square",
-          square_link: "",
-          notes: `Auto-generated from quote ${acceptedQuote.quoteNumberLabel || ""}`,
-          issued_on: new Date().toISOString().split("T")[0],
-          lead_id: lead.id?.toString() || null,
-          quote_id: acceptedQuote.id || null,
-        };
-        await supabase.from("invoices").insert(dbInvoice);
-        summaryParts.push(`${invoiceTitle} invoice created (${invoiceNumber})`);
-      } catch (err) {
-        console.error("Auto-create invoice failed:", err);
-      }
-    }
-
-    setQuoteNotice({ type: "success", message: "✓ " + summaryParts.join(" → ") });
+    setQuoteNotice({ type: "success", message: "Quote marked as accepted." });
   };
 
   const deleteQuote = (id) => {
@@ -3139,16 +2951,6 @@ function QuotesTab({
                     </option>
                   ))}
                 </select>
-                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate?.("financials")}
-                    style={{ background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-                  >
-                    Search in Financials
-                  </button>
-                  <span style={{ fontSize: 12, color: G.textMuted }}>Use payment schedules from your Financials tab.</span>
-                </div>
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label
@@ -3164,14 +2966,7 @@ function QuotesTab({
                 </label>
                 <select
                   value={building.questionnaire || ""}
-                  onChange={(e) => {
-                    const selected = questionnaireOptions.find((option) => option.value === e.target.value);
-                    setBuilding((prev) => ({
-                      ...prev,
-                      questionnaire: e.target.value,
-                      questionnaireTemplateId: selected?.templateId || "",
-                    }));
-                  }}
+                  onChange={(e) => setField("questionnaire", e.target.value)}
                   style={{
                     width: "100%",
                     background: G.surface,
@@ -3189,16 +2984,6 @@ function QuotesTab({
                     </option>
                   ))}
                 </select>
-                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate?.("templates")}
-                    style={{ background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-                  >
-                    Search in Templates
-                  </button>
-                  <span style={{ fontSize: 12, color: G.textMuted }}>Questionnaire templates live in your Templates tab.</span>
-                </div>
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label
@@ -3214,14 +2999,7 @@ function QuotesTab({
                 </label>
                 <select
                   value={building.contractTemplate || ""}
-                  onChange={(e) => {
-                    const selected = contractOptions.find((option) => option.value === e.target.value);
-                    setBuilding((prev) => ({
-                      ...prev,
-                      contractTemplate: e.target.value,
-                      contractTemplateId: selected?.templateId || "",
-                    }));
-                  }}
+                  onChange={(e) => setField("contractTemplate", e.target.value)}
                   style={{
                     width: "100%",
                     background: G.surface,
@@ -3239,16 +3017,6 @@ function QuotesTab({
                     </option>
                   ))}
                 </select>
-                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate?.("contracts")}
-                    style={{ background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
-                  >
-                    Search in Contracts
-                  </button>
-                  <span style={{ fontSize: 12, color: G.textMuted }}>Choose from documents you already use in your Contracts tab.</span>
-                </div>
               </div>
             </div>
           </Card>
@@ -3766,16 +3534,15 @@ function QuotesTab({
                   background: G.card,
                   border: `1px solid ${G.border}`,
                   borderRadius: 10,
-                  cursor: "pointer",
                 }}
-                onClick={() => setPreviewQuote(q)}
               >
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 600 }}>
-                    {q.quoteNumberLabel || "Quote"} {q.eventName ? `— ${q.eventName}` : ""}
+                    {q.clientName || "Untitled"}
                   </div>
                   <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
-                    For {q.clientName || "Untitled Client"} · {fmtShort(q.createdAt)}
+                    {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
+                    {fmtShort(q.createdAt)}
                   </div>
                   <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
                     {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
@@ -3798,7 +3565,7 @@ function QuotesTab({
                   {fmt$(total)}
                 </div>
 
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <Btn
                     variant="ghost"
                     small
@@ -3822,8 +3589,8 @@ function QuotesTab({
                     Email Approval
                   </Btn>
                   {q.status !== "Accepted" && (
-                    <Btn variant="gold" small onClick={() => markQuoteAccepted(q.id)}>
-                      Manual Book & Accept
+                    <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
+                      Mark Accepted
                     </Btn>
                   )}
                   <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
@@ -4003,9 +3770,8 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
   useEffect(() => {
     async function load() {
       try {
-        const currentLeadId = lead?.id?.toString();
         const [invRes, payRes] = await Promise.all([
-          supabase.from("invoices").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
+          supabase.from("invoices").select("*").order("created_at", { ascending: false }),
           supabase.from("payments").select("*").order("paid_on", { ascending: false }),
         ]);
         if (invRes.data) setInvoices(invRes.data.map(dbToInvoice));
@@ -4121,8 +3887,8 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
 
   const deleteInvoice = async (id) => {
     if (isUuid(id)) {
-      await supabase.from("payments").delete().eq("invoice_id", id);
       await supabase.from("invoices").delete().eq("id", id);
+      await supabase.from("payments").delete().eq("invoice_id", id);
     }
     setInvoices(prev => prev.filter(i => i.id !== id));
     setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
@@ -4671,7 +4437,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
                         </Btn>
                       )}
                       {inv.status === "Draft" && <Btn variant="ghost" small onClick={() => markSent(inv.id)}>Send</Btn>}
-                      {inv.balanceDue > 0 && <Btn variant="gold" small onClick={() => startRecordPayment(inv)}>Record Payment Received</Btn>}
+                      {inv.balanceDue > 0 && <Btn small onClick={() => startRecordPayment(inv)}>+ Payment</Btn>}
                       <Btn variant="ghost" small onClick={() => printInvoice(inv)}>PDF</Btn>
                       <Btn variant="ghost" small onClick={() => startEdit(inv)}>Edit</Btn>
                       <Btn variant="danger" small onClick={() => deleteInvoice(inv.id)}>✕</Btn>
@@ -4985,12 +4751,11 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   useEffect(() => {
     async function load() {
       try {
-        const currentLeadId = lead?.id?.toString();
         const [cTplRes, rTplRes, conRes, relRes] = await Promise.all([
           supabase.from("contract_templates").select("*").order("created_at"),
           supabase.from("release_templates").select("*").order("created_at"),
-          supabase.from("contracts").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
-          supabase.from("model_releases").select("*").eq("lead_id", currentLeadId).order("created_at", { ascending: false }),
+          supabase.from("contracts").select("*").order("created_at", { ascending: false }),
+          supabase.from("model_releases").select("*").order("created_at", { ascending: false }),
         ]);
         if (cTplRes.data?.length) setCTemplates(cTplRes.data);
         if (rTplRes.data?.length) setRTemplates(rTplRes.data);
@@ -5487,9 +5252,6 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
                     <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
                       {emailSending === c.id ? "..." : "✉ Email"}
                     </Btn>
-                    {c.status !== "Signed" && (
-                      <Btn variant="gold" small onClick={() => updateStatus(c.id, "Signed")}>Mark Signed</Btn>
-                    )}
                     <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
                     <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
                   </div>
@@ -5690,7 +5452,7 @@ function TemplatesTab({ templates, setTemplates }) {
     brand: "#a68b5b",
     brandBg: "rgba(166,139,91,.12)",
   };
-  const [mode, setMode] = useState("file"); // file | email | questionnaire
+  const [mode, setMode] = useState("file"); // file | email
   const [layout, setLayout] = useState("cards"); // cards | list
   const [filter, setFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -5703,7 +5465,6 @@ function TemplatesTab({ templates, setTemplates }) {
     "Discount Request Response": "💬",
     "Questionnaire Follow-Up": "📋",
     "New Client Questionnaire": "📝",
-    "Branding Client Intake": "🗂",
   };
 
   const folders = ["All", "Made for you", "My Templates"];
@@ -5737,22 +5498,12 @@ function TemplatesTab({ templates, setTemplates }) {
     setEditing({
       id: genId("tpl"),
       type: mode,
-      action: mode === "file" ? "Contract" : mode === "email" ? "Send" : "Collect",
+      action: mode === "file" ? "Contract" : "Send",
       name: "",
-      category: mode === "file" ? "Contracts" : mode === "email" ? "Onboarding" : "Questionnaires",
+      category: mode === "file" ? "Contracts" : "Onboarding",
       folder: "My Templates",
       subject: mode === "email" ? "New message for {{client_name}}" : "",
       content: "",
-      fields:
-        mode === "questionnaire"
-          ? [
-              { key: "phone", label: "Best phone number", type: "text" },
-              { key: "location", label: "Location / venue", type: "text" },
-              { key: "eventName", label: "Event or session title", type: "text" },
-              { key: "goals", label: "Goals for this session", type: "textarea" },
-              { key: "additionalNotes", label: "Anything else I should know", type: "textarea" },
-            ]
-          : [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -5806,9 +5557,6 @@ function TemplatesTab({ templates, setTemplates }) {
         </Btn>
         <Btn variant={mode === "email" ? "secondary" : "ghost"} small onClick={() => setMode("email")}>
           Email templates
-        </Btn>
-        <Btn variant={mode === "questionnaire" ? "secondary" : "ghost"} small onClick={() => setMode("questionnaire")}>
-          Questionnaire templates
         </Btn>
       </div>
 
@@ -5911,7 +5659,7 @@ function TemplatesTab({ templates, setTemplates }) {
                   onClick={() => setEditing({ ...tpl })}
                 >
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
-                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : tpl.type === "questionnaire" ? "📝 " : ""}
+                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
                     {tpl.name}
                   </div>
                   <div style={{ fontSize: 11, color: LT.muted, marginBottom: 8 }}>
@@ -5922,13 +5670,8 @@ function TemplatesTab({ templates, setTemplates }) {
                       Subject: {tpl.subject}
                     </div>
                   ) : null}
-                  {tpl.type === "questionnaire" && Array.isArray(tpl.fields) && tpl.fields.length > 0 ? (
-                    <div style={{ fontSize: 11, color: LT.dim, marginBottom: 8 }}>
-                      {tpl.fields.length} intake field{tpl.fields.length !== 1 ? "s" : ""}
-                    </div>
-                  ) : null}
                   <Pill color={LT.brand} bg={LT.brandBg}>
-                    {tpl.action || (mode === "file" ? "Contract" : mode === "email" ? "Send" : "Collect")}
+                    {tpl.action || (mode === "file" ? "Contract" : "Send")}
                   </Pill>
                 </div>
               ))}
@@ -5950,16 +5693,12 @@ function TemplatesTab({ templates, setTemplates }) {
                   }}
                 >
                   <div style={{ fontSize: 13, fontWeight: 600 }}>
-                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : tpl.type === "questionnaire" ? "📝 " : ""}
+                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
                     {tpl.name}
                   </div>
                   <div style={{ fontSize: 12, color: LT.dim }}>{tpl.action}</div>
                   <div style={{ fontSize: 12, color: LT.dim }}>
-                    {tpl.type === "email" && tpl.subject
-                      ? tpl.subject
-                      : tpl.type === "questionnaire" && Array.isArray(tpl.fields)
-                        ? `${tpl.fields.length} fields`
-                        : tpl.folder}
+                    {tpl.type === "email" && tpl.subject ? tpl.subject : tpl.folder}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <Btn variant="ghost" small onClick={() => setEditing({ ...tpl })}>
@@ -6035,27 +5774,6 @@ function TemplatesTab({ templates, setTemplates }) {
               label="Email Subject"
               value={editing.subject || ""}
               onChange={(e) => setEditing((p) => ({ ...p, subject: e.target.value }))}
-            />
-          )}
-          {editing.type === "questionnaire" && (
-            <InputField
-              label="Questionnaire Fields"
-              value={(editing.fields || []).map((field) => field.label).join(", ")}
-              onChange={(e) =>
-                setEditing((p) => ({
-                  ...p,
-                  fields: e.target.value
-                    .split(",")
-                    .map((label) => label.trim())
-                    .filter(Boolean)
-                    .map((label, index) => ({
-                      key: `field_${index + 1}`,
-                      label,
-                      type: index >= 3 ? "textarea" : "text",
-                    })),
-                }))
-              }
-              placeholder="Phone, Venue, Goals, Styling Notes"
             />
           )}
           <InputField
@@ -7303,14 +7021,6 @@ export default function NSPBusinessSuite() {
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
 
-  useEffect(() => {
-    if (screen === "dashboard") {
-      document.title = "Leads Dashboard | NSP Business Suite";
-    } else if (lead?.name) {
-      document.title = `${lead.name} | NSP Business Suite`;
-    }
-  }, [screen, lead?.name]);
-
   const applyWorkspaceSnapshot = (snapshot, nextWorkspaceId = null) => {
     const normalized = normalizeWorkspaceSnapshot(snapshot);
     hydratingWorkspaceRef.current = true;
@@ -8159,8 +7869,6 @@ export default function NSPBusinessSuite() {
             payments={payments}
             contracts={contracts}
             workspaceRows={workspaceRows}
-            workspaceId={workspaceId}
-            onNavigate={goToTab}
             settings={settings}
             counters={counters}
             setCounters={setCounters}
