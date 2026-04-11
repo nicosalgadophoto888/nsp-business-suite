@@ -45,7 +45,7 @@ begin
     with email_matches as (
       select
         i.id as invoice_id,
-        min(c.id) as client_id,
+        (array_agg(c.id order by c.id))[1] as client_id,
         count(*) as match_count
       from public.invoices i
       join public.clients c
@@ -65,7 +65,7 @@ begin
     with name_matches as (
       select
         i.id as invoice_id,
-        min(c.id) as client_id,
+        (array_agg(c.id order by c.id))[1] as client_id,
         count(*) as match_count
       from public.invoices i
       join public.clients c
@@ -97,7 +97,7 @@ begin
     with email_matches as (
       select
         c0.id as contract_id,
-        min(c.id) as client_id,
+        (array_agg(c.id order by c.id))[1] as client_id,
         count(*) as match_count
       from public.contracts c0
       join public.clients c
@@ -116,7 +116,7 @@ begin
     with name_matches as (
       select
         c0.id as contract_id,
-        min(c.id) as client_id,
+        (array_agg(c.id order by c.id))[1] as client_id,
         count(*) as match_count
       from public.contracts c0
       join public.clients c
@@ -142,7 +142,7 @@ begin
     with email_matches as (
       select
         q.id as quote_id,
-        min(c.id) as client_id,
+        (array_agg(c.id order by c.id))[1] as client_id,
         count(*) as match_count
       from public.quotes q
       join public.clients c
@@ -172,7 +172,7 @@ begin
     with quote_label_matches as (
       select
         i.id as invoice_id,
-        min(q.id) as quote_id,
+        (array_agg(q.id order by q.id))[1] as quote_id,
         count(*) as match_count
       from public.invoices i
       join public.quotes q
@@ -192,7 +192,7 @@ begin
 
     -- Fallback: if a client has exactly one quote, map all missing invoice.quote_id to that quote.
     with one_quote_clients as (
-      select client_id, min(id) as quote_id
+      select client_id, (array_agg(id order by id))[1] as quote_id
       from public.quotes
       group by client_id
       having count(*) = 1
@@ -211,7 +211,7 @@ begin
   if to_regclass('public.contracts') is not null and to_regclass('public.quotes') is not null then
     -- If only one quote exists for that client, link contract to it.
     with one_quote_clients as (
-      select client_id, min(id) as quote_id
+      select client_id, (array_agg(id order by id))[1] as quote_id
       from public.quotes
       group by client_id
       having count(*) = 1
@@ -232,7 +232,7 @@ begin
     with session_quote_matches as (
       select
         s.id as session_id,
-        min(q.id) as quote_id,
+        (array_agg(q.id order by q.id))[1] as quote_id,
         count(*) as match_count
       from public.sessions s
       join public.quotes q
@@ -257,7 +257,7 @@ begin
 
     -- Fallback: one-quote client mapping.
     with one_quote_clients as (
-      select client_id, min(id) as quote_id
+      select client_id, (array_agg(id order by id))[1] as quote_id
       from public.quotes
       group by client_id
       having count(*) = 1
