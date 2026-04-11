@@ -829,9 +829,8 @@ function genUuid() {
 }
 
 function isUuid(value) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    String(value || "")
-  );
+  if (!value || typeof value !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 async function parseApiResponse(res, fallbackMessage) {
@@ -4141,21 +4140,21 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings 
   };
 
   const deleteInvoice = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this invoice and all its associated payment records?")) return;
+    // Standard event handler, should not run on SSR
+    if (typeof window !== "undefined" && !window.confirm("Are you sure?")) return;
+    
     try {
       if (isUuid(id)) {
-        const { error: pErr } = await supabase.from("payments").delete().eq("invoice_id", id);
-        if (pErr) throw pErr;
-        const { error: iErr } = await supabase.from("invoices").delete().eq("id", id);
-        if (iErr) throw iErr;
+        await supabase.from("payments").delete().eq("invoice_id", id);
+        await supabase.from("invoices").delete().eq("id", id);
       }
       setInvoices(prev => prev.filter(i => i.id !== id));
       setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
-      setToast({ type: "success", message: "Invoice and payment records deleted." });
+      setToast({ type: "success", message: "Invoice deleted" });
       setView("list"); setActiveInvoice(null);
     } catch (err) {
       console.error("Delete invoice failed:", err);
-      setToast({ type: "error", message: `Could not delete invoice: ${err.message || "Database error"}` });
+      setToast({ type: "error", message: "Could not delete invoice" });
     }
   };
 
@@ -4607,7 +4606,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings 
   return (
     <div style={{ display: "grid", gap: 20 }}>
       {/* Toast notification */}
-      {toast && (
+      {toast && toast.message && (
         <div style={{
           padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
           background: toast.type === "success" ? G.greenBg : G.redBg,
