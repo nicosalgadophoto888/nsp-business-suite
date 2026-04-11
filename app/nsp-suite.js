@@ -3722,7 +3722,7 @@ function QuotesTab({
   );
 }
 
-function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
+function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings, workspaceId }) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
   const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
   const [invoices, setInvoices] = useState([]);
@@ -3734,6 +3734,38 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
   const [squareLoading, setSquareLoading] = useState(null); // invoice id being processed
   const [emailLoading, setEmailLoading] = useState(null); // invoice id being emailed
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+
+  const isCurrentClientInvoice = React.useCallback(
+    (invoice) => {
+      if (!invoice) return false;
+      const byClientId =
+        workspaceId && String(invoice.clientId || "") === String(workspaceId);
+      const byLeadId = lead?.id && String(invoice.leadId || "") === String(lead.id);
+      const byEmail =
+        lead?.email &&
+        String(invoice.clientEmail || "").trim().toLowerCase() ===
+          String(lead.email || "").trim().toLowerCase();
+      const byName =
+        lead?.name &&
+        String(invoice.clientName || "").trim().toLowerCase() ===
+          String(lead.name || "").trim().toLowerCase();
+      return Boolean(byClientId || byLeadId || byEmail || byName);
+    },
+    [workspaceId, lead?.id, lead?.email, lead?.name]
+  );
+
+  const syncLeadBalance = React.useCallback(
+    (invoiceList) => {
+      if (!setLead) return;
+      const relevant = (invoiceList || []).filter(isCurrentClientInvoice);
+      const outstanding = relevant.reduce(
+        (sum, inv) => sum + Number(inv.balanceDue || 0),
+        0
+      );
+      setLead((curr) => ({ ...curr, balance: Math.max(0, outstanding) }));
+    },
+    [isCurrentClientInvoice, setLead]
+  );
 
   // ── Generate Square Checkout Link ──
   const generateSquareLink = async (inv) => {
@@ -3879,17 +3911,32 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
   useEffect(() => {
     async function load() {
       try {
+        let invQuery = supabase
+          .from("invoices")
+          .select("*")
+          .order("created_at", { ascending: false });
+        const filters = [];
+        if (workspaceId) filters.push(`client_id.eq.${workspaceId}`);
+        if (lead?.id) filters.push(`lead_id.eq.${lead.id}`);
+        if (lead?.email) filters.push(`client_email.eq.${String(lead.email).replace(/,/g, "")}`);
+        if (filters.length) {
+          invQuery = invQuery.or(filters.join(","));
+        }
         const [invRes, payRes] = await Promise.all([
-          supabase.from("invoices").select("*").order("created_at", { ascending: false }),
+          invQuery,
           supabase.from("payments").select("*").order("paid_on", { ascending: false }),
         ]);
-        if (invRes.data) setInvoices(invRes.data.map(dbToInvoice));
+        if (invRes.data) {
+          const nextInvoices = invRes.data.map(dbToInvoice);
+          setInvoices(nextInvoices);
+          syncLeadBalance(nextInvoices);
+        }
         if (payRes.data) setPaymentRecords(payRes.data);
       } catch (err) { console.error("Failed to load invoices:", err); }
       setLoading(false);
     }
     load();
-  }, []);
+  }, [workspaceId, lead?.id, lead?.email, syncLeadBalance]);
 
   // ── DB mappers ──
   function dbToInvoice(row) {
@@ -3906,7 +3953,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
       invoiceType: row.invoice_type || "full",
       paymentMethod: row.payment_method || "square",
       squareLink: row.square_link || "", notes: row.notes || "",
-      issuedOn: row.issued_on, leadId: row.lead_id,
+      issuedOn: row.issued_on, leadId: row.lead_id, clientId: row.client_id,
       quoteId: row.quote_id, contractId: row.contract_id,
     };
   }
@@ -3924,6 +3971,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
       payment_method: item.paymentMethod || "square",
       square_link: item.squareLink || "", notes: item.notes || "",
       issued_on: item.issuedOn || null, lead_id: item.leadId || null,
+      client_id: item.clientId || workspaceId || null,
       quote_id: item.quoteId || null, contract_id: item.contractId || null,
       updated_at: new Date().toISOString(),
     };
@@ -3989,6 +4037,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
       invoiceType: isRetainer ? "retainer" : "full",
       paymentMethod: "square", squareLink: "", notes: "",
       issuedOn: new Date().toISOString().split("T")[0],
+      clientId: workspaceId || null,
       leadId: lead?.id?.toString() || null,
       quoteId: isUuid(sourceQuote?.id) ? sourceQuote.id : null,
       contractId: null,
@@ -4006,11 +4055,27 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
     const dbRow = invoiceToDb(form);
     const existing = invoices.find(i => i.id === form.id);
     if (existing && isUuid(form.id)) {
-      await supabase.from("invoices").update(dbRow).eq("id", form.id);
-      setInvoices(prev => prev.map(i => i.id === form.id ? { ...form } : i));
+      const { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+      if (error) {
+        setToast({ type: "error", message: error.message || "Failed to update invoice." });
+        return;
+      }
+      setInvoices(prev => {
+        const next = prev.map(i => i.id === form.id ? { ...form } : i);
+        syncLeadBalance(next);
+        return next;
+      });
     } else {
-      const { data } = await supabase.from("invoices").insert(dbRow).select().single();
-      setInvoices(prev => [dbToInvoice(data || dbRow), ...prev]);
+      const { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
+      if (error) {
+        setToast({ type: "error", message: error.message || "Failed to create invoice." });
+        return;
+      }
+      setInvoices(prev => {
+        const next = [dbToInvoice(data || dbRow), ...prev];
+        syncLeadBalance(next);
+        return next;
+      });
     }
     setView("list"); setForm({}); setActiveInvoice(null);
   };
@@ -4020,7 +4085,11 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
       await supabase.from("invoices").delete().eq("id", id);
       await supabase.from("payments").delete().eq("invoice_id", id);
     }
-    setInvoices(prev => prev.filter(i => i.id !== id));
+    setInvoices(prev => {
+      const next = prev.filter(i => i.id !== id);
+      syncLeadBalance(next);
+      return next;
+    });
     setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
     setView("list"); setActiveInvoice(null);
   };
@@ -4071,7 +4140,11 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
         })
         .eq("id", activeInvoice.id);
     }
-    setInvoices(prev => prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i));
+    setInvoices(prev => {
+      const next = prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i);
+      syncLeadBalance(next);
+      return next;
+    });
 
     setView("list"); setPayForm({}); setActiveInvoice(null);
   };
@@ -8177,7 +8250,9 @@ export default function NSPBusinessSuite() {
             setPayments={setPayments}
             quotes={quotes}
             lead={lead}
+            setLead={setLead}
             settings={settings}
+            workspaceId={workspaceId}
           />
         );
       case "contracts":
