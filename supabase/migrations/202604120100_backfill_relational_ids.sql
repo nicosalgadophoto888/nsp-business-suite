@@ -273,7 +273,23 @@ end $$;
 -- 7) PAYMENTS → CLIENTS via INVOICES
 do $$
 begin
-  if to_regclass('public.payments') is not null and to_regclass('public.invoices') is not null then
+  if to_regclass('public.payments') is not null
+     and to_regclass('public.invoices') is not null
+     and exists (
+       select 1
+       from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'payments'
+         and column_name = 'invoice_id'
+     )
+     and exists (
+       select 1
+       from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'payments'
+         and column_name = 'client_id'
+     )
+  then
     update public.payments p
     set client_id = i.client_id
     from public.invoices i
