@@ -34,6 +34,7 @@ const STAGES = [
 
 const TABS = [
   { key: "overview", label: "Overview" },
+  { key: "clients", label: "Clients" },
   { key: "schedule", label: "Schedule" },
   { key: "quotes", label: "Quotes & Orders" },
   { key: "financials", label: "Financials" },
@@ -647,6 +648,120 @@ function upsertWorkspaceSummary(list, summary) {
   if (idx >= 0) next[idx] = summary;
   else next.unshift(summary);
   return next.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+}
+
+function upsertWorkspaceRow(list, row) {
+  const next = Array.isArray(list) ? [...list] : [];
+  const idx = next.findIndex((item) => item.id === row.id);
+  if (idx >= 0) next[idx] = row;
+  else next.unshift(row);
+  return next.sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+}
+
+function normalizeHeaderKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function firstValue(row, keys) {
+  for (const key of keys) {
+    const normalized = normalizeHeaderKey(key);
+    if (normalized in row && row[normalized] != null && String(row[normalized]).trim() !== "") {
+      return row[normalized];
+    }
+  }
+  return "";
+}
+
+function toDateInputValue(value) {
+  if (!value) return "";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
+function toImportedNumber(value) {
+  if (value == null || value === "") return 0;
+  const cleaned = String(value).replace(/[^0-9.-]/g, "");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function importedRowToWorkspace(row, templates, settings) {
+  const name = String(firstValue(row, ["client_name", "name", "client", "full_name"])).trim();
+  if (!name) return null;
+
+  const email = String(firstValue(row, ["email", "client_email"])).trim();
+  const phone = String(firstValue(row, ["phone", "phone_number", "mobile"])).trim();
+  const type = String(firstValue(row, ["job_type", "type", "service_type", "session_type"])).trim();
+  const eventDate = toDateInputValue(firstValue(row, ["event_date", "job_date", "session_date", "date"]));
+  const inquiredOn = toDateInputValue(firstValue(row, ["inquired_on", "lead_inquired_on", "created_at"])) || new Date().toISOString().slice(0, 10);
+  const location = String(firstValue(row, ["location", "venue", "city"])).trim();
+  const referralSource = String(firstValue(row, ["source", "referral_source", "referral"])).trim();
+  const notes = String(firstValue(row, ["notes", "lead_notes", "description"])).trim();
+  const stageRaw = String(firstValue(row, ["stage", "status", "lead_stage"])).trim();
+  const stage = STAGES.some((item) => item.key.toLowerCase() === stageRaw.toLowerCase())
+    ? STAGES.find((item) => item.key.toLowerCase() === stageRaw.toLowerCase()).key
+    : "Lead";
+  const revenue = toImportedNumber(firstValue(row, ["revenue", "total_revenue", "paid_total"]));
+  const balance = toImportedNumber(firstValue(row, ["balance", "balance_due", "outstanding"]));
+  const sessionTitle = String(firstValue(row, ["session_title", "event_title", "title"])).trim();
+  const sessionStatus = String(firstValue(row, ["session_status", "booking_status"])).trim() || (stage === "Booked" ? "Booked" : "Tentative");
+
+  return normalizeWorkspaceSnapshot({
+    ...cloneDefaultData(),
+    lead: {
+      id: genUuid(),
+      name,
+      email,
+      phone,
+      type,
+      stage,
+      revenue,
+      balance,
+      eventDate,
+      location,
+      referralSource,
+      inquiredOn,
+      notes,
+    },
+    schedule: sessionTitle || eventDate
+      ? [
+          {
+            id: genId("schedule"),
+            title: sessionTitle || type || "Session",
+            date: eventDate,
+            time: "",
+            endTime: "",
+            location,
+            status: sessionStatus,
+            notes: "",
+          },
+        ]
+      : [],
+    notes: notes
+      ? [
+          {
+            id: genId("note"),
+            text: notes,
+            date: new Date().toISOString(),
+          },
+        ]
+      : [],
+    emailActivity: [],
+    payments: [],
+    contracts: [],
+    files: [],
+    quotes: [],
+    recipients: [],
+    templates: mergeDefaultTemplates(templates),
+    settings,
+    counters: { nextQuoteNumber: 1 },
+  });
 }
 
 function genId(prefix = "id") {
@@ -5650,6 +5765,275 @@ function DashboardView({
   );
 }
 
+function ClientsTab({
+  workspaceRows,
+  workspaceInvoices,
+  activeWorkspaceId,
+  onOpenWorkspace,
+  onExportWorkspace,
+  onImportClients,
+  importState,
+}) {
+  const fileInputRef = React.useRef(null);
+  const [search, setSearch] = useState("");
+  const [selectedRowId, setSelectedRowId] = useState(null);
+
+  const clients = useMemo(() => {
+    return (workspaceRows || []).map((row) => {
+      const snapshot = workspaceRowToSnapshot(row);
+      const lead = snapshot.lead || {};
+      const invoices = (workspaceInvoices || []).filter(
+        (invoice) => String(invoice.lead_id || "") === String(lead.id || "")
+      );
+      const totalRevenue = invoices.length
+        ? invoices.reduce((sum, invoice) => sum + Number(invoice.amount_paid || invoice.total_amount || 0), 0)
+        : Number(row.revenue || lead.revenue || 0);
+      const totalBooked = invoices.reduce((sum, invoice) => sum + Number(invoice.total_amount || invoice.amount || 0), 0);
+      const totalOutstanding = invoices.reduce((sum, invoice) => sum + Number(invoice.balance_due || 0), 0);
+      const sessionCount = Array.isArray(snapshot.schedule) ? snapshot.schedule.length : 0;
+      return {
+        row,
+        snapshot,
+        lead,
+        invoices,
+        totalRevenue,
+        totalBooked,
+        totalOutstanding,
+        sessionCount,
+      };
+    });
+  }, [workspaceRows, workspaceInvoices]);
+
+  const filteredClients = clients.filter((item) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return [
+      item.lead.name,
+      item.lead.email,
+      item.lead.phone,
+      item.lead.type,
+      item.lead.location,
+      item.lead.referralSource,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(query));
+  });
+
+  const selectedClient =
+    filteredClients.find((item) => item.row.id === selectedRowId) ||
+    clients.find((item) => item.row.id === selectedRowId) ||
+    null;
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <Card>
+        <SectionLabel
+          actions={
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn
+                variant="secondary"
+                small
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importState === "importing"}
+              >
+                {importState === "importing" ? "Importing..." : "Import Excel"}
+              </Btn>
+            </div>
+          }
+        >
+          Clients
+        </SectionLabel>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onImportClients?.(file);
+            e.target.value = "";
+          }}
+        />
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, marginBottom: 14 }}>
+          <InputField
+            label="Search Clients"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name, email, type, location..."
+            style={{ marginBottom: 0 }}
+          />
+          <div
+            style={{
+              alignSelf: "end",
+              fontSize: 12,
+              color: importState === "error" ? G.red : G.textMuted,
+              paddingBottom: 10,
+            }}
+          >
+            {importState === "success"
+              ? "Import complete"
+              : importState === "error"
+                ? "Import failed"
+                : "Excel or CSV import supported"}
+          </div>
+        </div>
+
+        {filteredClients.length === 0 ? (
+          <EmptyState icon="👥" text="No clients match that search." />
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ textAlign: "left", borderBottom: `1px solid ${G.border}` }}>
+                  {["Client", "Contact", "Job", "Stage", "Sessions", "Total Job Revenue", "Outstanding", "Actions"].map((label) => (
+                    <th key={label} style={{ padding: "10px 8px", color: G.textMuted, fontSize: 11, letterSpacing: ".04em", textTransform: "uppercase" }}>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClients.map((item) => {
+                  const active = item.row.id === activeWorkspaceId;
+                  return (
+                    <tr key={item.row.id} style={{ borderBottom: `1px solid ${G.border}55` }}>
+                      <td style={{ padding: "12px 8px" }}>
+                        <div style={{ fontWeight: 700 }}>{item.lead.name || "Untitled"}</div>
+                        <div style={{ color: G.textMuted, fontSize: 12 }}>
+                          {item.lead.eventDate ? fmtShort(item.lead.eventDate) : "No event date"}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <div>{item.lead.email || "No email"}</div>
+                        <div style={{ color: G.textMuted, fontSize: 12 }}>{item.lead.phone || "No phone"}</div>
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <div>{item.lead.type || "Unspecified"}</div>
+                        <div style={{ color: G.textMuted, fontSize: 12 }}>{item.lead.location || "No location"}</div>
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <Pill color={G.gold} bg={G.goldBg}>{item.lead.stage || "Lead"}</Pill>
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>{item.sessionCount}</td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <button
+                          onClick={() => setSelectedRowId(item.row.id)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: G.green,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            padding: 0,
+                          }}
+                        >
+                          {fmt$(item.totalRevenue)}
+                        </button>
+                        <div style={{ color: G.textMuted, fontSize: 12 }}>Booked {fmt$(item.totalBooked)}</div>
+                      </td>
+                      <td style={{ padding: "12px 8px", color: item.totalOutstanding > 0 ? G.amber : G.text }}>
+                        {fmt$(item.totalOutstanding || item.lead.balance || 0)}
+                      </td>
+                      <td style={{ padding: "12px 8px" }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <Btn small onClick={() => onOpenWorkspace?.(item.row.id)}>
+                            {active ? "Open" : "Edit"}
+                          </Btn>
+                          <Btn variant="ghost" small onClick={() => onExportWorkspace?.(item)}>
+                            Export
+                          </Btn>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {selectedClient ? (
+        <Card>
+          <SectionLabel
+            actions={
+              <Btn variant="ghost" small onClick={() => setSelectedRowId(null)}>
+                Close
+              </Btn>
+            }
+          >
+            {selectedClient.lead.name} Revenue Detail
+          </SectionLabel>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+            <div style={{ padding: 12, border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+              <div style={{ fontSize: 11, color: G.textMuted }}>Total Revenue</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: G.green }}>{fmt$(selectedClient.totalRevenue)}</div>
+            </div>
+            <div style={{ padding: 12, border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+              <div style={{ fontSize: 11, color: G.textMuted }}>Booked Value</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: G.gold }}>{fmt$(selectedClient.totalBooked)}</div>
+            </div>
+            <div style={{ padding: 12, border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+              <div style={{ fontSize: 11, color: G.textMuted }}>Outstanding</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: G.amber }}>{fmt$(selectedClient.totalOutstanding || selectedClient.lead.balance || 0)}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Sessions</div>
+              {selectedClient.snapshot.schedule?.length ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {selectedClient.snapshot.schedule.map((session) => (
+                    <div key={session.id} style={{ padding: "10px 12px", border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+                      <div style={{ fontWeight: 700 }}>{session.title || "Session"}</div>
+                      <div style={{ fontSize: 12, color: G.textDim }}>
+                        {session.date ? fmtShort(session.date) : "No date"} · {session.time || "Time TBD"} · {session.location || "No location"}
+                      </div>
+                      <div style={{ fontSize: 12, color: G.gold, marginTop: 4 }}>{session.status || "Tentative"}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon="📅" text="No sessions saved for this client." />
+              )}
+            </div>
+
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Booked and Paid</div>
+              {selectedClient.invoices.length ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {selectedClient.invoices.map((invoice) => (
+                    <div key={invoice.id} style={{ padding: "10px 12px", border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>{invoice.title || invoice.invoice_number || "Invoice"}</div>
+                          <div style={{ fontSize: 12, color: G.textDim }}>
+                            {invoice.session_type || "Session"}{invoice.session_date ? ` · ${fmtShort(invoice.session_date)}` : ""}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 800, color: G.green }}>{fmt$(invoice.amount_paid || 0)}</div>
+                          <div style={{ fontSize: 12, color: G.textMuted }}>of {fmt$(invoice.total_amount || invoice.amount || 0)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon="💵" text="No invoices recorded for this client yet." />
+              )}
+            </div>
+          </div>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
 function NotesTab({ notes, setNotes, emailActivity }) {
   const [text, setText] = useState("");
 
@@ -5861,10 +6245,13 @@ export default function NSPBusinessSuite() {
   const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
 
   const [workspaceId, setWorkspaceId] = useState(null);
+  const [workspaceRows, setWorkspaceRows] = useState([]);
   const [workspaceSummaries, setWorkspaceSummaries] = useState([]);
+  const [workspaceInvoices, setWorkspaceInvoices] = useState([]);
   const [workspaceLoading, setWorkspaceLoading] = useState(true);
   const [workspaceSaveState, setWorkspaceSaveState] = useState("loading");
   const [workspaceError, setWorkspaceError] = useState("");
+  const [importState, setImportState] = useState("idle");
   const lastPersistedRef = React.useRef(serializeWorkspace(initial));
   const hydratingWorkspaceRef = React.useRef(false);
 
@@ -5953,6 +6340,7 @@ export default function NSPBusinessSuite() {
         if (error) throw error;
 
         if (Array.isArray(data) && data.length > 0) {
+          setWorkspaceRows(data);
           setWorkspaceSummaries(data.map(workspaceRowToSummary));
           applyWorkspaceSnapshot(workspaceRowToSnapshot(data[0]), data[0].id);
           setWorkspaceSaveState("saved");
@@ -5969,6 +6357,7 @@ export default function NSPBusinessSuite() {
         if (createError) throw createError;
 
         setWorkspaceId(created.id);
+        setWorkspaceRows([created]);
         setWorkspaceSummaries([workspaceRowToSummary(created)]);
         applyWorkspaceSnapshot(workspaceRowToSnapshot(created), created.id);
         setWorkspaceSaveState("saved");
@@ -5988,6 +6377,28 @@ export default function NSPBusinessSuite() {
       canceled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadWorkspaceInvoices = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("invoices")
+          .select("id, lead_id, title, invoice_number, session_type, session_date, total_amount, amount, amount_paid, balance_due, status");
+        if (canceled) return;
+        if (error) throw error;
+        setWorkspaceInvoices(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load workspace invoices:", err);
+      }
+    };
+
+    loadWorkspaceInvoices();
+    return () => {
+      canceled = true;
+    };
+  }, [activeTab, workspaceId]);
 
   useEffect(() => {
     if (workspaceLoading) return;
@@ -6013,6 +6424,7 @@ export default function NSPBusinessSuite() {
 
         if (data?.id && data.id !== workspaceId) setWorkspaceId(data.id);
         if (data) {
+          setWorkspaceRows((prev) => upsertWorkspaceRow(prev, data));
           setWorkspaceSummaries((prev) => upsertWorkspaceSummary(prev, workspaceRowToSummary(data)));
         }
         lastPersistedRef.current = serialized;
@@ -6363,6 +6775,7 @@ export default function NSPBusinessSuite() {
     try {
       const { data, error } = await supabase.from(WORKSPACE_TABLE).select("*").eq("id", id).single();
       if (error) throw error;
+      setWorkspaceRows((prev) => upsertWorkspaceRow(prev, data));
       applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
       setWorkspaceSummaries((prev) => upsertWorkspaceSummary(prev, workspaceRowToSummary(data)));
       setWorkspaceSaveState("saved");
@@ -6441,6 +6854,7 @@ export default function NSPBusinessSuite() {
         .single();
       if (error) throw error;
 
+      setWorkspaceRows((prev) => upsertWorkspaceRow(prev, data));
       setWorkspaceSummaries((prev) => upsertWorkspaceSummary(prev, workspaceRowToSummary(data)));
       applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
       setWorkspaceSaveState("saved");
@@ -6471,6 +6885,7 @@ export default function NSPBusinessSuite() {
       await supabase.from(WORKSPACE_TABLE).delete().eq("id", deletingId);
 
       const remaining = workspaceSummaries.filter((item) => item.id !== deletingId);
+      setWorkspaceRows((prev) => prev.filter((item) => item.id !== deletingId));
       setWorkspaceSummaries(remaining);
 
       if (remaining.length > 0) {
@@ -6479,6 +6894,7 @@ export default function NSPBusinessSuite() {
         const seedRow = buildWorkspaceRow(initial);
         const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(seedRow).select().single();
         if (error) throw error;
+        setWorkspaceRows([data]);
         setWorkspaceSummaries([workspaceRowToSummary(data)]);
         applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
       }
@@ -6490,8 +6906,123 @@ export default function NSPBusinessSuite() {
     }
   };
 
+  const handleExportWorkspace = async (client) => {
+    try {
+      const XLSX = await import("xlsx");
+      const snapshot = client.snapshot;
+      const lead = snapshot.lead || {};
+      const workbook = XLSX.utils.book_new();
+      const clientSheet = XLSX.utils.json_to_sheet([
+        {
+          name: lead.name || "",
+          email: lead.email || "",
+          phone: lead.phone || "",
+          type: lead.type || "",
+          stage: lead.stage || "",
+          event_date: lead.eventDate || "",
+          inquired_on: lead.inquiredOn || "",
+          location: lead.location || "",
+          referral_source: lead.referralSource || "",
+          revenue: client.totalRevenue || lead.revenue || 0,
+          outstanding: client.totalOutstanding || lead.balance || 0,
+          notes: lead.notes || "",
+        },
+      ]);
+      const sessionsSheet = XLSX.utils.json_to_sheet(
+        (snapshot.schedule || []).map((session) => ({
+          title: session.title || "",
+          date: session.date || "",
+          time: session.time || "",
+          end_time: session.endTime || "",
+          location: session.location || "",
+          status: session.status || "",
+          notes: session.notes || "",
+        }))
+      );
+      const invoicesSheet = XLSX.utils.json_to_sheet(
+        (client.invoices || []).map((invoice) => ({
+          invoice_number: invoice.invoice_number || "",
+          title: invoice.title || "",
+          session_type: invoice.session_type || "",
+          session_date: invoice.session_date || "",
+          status: invoice.status || "",
+          total_amount: Number(invoice.total_amount || invoice.amount || 0),
+          amount_paid: Number(invoice.amount_paid || 0),
+          balance_due: Number(invoice.balance_due || 0),
+        }))
+      );
+
+      XLSX.utils.book_append_sheet(workbook, clientSheet, "Client");
+      XLSX.utils.book_append_sheet(workbook, sessionsSheet, "Sessions");
+      XLSX.utils.book_append_sheet(workbook, invoicesSheet, "Revenue");
+
+      const safeName = (lead.name || "client").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
+      XLSX.writeFile(workbook, `${safeName || "client"}-workspace.xlsx`);
+    } catch (err) {
+      console.error("Failed to export workspace:", err);
+      setSidebarToast({ type: "error", message: err.message || "Could not export client workbook." });
+    }
+  };
+
+  const handleImportClients = async (file) => {
+    if (!file) return;
+    setImportState("importing");
+    setSidebarToast(null);
+
+    try {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+      const normalizedRows = rawRows.map((row) =>
+        Object.fromEntries(Object.entries(row).map(([key, value]) => [normalizeHeaderKey(key), value]))
+      );
+      const snapshots = normalizedRows
+        .map((row) => importedRowToWorkspace(row, templates, settings))
+        .filter(Boolean);
+
+      if (!snapshots.length) {
+        throw new Error("No valid client rows were found in that spreadsheet.");
+      }
+
+      const rowsToInsert = snapshots.map((snapshot) => buildWorkspaceRow(snapshot));
+      const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
+      if (error) throw error;
+
+      const insertedRows = Array.isArray(data) ? data : [];
+      setWorkspaceRows((prev) => {
+        let next = prev;
+        insertedRows.forEach((row) => {
+          next = upsertWorkspaceRow(next, row);
+        });
+        return next;
+      });
+      setWorkspaceSummaries((prev) => {
+        let next = prev;
+        insertedRows.forEach((row) => {
+          next = upsertWorkspaceSummary(next, workspaceRowToSummary(row));
+        });
+        return next;
+      });
+      setImportState("success");
+      setSidebarToast({
+        type: "success",
+        message: `Imported ${insertedRows.length} clients from ${file.name}.`,
+      });
+    } catch (err) {
+      console.error("Failed to import clients:", err);
+      setImportState("error");
+      setSidebarToast({ type: "error", message: err.message || "Could not import spreadsheet." });
+    }
+  };
+
   const goToTab = (tabKey) => {
     setActiveTab(tabKey);
+    if (tabKey === "clients" || (tabKey === "overview" && screen === "dashboard")) {
+      setScreen("dashboard");
+      return;
+    }
     setScreen("lead");
   };
 
@@ -6521,6 +7052,18 @@ export default function NSPBusinessSuite() {
     switch (activeTab) {
       case "overview":
         return <OverviewTab lead={lead} setLead={setLead} quotes={quotes} />;
+      case "clients":
+        return (
+          <ClientsTab
+            workspaceRows={workspaceRows}
+            workspaceInvoices={workspaceInvoices}
+            activeWorkspaceId={workspaceId}
+            onOpenWorkspace={openWorkspace}
+            onExportWorkspace={handleExportWorkspace}
+            onImportClients={handleImportClients}
+            importState={importState}
+          />
+        );
       case "schedule":
         return <ScheduleTab schedule={schedule} setSchedule={setSchedule} lead={lead} />;
       case "quotes":
@@ -6762,17 +7305,21 @@ export default function NSPBusinessSuite() {
               <div style={{ fontSize: 13, color: G.textMuted }}>Loading saved Supabase workspace...</div>
             </Card>
           ) : screen === "dashboard" ? (
-            <DashboardView
-              lead={lead}
-              quotes={quotes}
-              schedule={schedule}
-              notes={notes}
-              emailActivity={emailActivity}
-              workspaceSummaries={workspaceSummaries}
-              activeWorkspaceId={workspaceId}
-              onNavigate={goToTab}
-              onOpenWorkspace={openWorkspace}
-            />
+            activeTab === "clients" ? (
+              renderTab()
+            ) : (
+              <DashboardView
+                lead={lead}
+                quotes={quotes}
+                schedule={schedule}
+                notes={notes}
+                emailActivity={emailActivity}
+                workspaceSummaries={workspaceSummaries}
+                activeWorkspaceId={workspaceId}
+                onNavigate={goToTab}
+                onOpenWorkspace={openWorkspace}
+              />
+            )
           ) : (
             renderTab()
           )}
