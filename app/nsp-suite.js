@@ -829,7 +829,7 @@ function genUuid() {
 }
 
 function isUuid(value) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     String(value || "")
   );
 }
@@ -4141,13 +4141,22 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings 
   };
 
   const deleteInvoice = async (id) => {
-    if (isUuid(id)) {
-      await supabase.from("payments").delete().eq("invoice_id", id);
-      await supabase.from("invoices").delete().eq("id", id);
+    if (!window.confirm("Are you sure you want to delete this invoice and all its associated payment records?")) return;
+    try {
+      if (isUuid(id)) {
+        const { error: pErr } = await supabase.from("payments").delete().eq("invoice_id", id);
+        if (pErr) throw pErr;
+        const { error: iErr } = await supabase.from("invoices").delete().eq("id", id);
+        if (iErr) throw iErr;
+      }
+      setInvoices(prev => prev.filter(i => i.id !== id));
+      setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
+      setToast({ type: "success", message: "Invoice and payment records deleted." });
+      setView("list"); setActiveInvoice(null);
+    } catch (err) {
+      console.error("Delete invoice failed:", err);
+      setToast({ type: "error", message: `Could not delete invoice: ${err.message || "Database error"}` });
     }
-    setInvoices(prev => prev.filter(i => i.id !== id));
-    setPaymentRecords(prev => prev.filter(p => p.invoice_id !== id));
-    setView("list"); setActiveInvoice(null);
   };
 
   const markSent = async (id) => {
