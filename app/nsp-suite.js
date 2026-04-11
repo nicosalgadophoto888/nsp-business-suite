@@ -3755,6 +3755,12 @@ function FinancialsTab({
   const [squareLoading, setSquareLoading] = useState(null); // invoice id being processed
   const [emailLoading, setEmailLoading] = useState(null); // invoice id being emailed
   const [toast, setToast] = useState(null); // { type: 'success'|'error', message }
+  const [supportsInvoiceClientId, setSupportsInvoiceClientId] = useState(true);
+
+  const isMissingInvoiceClientIdError = (errorLike) =>
+    String(errorLike?.message || errorLike || "")
+      .toLowerCase()
+      .includes("could not find the 'client_id' column of 'invoices'");
 
   const isCurrentClientInvoice = React.useCallback(
     (invoice) => {
@@ -3932,32 +3938,45 @@ function FinancialsTab({
   useEffect(() => {
     async function load() {
       try {
-        let invQuery = supabase
-          .from("invoices")
-          .select("*")
-          .order("created_at", { ascending: false });
-        const filters = [];
-        if (workspaceId) filters.push(`client_id.eq.${workspaceId}`);
-        if (lead?.id) filters.push(`lead_id.eq.${lead.id}`);
-        if (lead?.email) filters.push(`client_email.eq.${String(lead.email).replace(/,/g, "")}`);
-        if (filters.length) {
-          invQuery = invQuery.or(filters.join(","));
+        const runInvoiceQuery = async (includeClientIdFilter) => {
+          let invQuery = supabase
+            .from("invoices")
+            .select("*")
+            .order("created_at", { ascending: false });
+          const filters = [];
+          if (includeClientIdFilter && workspaceId) {
+            filters.push(`client_id.eq.${workspaceId}`);
+          }
+          if (lead?.id) filters.push(`lead_id.eq.${lead.id}`);
+          if (lead?.email) filters.push(`client_email.eq.${String(lead.email).replace(/,/g, "")}`);
+          if (filters.length) {
+            invQuery = invQuery.or(filters.join(","));
+          }
+          return invQuery;
+        };
+
+        let invRes = await runInvoiceQuery(supportsInvoiceClientId);
+        if (invRes.error && isMissingInvoiceClientIdError(invRes.error)) {
+          setSupportsInvoiceClientId(false);
+          invRes = await runInvoiceQuery(false);
         }
-        const [invRes, payRes] = await Promise.all([
-          invQuery,
-          supabase.from("payments").select("*").order("paid_on", { ascending: false }),
-        ]);
+        if (invRes.error) throw invRes.error;
+        const payRes = await supabase.from("payments").select("*").order("paid_on", { ascending: false });
+        if (payRes.error) throw payRes.error;
         if (invRes.data) {
           const nextInvoices = invRes.data.map(dbToInvoice);
           setInvoices(nextInvoices);
           syncLeadBalance(nextInvoices);
         }
         if (payRes.data) setPaymentRecords(payRes.data);
-      } catch (err) { console.error("Failed to load invoices:", err); }
+      } catch (err) {
+        console.error("Failed to load invoices:", err);
+        setToast({ type: "error", message: err.message || "Failed to load invoices." });
+      }
       setLoading(false);
     }
     load();
-  }, [workspaceId, lead?.id, lead?.email, syncLeadBalance]);
+  }, [workspaceId, lead?.id, lead?.email, syncLeadBalance, supportsInvoiceClientId]);
 
   // ── DB mappers ──
   function dbToInvoice(row) {
@@ -3991,7 +4010,7 @@ function FinancialsTab({
       : isUuid(lead?.id)
         ? lead.id
         : null;
-    return {
+    const row = {
       id: item.id, invoice_number: item.invoiceNumber, title: item.title || `Invoice ${item.invoiceNumber || ""}`,
       client_name: item.clientName || "", client_email: item.clientEmail || "",
       session_type: item.sessionType || "", session_date: item.sessionDate || null,
@@ -4008,6 +4027,10 @@ function FinancialsTab({
       quote_id: item.quoteId || null, contract_id: item.contractId || null,
       updated_at: new Date().toISOString(),
     };
+    if (!supportsInvoiceClientId) {
+      delete row.client_id;
+    }
+    return row;
   }
 
   // ── Invoice status helpers ──
@@ -4070,7 +4093,7 @@ function FinancialsTab({
       invoiceType: isRetainer ? "retainer" : "full",
       paymentMethod: "square", squareLink: "", notes: "",
       issuedOn: new Date().toISOString().split("T")[0],
-      clientId: workspaceId || null,
+      clientId: isUuid(workspaceId) ? workspaceId : null,
       leadId: lead?.id?.toString() || null,
       quoteId: isUuid(sourceQuote?.id) ? sourceQuote.id : null,
       contractId: null,
@@ -4096,7 +4119,12 @@ function FinancialsTab({
       const dbRow = invoiceToDb(form);
       const existing = invoices.find(i => i.id === form.id);
       if (existing && isUuid(form.id)) {
-        const { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+        let { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+        if (error && isMissingInvoiceClientIdError(error)) {
+          setSupportsInvoiceClientId(false);
+          const { client_id, ...fallbackRow } = dbRow;
+          ({ error } = await supabase.from("invoices").update(fallbackRow).eq("id", form.id));
+        }
         if (error) {
           setToast({ type: "error", message: error.message || "Failed to update invoice." });
           return;
@@ -4107,7 +4135,12 @@ function FinancialsTab({
           return next;
         });
       } else {
-        const { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
+        let { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
+        if (error && isMissingInvoiceClientIdError(error)) {
+          setSupportsInvoiceClientId(false);
+          const { client_id, ...fallbackRow } = dbRow;
+          ({ data, error } = await supabase.from("invoices").insert(fallbackRow).select().single());
+        }
         if (error) {
           setToast({ type: "error", message: error.message || "Failed to create invoice." });
           return;
