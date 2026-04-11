@@ -691,12 +691,28 @@ function toImportedNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function importedRowToWorkspace(row, templates, settings) {
-  const name = String(firstValue(row, ["client_name", "name", "client", "full_name"])).trim();
+  const firstName = String(firstValue(row, ["first_name", "first", "given_name"])).trim();
+  const lastName = String(firstValue(row, ["last_name", "last", "surname", "family_name"])).trim();
+  const company = String(firstValue(row, ["company", "business_name", "organization"])).trim();
+  const combinedName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const name = combinedName || company || String(firstValue(row, ["client_name", "name", "client", "full_name"])).trim();
   if (!name) return null;
 
   const email = String(firstValue(row, ["email", "client_email"])).trim();
-  const phone = String(firstValue(row, ["phone", "phone_number", "mobile"])).trim();
+  const phoneRaw = firstValue(row, ["phone", "phone_number", "mobile"]);
+  const phone = String(phoneRaw || "").trim();
   const type = String(firstValue(row, ["job_type", "type", "service_type", "session_type"])).trim();
   const eventDate = toDateInputValue(firstValue(row, ["event_date", "job_date", "session_date", "date"]));
   const inquiredOn = toDateInputValue(firstValue(row, ["inquired_on", "lead_inquired_on", "created_at"])) || new Date().toISOString().slice(0, 10);
@@ -707,8 +723,8 @@ function importedRowToWorkspace(row, templates, settings) {
   const stage = STAGES.some((item) => item.key.toLowerCase() === stageRaw.toLowerCase())
     ? STAGES.find((item) => item.key.toLowerCase() === stageRaw.toLowerCase()).key
     : "Lead";
-  const revenue = toImportedNumber(firstValue(row, ["revenue", "total_revenue", "paid_total"]));
-  const balance = toImportedNumber(firstValue(row, ["balance", "balance_due", "outstanding"]));
+  const revenue = toImportedNumber(firstValue(row, ["job_revenue", "revenue", "total_revenue", "paid_total"]));
+  const balance = toImportedNumber(firstValue(row, ["job_balance", "balance", "balance_due", "outstanding"]));
   const sessionTitle = String(firstValue(row, ["session_title", "event_title", "title"])).trim();
   const sessionStatus = String(firstValue(row, ["session_status", "booking_status"])).trim() || (stage === "Booked" ? "Booked" : "Tentative");
 
@@ -5771,6 +5787,7 @@ function ClientsTab({
   activeWorkspaceId,
   onOpenWorkspace,
   onExportWorkspace,
+  onDeleteWorkspace,
   onImportClients,
   importState,
 }) {
@@ -5943,6 +5960,9 @@ function ClientsTab({
                           </Btn>
                           <Btn variant="ghost" small onClick={() => onExportWorkspace?.(item)}>
                             Export
+                          </Btn>
+                          <Btn variant="danger" small onClick={() => onDeleteWorkspace?.(item.row.id)}>
+                            Delete
                           </Btn>
                         </div>
                       </td>
@@ -6906,6 +6926,40 @@ export default function NSPBusinessSuite() {
     }
   };
 
+  const handleDeleteWorkspaceRow = async (id) => {
+    if (!id) return;
+    const target = workspaceRows.find((row) => row.id === id);
+    const name = workspaceRowToSummary(target || {}).name || "this client";
+    if (!window.confirm(`Delete ${name} from the clients list?`)) return;
+
+    try {
+      await supabase.from(WORKSPACE_TABLE).delete().eq("id", id);
+      const nextRows = workspaceRows.filter((row) => row.id !== id);
+      const nextSummaries = workspaceSummaries.filter((item) => item.id !== id);
+      setWorkspaceRows(nextRows);
+      setWorkspaceSummaries(nextSummaries);
+
+      if (workspaceId === id) {
+        if (nextRows.length > 0) {
+          const nextRow = nextRows[0];
+          applyWorkspaceSnapshot(workspaceRowToSnapshot(nextRow), nextRow.id);
+        } else {
+          const seedRow = buildWorkspaceRow(initial);
+          const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(seedRow).select().single();
+          if (error) throw error;
+          setWorkspaceRows([data]);
+          setWorkspaceSummaries([workspaceRowToSummary(data)]);
+          applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
+        }
+      }
+
+      setSidebarToast({ type: "success", message: `${name} deleted.` });
+    } catch (err) {
+      console.error("Failed to delete client row:", err);
+      setSidebarToast({ type: "error", message: err.message || "Could not delete client." });
+    }
+  };
+
   const handleExportWorkspace = async (client) => {
     try {
       const XLSX = await import("xlsx");
@@ -6957,7 +7011,10 @@ export default function NSPBusinessSuite() {
       XLSX.utils.book_append_sheet(workbook, invoicesSheet, "Revenue");
 
       const safeName = (lead.name || "client").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "");
-      XLSX.writeFile(workbook, `${safeName || "client"}-workspace.xlsx`);
+      const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      downloadBlob(`${safeName || "client"}-workspace.xlsx`, new Blob([arrayBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }));
     } catch (err) {
       console.error("Failed to export workspace:", err);
       setSidebarToast({ type: "error", message: err.message || "Could not export client workbook." });
@@ -6987,7 +7044,7 @@ export default function NSPBusinessSuite() {
       }
 
       const rowsToInsert = snapshots.map((snapshot) => buildWorkspaceRow(snapshot));
-      const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
+          const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
       if (error) throw error;
 
       const insertedRows = Array.isArray(data) ? data : [];
@@ -7060,6 +7117,7 @@ export default function NSPBusinessSuite() {
             activeWorkspaceId={workspaceId}
             onOpenWorkspace={openWorkspace}
             onExportWorkspace={handleExportWorkspace}
+            onDeleteWorkspace={handleDeleteWorkspaceRow}
             onImportClients={handleImportClients}
             importState={importState}
           />
