@@ -4136,7 +4136,8 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings 
       const dbRow = invoiceToDb(form);
       const existing = invoices.find(i => i.id === form.id);
       if (existing && isUuid(form.id)) {
-        const { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+        const { id, ...updates } = dbRow;
+        const { error } = await supabase.from("invoices").update(updates).eq("id", form.id);
         if (error) throw error;
         setInvoices(prev => prev.map(i => i.id === form.id ? { ...form } : i));
       } else {
@@ -5163,7 +5164,8 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
       const dbRow = toDb(form);
 
       if (existing && isUuid(form.id)) {
-        const { error } = await supabase.from(table).update(dbRow).eq("id", form.id);
+        const { id, ...updates } = dbRow;
+        const { error } = await supabase.from(table).update(updates).eq("id", form.id);
         if (error) throw error;
         setItems(prev => prev.map(i => i.id === form.id ? { ...form } : i));
       } else {
@@ -5227,7 +5229,8 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
       const existing = templates.find(t => t.id === templateForm.id);
 
       if (existing && isUuid(templateForm.id)) {
-        const { error } = await supabase.from(table).update({ ...dbRow, updated_at: new Date().toISOString() }).eq("id", templateForm.id);
+        const { id, ...updates } = dbRow;
+        const { error } = await supabase.from(table).update({ ...updates, updated_at: new Date().toISOString() }).eq("id", templateForm.id);
         if (error) throw error;
         setTemplatesState(prev => prev.map(t => t.id === templateForm.id ? { ...templateForm, updatedAt: new Date().toISOString() } : t));
       } else {
