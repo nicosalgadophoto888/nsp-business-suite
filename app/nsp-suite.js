@@ -42,6 +42,7 @@ const TABS = [
   { key: "templates", label: "Templates" },
   { key: "notes", label: "Notes" },
   { key: "files", label: "Files" },
+  { key: "reports", label: "Reports" },
 ];
 
 const WORKSPACE_TABLE = "crm_workspaces";
@@ -6579,6 +6580,418 @@ function FilesTab({ files, setFiles }) {
   );
 }
 
+function ReportsTab({
+  lead,
+  quotes,
+  schedule,
+  payments,
+  notes,
+  emailActivity,
+  workspaceSummaries,
+  workspaceInvoices,
+  onNavigate,
+}) {
+  const [search, setSearch] = useState("");
+  const [group, setGroup] = useState("favorites");
+  const [selectedReportId, setSelectedReportId] = useState("profit-loss");
+
+  const reportStats = useMemo(() => {
+    const totalPipeline = (workspaceSummaries || []).reduce(
+      (sum, item) => sum + Number(item.balance || 0),
+      Number(lead?.balance || 0)
+    );
+    const totalRevenue = (workspaceSummaries || []).reduce(
+      (sum, item) => sum + Number(item.revenue || 0),
+      Number(lead?.revenue || 0)
+    );
+    const acceptedQuotes = (quotes || []).filter((quote) => quote.status === "Accepted");
+    const bookedSessions = (schedule || []).filter((session) => session.status === "Booked").length;
+    const outstanding = (workspaceInvoices || []).reduce(
+      (sum, invoice) => sum + Number(invoice.balance_due || 0),
+      0
+    );
+    return {
+      totalPipeline,
+      totalRevenue,
+      acceptedCount: acceptedQuotes.length,
+      bookedSessions,
+      outstanding,
+      openQuoteValue: (quotes || [])
+        .filter((quote) => quote.status !== "Declined")
+        .reduce((sum, quote) => sum + calcQuoteTotals(quote).total, 0),
+      emailTouches: (emailActivity || []).length,
+      notesCount: (notes || []).length,
+      paymentPlans: (payments || []).length,
+    };
+  }, [workspaceSummaries, lead?.balance, lead?.revenue, quotes, schedule, workspaceInvoices, emailActivity, notes, payments]);
+
+  const reportGroups = useMemo(
+    () => [
+      { key: "favorites", label: "Favorites" },
+      { key: "business", label: "Business Overview" },
+      { key: "sales", label: "Sales Performance" },
+      { key: "operations", label: "Operations" },
+    ],
+    []
+  );
+
+  const reportLibrary = useMemo(
+    () => [
+      {
+        id: "profit-loss",
+        group: "favorites",
+        title: "Profit and Loss",
+        summary: "Revenue, outstanding balances, and open quote value across the CRM.",
+        value: fmt$(reportStats.totalRevenue),
+        accent: G.green,
+        rows: [
+          ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
+          ["Open Pipeline", fmt$(reportStats.totalPipeline)],
+          ["Outstanding Invoices", fmt$(reportStats.outstanding)],
+          ["Open Quote Value", fmt$(reportStats.openQuoteValue)],
+        ],
+      },
+      {
+        id: "accounts-receivable",
+        group: "favorites",
+        title: "Accounts Receivable Aging Summary",
+        summary: "Outstanding invoice balances that still need to be collected.",
+        value: fmt$(reportStats.outstanding),
+        accent: G.amber,
+        rows: [
+          ["Open Receivables", fmt$(reportStats.outstanding)],
+          ["Booked Sessions", String(reportStats.bookedSessions)],
+          ["Payment Plans", String(reportStats.paymentPlans)],
+          ["Client Workspaces", String((workspaceSummaries || []).length || 1)],
+        ],
+      },
+      {
+        id: "balance-sheet",
+        group: "favorites",
+        title: "Balance Sheet",
+        summary: "High-level snapshot of active client balances and accepted quote totals.",
+        value: fmt$(reportStats.totalPipeline + reportStats.totalRevenue),
+        accent: G.gold,
+        rows: [
+          ["Total Active Value", fmt$(reportStats.totalPipeline + reportStats.totalRevenue)],
+          ["Accepted Quotes", String(reportStats.acceptedCount)],
+          ["Booked Sessions", String(reportStats.bookedSessions)],
+          ["Email Touches", String(reportStats.emailTouches)],
+        ],
+      },
+      {
+        id: "cash-flow",
+        group: "business",
+        title: "Cash Flow Overview",
+        summary: "Cash already won versus balances still moving through the pipeline.",
+        value: fmt$(reportStats.totalRevenue - reportStats.outstanding),
+        accent: G.teal,
+        rows: [
+          ["Revenue Collected", fmt$(reportStats.totalRevenue)],
+          ["Still Outstanding", fmt$(reportStats.outstanding)],
+          ["Net Cash Position", fmt$(reportStats.totalRevenue - reportStats.outstanding)],
+          ["Open Pipeline", fmt$(reportStats.totalPipeline)],
+        ],
+      },
+      {
+        id: "lead-funnel",
+        group: "sales",
+        title: "Lead Funnel Snapshot",
+        summary: "How many leads are active, quoted, and accepted right now.",
+        value: String((workspaceSummaries || []).length || 1),
+        accent: G.blue,
+        rows: [
+          ["Saved Clients", String((workspaceSummaries || []).length || 1)],
+          ["Total Quotes", String((quotes || []).length)],
+          ["Accepted Quotes", String(reportStats.acceptedCount)],
+          ["Booked Sessions", String(reportStats.bookedSessions)],
+        ],
+      },
+      {
+        id: "booking-readiness",
+        group: "operations",
+        title: "Booking Readiness",
+        summary: "Visibility into schedules, notes, and pre-session readiness.",
+        value: `${reportStats.bookedSessions} booked`,
+        accent: G.gold,
+        rows: [
+          ["Booked Sessions", String(reportStats.bookedSessions)],
+          ["Active Notes", String(reportStats.notesCount)],
+          ["Payment Plans", String(reportStats.paymentPlans)],
+          ["Email Activity", String(reportStats.emailTouches)],
+        ],
+      },
+    ],
+    [reportStats, workspaceSummaries, quotes]
+  );
+
+  const visibleReports = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return reportLibrary.filter((report) => {
+      if (group !== "all" && report.group !== group) return false;
+      if (!term) return true;
+      return [report.title, report.summary].join(" ").toLowerCase().includes(term);
+    });
+  }, [group, reportLibrary, search]);
+
+  const selectedReport =
+    reportLibrary.find((report) => report.id === selectedReportId) || visibleReports[0] || reportLibrary[0];
+
+  const exportSelectedReport = () => {
+    const report = selectedReport;
+    if (!report) return;
+    const rows = [["Metric", "Value"], ...(report.rows || [])]
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+    downloadBlob(
+      `${report.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`,
+      new Blob([rows], { type: "text/csv;charset=utf-8" })
+    );
+  };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 20 }}>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "18px 18px 10px", borderBottom: `1px solid ${G.border}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: G.textMuted, letterSpacing: ".08em" }}>
+            REPORTS & ANALYTICS
+          </div>
+        </div>
+        <div style={{ padding: 12, display: "grid", gap: 6 }}>
+          <button
+            onClick={() => setGroup("favorites")}
+            style={{
+              textAlign: "left",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 12px",
+              background: group === "favorites" ? G.border : "transparent",
+              color: G.text,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Standard reports
+          </button>
+          <button
+            onClick={() => setGroup("all")}
+            style={{
+              textAlign: "left",
+              border: "none",
+              borderRadius: 10,
+              padding: "10px 12px",
+              background: group === "all" ? G.border : "transparent",
+              color: G.textDim,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Custom reports
+          </button>
+          {reportGroups
+            .filter((item) => item.key !== "favorites")
+            .map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setGroup(item.key)}
+                style={{
+                  textAlign: "left",
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  background: group === item.key ? G.border : "transparent",
+                  color: G.textDim,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+        </div>
+      </Card>
+
+      <div style={{ display: "grid", gap: 18 }}>
+        <Card>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Type report name here"
+                style={{
+                  width: "100%",
+                  background: G.surface,
+                  color: G.text,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 8,
+                  padding: "12px 14px",
+                  fontSize: 14,
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <Btn variant="secondary" small onClick={() => onNavigate?.("financials")}>
+              Ask a question
+            </Btn>
+            <Btn small onClick={exportSelectedReport}>Create custom reports</Btn>
+          </div>
+        </Card>
+
+        <Card
+          style={{
+            background: "linear-gradient(135deg, rgba(180,138,58,.12), rgba(43,127,135,.08))",
+            border: `1px solid ${G.border}`,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 20, alignItems: "flex-start" }}>
+            <div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                <Pill color="#fff" bg={G.gold}>FOR YOU</Pill>
+                <span style={{ fontSize: 13, color: G.textDim }}>CRM Reports</span>
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.02em", marginBottom: 8 }}>
+                {selectedReport?.title || "Reports"}
+              </div>
+              <div style={{ fontSize: 14, color: G.textDim, lineHeight: 1.6, maxWidth: 680 }}>
+                {selectedReport?.summary}
+              </div>
+            </div>
+            <div style={{ textAlign: "right", minWidth: 120 }}>
+              <div style={{ fontSize: 12, color: G.textMuted }}>Current focus</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: selectedReport?.accent || G.gold }}>
+                {selectedReport?.value}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <SectionLabel>Favorites</SectionLabel>
+          <div style={{ display: "grid", gap: 8 }}>
+            {visibleReports.length === 0 ? (
+              <EmptyState icon="📊" text="No reports match that search." />
+            ) : (
+              visibleReports.map((report) => (
+                <button
+                  key={report.id}
+                  onClick={() => setSelectedReportId(report.id)}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto auto",
+                    gap: 12,
+                    alignItems: "center",
+                    width: "100%",
+                    textAlign: "left",
+                    background: selectedReport?.id === report.id ? G.surface : "transparent",
+                    border: `1px solid ${selectedReport?.id === report.id ? G.border : "transparent"}`,
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: G.text }}>{report.title}</div>
+                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>{report.summary}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: report.accent }}>{report.value}</div>
+                  <span style={{ fontSize: 18, color: selectedReport?.id === report.id ? G.gold : G.textMuted }}>
+                    {selectedReport?.id === report.id ? "★" : "☆"}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <SectionLabel>Business Overview</SectionLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {(selectedReport?.rows || []).map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  background: G.surface,
+                }}
+              >
+                <div style={{ fontSize: 12, color: G.textMuted }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: G.text, marginTop: 6 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "18px 20px", borderBottom: `1px solid ${G.border}` }}>
+          <div style={{ fontSize: 14, fontWeight: 800 }}>Intuit Intelligence</div>
+          <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>BETA</div>
+        </div>
+        <div style={{ padding: 20, display: "grid", gap: 18 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>
+              The power of AI and trusted human experts, working for you
+            </div>
+          </div>
+          <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 18 }}>
+            <div style={{ fontSize: 13, color: G.textDim, lineHeight: 1.6 }}>
+              Your revenue is trending from accepted quotes, booked sessions, and client balances already saved in your CRM.
+            </div>
+            <button
+              onClick={() => setSelectedReportId("profit-loss")}
+              style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 13 }}
+            >
+              Summarize my profit and loss
+            </button>
+          </div>
+          <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 18 }}>
+            <div style={{ fontSize: 13, color: G.textDim, lineHeight: 1.6 }}>
+              Outstanding invoice balances and quote pipeline can be reviewed together to tighten follow-up timing.
+            </div>
+            <button
+              onClick={() => setSelectedReportId("accounts-receivable")}
+              style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 13 }}
+            >
+              Analyze my trailing receivables
+            </button>
+          </div>
+          <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 18 }}>
+            <div style={{ fontSize: 13, color: G.textDim, lineHeight: 1.6 }}>
+              Booking readiness combines notes, schedules, and payment plans so you can see who is ready to move next.
+            </div>
+            <button
+              onClick={() => setSelectedReportId("booking-readiness")}
+              style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 13 }}
+            >
+              Show booking readiness
+            </button>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={exportSelectedReport}
+              style={{
+                width: "100%",
+                borderRadius: 999,
+                padding: "14px 18px",
+                border: `2px solid ${G.teal}`,
+                background: "#fff",
+                color: G.text,
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              Ask anything
+            </button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 export default function NSPBusinessSuite() {
   const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
 
@@ -7417,6 +7830,7 @@ export default function NSPBusinessSuite() {
     },
     { label: "✉ New Email", variant: "secondary", onClick: openNewEmailComposer },
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
+    { label: "Reports", variant: "secondary", onClick: () => goToTab("reports") },
     { label: "View / Print PDF", variant: "secondary", onClick: handlePdf },
     { label: "Reset Client Activity", variant: "secondary", onClick: handleResetActivity },
     { label: "Revision History", variant: "secondary", onClick: () => goToTab("notes") },
@@ -7485,6 +7899,20 @@ export default function NSPBusinessSuite() {
         return <NotesTab notes={notes} setNotes={setNotes} emailActivity={emailActivity} />;
       case "files":
         return <FilesTab files={files} setFiles={setFiles} />;
+      case "reports":
+        return (
+          <ReportsTab
+            lead={lead}
+            quotes={quotes}
+            schedule={schedule}
+            payments={payments}
+            notes={notes}
+            emailActivity={emailActivity}
+            workspaceSummaries={workspaceSummaries}
+            workspaceInvoices={workspaceInvoices}
+            onNavigate={goToTab}
+          />
+        );
       default:
         return null;
     }
