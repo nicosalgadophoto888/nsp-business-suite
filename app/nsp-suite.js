@@ -574,13 +574,43 @@ function safeJsonParse(value, fallback) {
   }
 }
 
+function inferTemplateKind(template) {
+  const type = String(template?.type || "").toLowerCase();
+  const category = String(template?.category || "").toLowerCase();
+  const action = String(template?.action || "").toLowerCase();
+  const name = String(template?.name || "").toLowerCase();
+  const haystack = [name, category, action].join(" ");
+
+  if (String(template?.template_kind || "").trim()) return template.template_kind;
+  if (type === "email") {
+    if (haystack.includes("questionnaire")) return "questionnaire";
+    return "email";
+  }
+  if (haystack.includes("questionnaire")) return "questionnaire";
+  if (haystack.includes("contract") || haystack.includes("agreement")) return "contract";
+  if (
+    haystack.includes("package") ||
+    haystack.includes("quote") ||
+    haystack.includes("proposal") ||
+    haystack.includes("headshot") ||
+    haystack.includes("branding") ||
+    haystack.includes("event")
+  ) {
+    return "package";
+  }
+  return "file";
+}
+
 function mergeDefaultTemplates(savedTemplates) {
   const saved = Array.isArray(savedTemplates) ? savedTemplates : [];
   const defaults = DEFAULT_DATA.templates || [];
   const byId = new Map();
   defaults.forEach((t) => byId.set(t.id, t));
   saved.forEach((t) => byId.set(t.id, { ...byId.get(t.id), ...t }));
-  return Array.from(byId.values());
+  return Array.from(byId.values()).map((tpl) => ({
+    ...tpl,
+    template_kind: inferTemplateKind(tpl),
+  }));
 }
 
 function normalizeWorkspaceSnapshot(saved) {
@@ -2160,21 +2190,18 @@ function QuotesTab({
     return Array.from(all.values());
   }, [templates]);
   const contractOptions = useMemo(() => {
-    const all = new Map();
-    (contracts || []).forEach((item) => {
-      const value = String(item.title || item.name || "").trim();
-      if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: item.status || "" });
-    });
-    quoteTemplates.forEach((tpl) => {
-      const haystack = [tpl.name, tpl.action, tpl.category].join(" ").toLowerCase();
-      if (!/contract|agreement/.test(haystack)) return;
-      const value = String(tpl.name || "").trim();
-      if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: tpl.category || tpl.action || "" });
-    });
-    return Array.from(all.values());
-  }, [contracts, quoteTemplates]);
+    return (templates || [])
+      .filter((tpl) => {
+        if (tpl.template_kind === "contract") return true;
+        const name = String(tpl.name || "").toLowerCase();
+        return name.includes("contract") || name.includes("agreement");
+      })
+      .map((tpl) => ({
+        id: tpl.id,
+        name: tpl.name,
+        detail: tpl.category || "",
+      }));
+  }, [templates]);
   const clientDirectory = useMemo(() => {
     const map = new Map();
     const pushClient = (client) => {
@@ -2998,8 +3025,11 @@ function QuotesTab({
                   Contract
                 </label>
                 <select
-                  value={building.contractTemplate || ""}
-                  onChange={(e) => setField("contractTemplate", e.target.value)}
+                  value={(contractOptions.find((option) => option.name === building.contractTemplate)?.id || "")}
+                  onChange={(e) => {
+                    const selected = contractOptions.find((option) => option.id === e.target.value);
+                    setField("contractTemplate", selected?.name || "");
+                  }}
                   style={{
                     width: "100%",
                     background: G.surface,
@@ -3012,8 +3042,8 @@ function QuotesTab({
                 >
                   <option value="">Select a contract…</option>
                   {contractOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.value}
+                    <option key={option.id} value={option.id}>
+                      {option.name}
                     </option>
                   ))}
                 </select>
@@ -5504,6 +5534,7 @@ function TemplatesTab({ templates, setTemplates }) {
       folder: "My Templates",
       subject: mode === "email" ? "New message for {{client_name}}" : "",
       content: "",
+      template_kind: mode === "email" ? "email" : "contract",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -5513,7 +5544,11 @@ function TemplatesTab({ templates, setTemplates }) {
     if (!editing?.name?.trim()) return;
     setTemplates((prev) => {
       const exists = prev.some((t) => t.id === editing.id);
-      const next = { ...editing, updatedAt: new Date().toISOString() };
+      const next = {
+        ...editing,
+        template_kind: inferTemplateKind(editing),
+        updatedAt: new Date().toISOString(),
+      };
       if (exists) return prev.map((t) => (t.id === editing.id ? next : t));
       return [next, ...prev];
     });
