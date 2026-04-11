@@ -30,18 +30,6 @@ export default function ClientPageContent() {
   const [approveBusy, setApproveBusy] = useState(false);
   const [approveNotice, setApproveNotice] = useState(null);
   const [showAdminNav, setShowAdminNav] = useState(false);
-  const [questionnaireBusy, setQuestionnaireBusy] = useState(false);
-  const [questionnaireNotice, setQuestionnaireNotice] = useState(null);
-  const [questionnaireForm, setQuestionnaireForm] = useState({
-    phone: "",
-    location: "",
-    eventName: "",
-    eventDate: "",
-    goals: "",
-    mustHaves: "",
-    styleNotes: "",
-    additionalNotes: "",
-  });
 
   useEffect(() => {
     if (payload?.document) return;
@@ -127,15 +115,6 @@ export default function ClientPageContent() {
   const quote = isQuote ? resolved.document : null;
   const quoteStatus = isQuote ? resolved?.approvalStatus || "pending" : "pending";
   const doc = isSignDoc ? resolved.document : null;
-
-  useEffect(() => {
-    if (!quote) return;
-    setQuestionnaireForm((prev) => ({
-      ...prev,
-      eventName: quote.eventName || prev.eventName,
-      eventDate: quote.eventDate || prev.eventDate,
-    }));
-  }, [quote]);
 
   if (!isInvoice && !isQuote && !isSignDoc) {
     return (
@@ -298,88 +277,6 @@ export default function ClientPageContent() {
       setApproveNotice({
         type: "success",
         message: "Quote approved. Nico has been notified and will send payment next steps.",
-      });
-    };
-    const questionnaireFields = Array.isArray(quote.bookingProcess?.questionnaireFields)
-      ? quote.bookingProcess.questionnaireFields
-      : [];
-    const questionnaireTemplateBody = quote.bookingProcess?.questionnaireTemplateContent || "";
-    const showQuestionnaire = Boolean(quote.bookingProcess?.questionnaire);
-    const submitQuestionnaire = async () => {
-      const workspaceId = quote.workspaceId;
-      if (!workspaceId) {
-        setQuestionnaireNotice({
-          type: "error",
-          message: "This questionnaire is not linked to a client workspace yet.",
-        });
-        return;
-      }
-      setQuestionnaireBusy(true);
-      setQuestionnaireNotice(null);
-      const { data, error } = await supabase
-        .from("crm_workspaces")
-        .select("*")
-        .eq("id", workspaceId)
-        .single();
-      if (error || !data) {
-        setQuestionnaireBusy(false);
-        setQuestionnaireNotice({
-          type: "error",
-          message: "Could not load the client workspace to save your answers.",
-        });
-        return;
-      }
-
-      const snapshot = data.workspace || {};
-      const lead = snapshot.lead || {};
-      const nextNotes = Array.isArray(snapshot.notes) ? [...snapshot.notes] : [];
-      const summaryLines = Object.entries(questionnaireForm)
-        .filter(([, value]) => String(value || "").trim())
-        .map(([key, value]) => `${key}: ${value}`);
-      if (summaryLines.length > 0) {
-        nextNotes.unshift({
-          id: `note-${Date.now()}`,
-          text: `Questionnaire response\n${summaryLines.join("\n")}`,
-          date: new Date().toISOString(),
-        });
-      }
-
-      const nextWorkspace = {
-        ...snapshot,
-        lead: {
-          ...lead,
-          name: quote.clientName || lead.name || "",
-          email: quote.clientEmail || lead.email || "",
-          phone: questionnaireForm.phone || lead.phone || "",
-          type: questionnaireForm.eventName || quote.eventName || lead.type || "",
-          eventDate: questionnaireForm.eventDate || quote.eventDate || lead.eventDate || "",
-          location: questionnaireForm.location || lead.location || "",
-        },
-        notes: nextNotes,
-      };
-
-      const { error: updateError } = await supabase
-        .from("crm_workspaces")
-        .update({
-          client_name: quote.clientName || data.client_name || "",
-          client_email: quote.clientEmail || data.client_email || "",
-          event_date: questionnaireForm.eventDate || quote.eventDate || data.event_date || null,
-          workspace: nextWorkspace,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", workspaceId);
-
-      setQuestionnaireBusy(false);
-      if (updateError) {
-        setQuestionnaireNotice({
-          type: "error",
-          message: "We could not save your questionnaire answers. Please try again.",
-        });
-        return;
-      }
-      setQuestionnaireNotice({
-        type: "success",
-        message: "Your questionnaire answers were saved. Nico can now use them to finish the booking details.",
       });
     };
 
@@ -546,117 +443,6 @@ export default function ClientPageContent() {
                 }}
               >
                 {quote.notes}
-              </div>
-            )}
-
-            {showQuestionnaire && (
-              <div
-                style={{
-                  marginTop: 20,
-                  padding: "18px 16px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 10,
-                  background: "#faf7f2",
-                }}
-              >
-                <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
-                  {quote.bookingProcess?.questionnaire || "Questionnaire"}
-                </div>
-                <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 14, whiteSpace: "pre-wrap" }}>
-                  {questionnaireTemplateBody || "Please complete the missing details below so Nico can finalize your booking."}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  {(questionnaireFields.length
-                    ? questionnaireFields
-                    : [
-                        { key: "phone", label: "Best phone number", type: "text" },
-                        { key: "location", label: "Preferred location / venue", type: "text" },
-                        { key: "eventName", label: "Final event or session title", type: "text" },
-                        { key: "goals", label: "Goals for this session", type: "textarea" },
-                        { key: "additionalNotes", label: "Anything else I should know", type: "textarea" },
-                      ]).map((field) => {
-                    const isTextarea = field.type === "textarea";
-                    return (
-                      <div key={field.key} style={{ gridColumn: isTextarea ? "1 / span 2" : "auto" }}>
-                        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 5 }}>
-                          {field.label}
-                        </label>
-                        {isTextarea ? (
-                          <textarea
-                            value={questionnaireForm[field.key] || ""}
-                            onChange={(e) =>
-                              setQuestionnaireForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                            }
-                            rows={3}
-                            style={{
-                              width: "100%",
-                              boxSizing: "border-box",
-                              border: "1px solid #d1d5db",
-                              borderRadius: 8,
-                              padding: "10px 12px",
-                              fontSize: 14,
-                              fontFamily: "inherit",
-                              background: "#fff",
-                            }}
-                          />
-                        ) : (
-                          <input
-                            type={field.key === "eventDate" ? "date" : "text"}
-                            value={questionnaireForm[field.key] || ""}
-                            onChange={(e) =>
-                              setQuestionnaireForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                            }
-                            style={{
-                              width: "100%",
-                              boxSizing: "border-box",
-                              border: "1px solid #d1d5db",
-                              borderRadius: 8,
-                              padding: "10px 12px",
-                              fontSize: 14,
-                              background: "#fff",
-                            }}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    onClick={submitQuestionnaire}
-                    disabled={questionnaireBusy}
-                    style={{
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "11px 18px",
-                      background: "#111827",
-                      color: "#fff",
-                      fontWeight: 700,
-                      cursor: questionnaireBusy ? "default" : "pointer",
-                      opacity: questionnaireBusy ? 0.7 : 1,
-                    }}
-                  >
-                    {questionnaireBusy ? "Saving..." : "Save Questionnaire"}
-                  </button>
-                </div>
-                {questionnaireNotice && (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      background: questionnaireNotice.type === "success" ? "#ecfdf5" : "#fef2f2",
-                      color: questionnaireNotice.type === "success" ? "#047857" : "#b91c1c",
-                      border:
-                        questionnaireNotice.type === "success"
-                          ? "1px solid #a7f3d0"
-                          : "1px solid #fecaca",
-                    }}
-                  >
-                    {questionnaireNotice.message}
-                  </div>
-                )}
               </div>
             )}
 
