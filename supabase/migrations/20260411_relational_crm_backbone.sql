@@ -128,16 +128,27 @@ create index if not exists sessions_client_idx on public.sessions (client_id);
 create index if not exists sessions_quote_idx on public.sessions (quote_id);
 create index if not exists sessions_date_idx on public.sessions (session_date);
 
-alter table public.contracts add column if not exists client_id uuid references public.clients(id) on delete set null;
-alter table public.contracts add column if not exists quote_id uuid references public.quotes(id) on delete set null;
-alter table public.contracts add column if not exists template_kind text;
-
-alter table public.invoices add column if not exists client_id uuid references public.clients(id) on delete set null;
-alter table public.invoices add column if not exists template_kind text;
+do $$
+begin
+  if to_regclass('public.contracts') is not null then
+    alter table public.contracts add column if not exists client_id uuid references public.clients(id) on delete set null;
+    alter table public.contracts add column if not exists quote_id uuid references public.quotes(id) on delete set null;
+    alter table public.contracts add column if not exists template_kind text;
+  end if;
+end $$;
 
 do $$
 begin
-  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='invoices' and column_name='quote_id') then
+  if to_regclass('public.invoices') is not null then
+    alter table public.invoices add column if not exists client_id uuid references public.clients(id) on delete set null;
+    alter table public.invoices add column if not exists template_kind text;
+  end if;
+end $$;
+
+do $$
+begin
+  if to_regclass('public.invoices') is not null
+     and exists (select 1 from information_schema.columns where table_schema='public' and table_name='invoices' and column_name='quote_id') then
     begin
       alter table public.invoices
         add constraint invoices_quote_id_fkey
@@ -148,13 +159,27 @@ begin
   end if;
 end $$;
 
-alter table public.payments add column if not exists client_id uuid references public.clients(id) on delete set null;
+do $$
+begin
+  if to_regclass('public.payments') is not null then
+    alter table public.payments add column if not exists client_id uuid references public.clients(id) on delete set null;
+  end if;
+end $$;
 
-create index if not exists contracts_client_idx on public.contracts (client_id);
-create index if not exists contracts_quote_idx on public.contracts (quote_id);
-create index if not exists invoices_client_idx on public.invoices (client_id);
-create index if not exists invoices_quote_idx on public.invoices (quote_id);
-create index if not exists payments_client_idx on public.payments (client_id);
+do $$
+begin
+  if to_regclass('public.contracts') is not null then
+    create index if not exists contracts_client_idx on public.contracts (client_id);
+    create index if not exists contracts_quote_idx on public.contracts (quote_id);
+  end if;
+  if to_regclass('public.invoices') is not null then
+    create index if not exists invoices_client_idx on public.invoices (client_id);
+    create index if not exists invoices_quote_idx on public.invoices (quote_id);
+  end if;
+  if to_regclass('public.payments') is not null then
+    create index if not exists payments_client_idx on public.payments (client_id);
+  end if;
+end $$;
 
 alter table public.clients enable row level security;
 alter table public.templates enable row level security;
@@ -358,63 +383,79 @@ set
   notes = excluded.notes,
   updated_at = timezone('utc', now());
 
-insert into public.templates (external_id, name, category, action, type, content, template_kind)
-select
-  concat('legacy-contract-', ct.id::text),
-  coalesce(ct.name, ''),
-  coalesce(ct.category, ''),
-  'Contract',
-  'file',
-  coalesce(ct.body, ''),
-  'contract'
-from public.contract_templates ct
-on conflict (external_id) do update
-set
-  name = excluded.name,
-  category = excluded.category,
-  content = excluded.content,
-  template_kind = excluded.template_kind,
-  updated_at = timezone('utc', now());
+do $$
+begin
+  if to_regclass('public.contract_templates') is not null then
+    insert into public.templates (external_id, name, category, action, type, content, template_kind)
+    select
+      concat('legacy-contract-', ct.id::text),
+      coalesce(ct.name, ''),
+      coalesce(ct.category, ''),
+      'Contract',
+      'file',
+      coalesce(ct.body, ''),
+      'contract'
+    from public.contract_templates ct
+    on conflict (external_id) do update
+    set
+      name = excluded.name,
+      category = excluded.category,
+      content = excluded.content,
+      template_kind = excluded.template_kind,
+      updated_at = timezone('utc', now());
+  end if;
 
-insert into public.templates (external_id, name, category, action, type, content, template_kind)
-select
-  concat('legacy-release-', rt.id::text),
-  coalesce(rt.name, ''),
-  coalesce(rt.category, ''),
-  'Release',
-  'file',
-  coalesce(rt.body, ''),
-  'contract'
-from public.release_templates rt
-on conflict (external_id) do update
-set
-  name = excluded.name,
-  category = excluded.category,
-  content = excluded.content,
-  template_kind = excluded.template_kind,
-  updated_at = timezone('utc', now());
+  if to_regclass('public.release_templates') is not null then
+    insert into public.templates (external_id, name, category, action, type, content, template_kind)
+    select
+      concat('legacy-release-', rt.id::text),
+      coalesce(rt.name, ''),
+      coalesce(rt.category, ''),
+      'Release',
+      'file',
+      coalesce(rt.body, ''),
+      'contract'
+    from public.release_templates rt
+    on conflict (external_id) do update
+    set
+      name = excluded.name,
+      category = excluded.category,
+      content = excluded.content,
+      template_kind = excluded.template_kind,
+      updated_at = timezone('utc', now());
+  end if;
+end $$;
 
-update public.invoices i
-set client_id = c.id
-from public.clients c
-where i.client_id is null
-  and (
-    (i.lead_id is not null and i.lead_id = c.id)
-    or lower(coalesce(i.client_email, '')) = lower(coalesce(c.email, ''))
-  );
+do $$
+begin
+  if to_regclass('public.invoices') is not null then
+    update public.invoices i
+    set client_id = c.id
+    from public.clients c
+    where i.client_id is null
+      and (
+        (i.lead_id is not null and i.lead_id = c.id)
+        or lower(coalesce(i.client_email, '')) = lower(coalesce(c.email, ''))
+      );
+  end if;
 
-update public.contracts c0
-set client_id = c.id
-from public.clients c
-where c0.client_id is null
-  and (
-    (c0.lead_id is not null and c0.lead_id = c.id)
-    or lower(coalesce(c0.client_email, '')) = lower(coalesce(c.email, ''))
-  );
+  if to_regclass('public.contracts') is not null then
+    update public.contracts c0
+    set client_id = c.id
+    from public.clients c
+    where c0.client_id is null
+      and (
+        (c0.lead_id is not null and c0.lead_id = c.id)
+        or lower(coalesce(c0.client_email, '')) = lower(coalesce(c.email, ''))
+      );
+  end if;
 
-update public.payments p
-set client_id = i.client_id
-from public.invoices i
-where p.client_id is null
-  and p.invoice_id = i.id
-  and i.client_id is not null;
+  if to_regclass('public.payments') is not null and to_regclass('public.invoices') is not null then
+    update public.payments p
+    set client_id = i.client_id
+    from public.invoices i
+    where p.client_id is null
+      and p.invoice_id = i.id
+      and i.client_id is not null;
+  end if;
+end $$;
