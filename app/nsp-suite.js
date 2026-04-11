@@ -43,7 +43,7 @@ const TABS = [
   { key: "files", label: "Files" },
 ];
 
-const STORAGE_KEY = "nsp_lead_detail_v2";
+const WORKSPACE_TABLE = "crm_workspaces";
 
 const DEFAULT_SETTINGS = {
   businessName: "Nico Salgado Photography",
@@ -546,6 +546,24 @@ const DEFAULT_DATA = {
   settings: DEFAULT_SETTINGS,
 };
 
+function cloneDefaultData() {
+  return {
+    ...DEFAULT_DATA,
+    lead: { ...DEFAULT_DATA.lead },
+    schedule: [...DEFAULT_DATA.schedule],
+    notes: [...DEFAULT_DATA.notes],
+    emailActivity: [...DEFAULT_DATA.emailActivity],
+    payments: [...DEFAULT_DATA.payments],
+    contracts: [...DEFAULT_DATA.contracts],
+    files: [...DEFAULT_DATA.files],
+    quotes: [...DEFAULT_DATA.quotes],
+    recipients: [...DEFAULT_DATA.recipients],
+    templates: [...DEFAULT_DATA.templates],
+    counters: { ...DEFAULT_DATA.counters },
+    settings: { ...DEFAULT_SETTINGS },
+  };
+}
+
 function safeJsonParse(value, fallback) {
   try {
     return value ? JSON.parse(value) : fallback;
@@ -563,10 +581,8 @@ function mergeDefaultTemplates(savedTemplates) {
   return Array.from(byId.values());
 }
 
-function loadState() {
-  if (typeof window === "undefined") return DEFAULT_DATA;
-  const saved = safeJsonParse(window.localStorage.getItem(STORAGE_KEY), null);
-  if (!saved) return DEFAULT_DATA;
+function normalizeWorkspaceSnapshot(saved) {
+  if (!saved) return cloneDefaultData();
   return {
     ...DEFAULT_DATA,
     ...saved,
@@ -583,6 +599,54 @@ function loadState() {
     recipients: saved.recipients || DEFAULT_DATA.recipients,
     templates: mergeDefaultTemplates(saved.templates),
   };
+}
+
+function buildWorkspaceRow(snapshot, id = null) {
+  const normalized = normalizeWorkspaceSnapshot(snapshot);
+  return {
+    ...(id ? { id } : {}),
+    client_name: normalized.lead?.name || "",
+    client_email: normalized.lead?.email || "",
+    stage: normalized.lead?.stage || "Lead",
+    revenue: Number(normalized.lead?.revenue || 0),
+    balance: Number(normalized.lead?.balance || 0),
+    event_date: normalized.lead?.eventDate || null,
+    workspace: normalized,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function workspaceRowToSnapshot(row) {
+  return normalizeWorkspaceSnapshot(row?.workspace);
+}
+
+function workspaceRowToSummary(row) {
+  const snapshot = workspaceRowToSnapshot(row);
+  const lead = snapshot.lead || {};
+  return {
+    id: row.id,
+    name: row.client_name || lead.name || "Untitled",
+    email: row.client_email || lead.email || "",
+    stage: row.stage || lead.stage || "Lead",
+    type: lead.type || "",
+    referralSource: lead.referralSource || "",
+    revenue: Number(row.revenue || lead.revenue || 0),
+    balance: Number(row.balance || lead.balance || 0),
+    eventDate: row.event_date || lead.eventDate || "",
+    updatedAt: row.updated_at || null,
+  };
+}
+
+function serializeWorkspace(snapshot) {
+  return JSON.stringify(normalizeWorkspaceSnapshot(snapshot));
+}
+
+function upsertWorkspaceSummary(list, summary) {
+  const next = Array.isArray(list) ? [...list] : [];
+  const idx = next.findIndex((item) => item.id === summary.id);
+  if (idx >= 0) next[idx] = summary;
+  else next.unshift(summary);
+  return next.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 }
 
 function genId(prefix = "id") {
@@ -5283,7 +5347,17 @@ function TemplatesTab({ templates, setTemplates }) {
   );
 }
 
-function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigate }) {
+function DashboardView({
+  lead,
+  quotes,
+  schedule,
+  notes,
+  emailActivity,
+  workspaceSummaries,
+  activeWorkspaceId,
+  onNavigate,
+  onOpenWorkspace,
+}) {
   const totalQuoted = quotes.reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
   const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
   const openQuotes = quotes.filter((q) => q.status !== "Declined").length;
@@ -5357,14 +5431,19 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigat
     .join(" ");
 
   const stageCounts = STAGES.reduce((acc, s) => {
-    acc[s.key] = lead.stage === s.key ? 1 : 0;
+    acc[s.key] = workspaceSummaries.filter((item) => item.stage === s.key).length;
     return acc;
   }, {});
-
-  const bookingByType = {};
-  const bookingBySource = {};
-  bookingByType[lead.type || "Unspecified"] = 1;
-  bookingBySource[lead.referralSource || "Unspecified"] = 1;
+  const bookingByType = workspaceSummaries.reduce((acc, item) => {
+    const key = item.type || "Unspecified";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const bookingBySource = workspaceSummaries.reduce((acc, item) => {
+    const key = item.referralSource || "Unspecified";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -5495,6 +5574,47 @@ function DashboardView({ lead, quotes, schedule, notes, emailActivity, onNavigat
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Card>
+          <SectionLabel>Client Workspaces</SectionLabel>
+          {workspaceSummaries.length === 0 ? (
+            <EmptyState icon="👥" text="No saved client workspaces yet." />
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {workspaceSummaries.map((item) => {
+                const active = item.id === activeWorkspaceId;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => onOpenWorkspace?.(item.id)}
+                    style={{
+                      padding: "12px 14px",
+                      border: `1px solid ${active ? G.gold : G.border}`,
+                      borderRadius: 8,
+                      background: active ? G.goldBg : G.surface,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700 }}>{item.name}</div>
+                        <div style={{ fontSize: 12, color: G.textDim }}>
+                          {item.email || "No email"}{item.eventDate ? ` · ${fmtShort(item.eventDate)}` : ""}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 12, color: G.gold, fontWeight: 700 }}>{item.stage}</div>
+                        <div style={{ fontSize: 11, color: G.textMuted }}>
+                          {item.updatedAt ? `Updated ${fmtShort(item.updatedAt)}` : "New workspace"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
         <Card style={{ cursor: schedule.length ? "pointer" : "default" }} onClick={() => schedule.length && onNavigate?.("schedule")}>
           <SectionLabel>Upcoming Schedule</SectionLabel>
           {schedule.length === 0 ? (
@@ -5738,7 +5858,15 @@ function FilesTab({ files, setFiles }) {
 }
 
 export default function NSPBusinessSuite() {
-  const initial = loadState();
+  const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
+
+  const [workspaceId, setWorkspaceId] = useState(null);
+  const [workspaceSummaries, setWorkspaceSummaries] = useState([]);
+  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+  const [workspaceSaveState, setWorkspaceSaveState] = useState("loading");
+  const [workspaceError, setWorkspaceError] = useState("");
+  const lastPersistedRef = React.useRef(serializeWorkspace(initial));
+  const hydratingWorkspaceRef = React.useRef(false);
 
   const [lead, setLead] = useState(initial.lead);
   const [screen, setScreen] = useState("lead"); // lead | dashboard
@@ -5754,17 +5882,29 @@ export default function NSPBusinessSuite() {
   const [emailActivity, setEmailActivity] = useState(initial.emailActivity || []);
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
-  const [dashboardTotals, setDashboardTotals] = useState({
-    totalLeads: 1,
-    pipelineValue: Number(initial.lead?.balance || 0),
-    acceptedRevenue: Number(initial.lead?.revenue || 0),
-  });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
+  const applyWorkspaceSnapshot = (snapshot, nextWorkspaceId = null) => {
+    const normalized = normalizeWorkspaceSnapshot(snapshot);
+    hydratingWorkspaceRef.current = true;
+    lastPersistedRef.current = serializeWorkspace(normalized);
+    setLead(normalized.lead);
+    setQuotes(normalized.quotes);
+    setRecipients(normalized.recipients);
+    setSchedule(normalized.schedule);
+    setPayments(normalized.payments);
+    setContracts(normalized.contracts);
+    setFiles(normalized.files);
+    setTemplates(normalized.templates || []);
+    setNotes(normalized.notes);
+    setEmailActivity(normalized.emailActivity || []);
+    setSettings(normalized.settings);
+    setCounters(normalized.counters);
+    if (nextWorkspaceId) setWorkspaceId(nextWorkspaceId);
+  };
+
+  const workspaceSnapshot = useMemo(
+    () =>
+      normalizeWorkspaceSnapshot({
         lead,
         quotes,
         recipients,
@@ -5777,9 +5917,115 @@ export default function NSPBusinessSuite() {
         emailActivity,
         settings,
         counters,
-      })
-    );
-  }, [lead, quotes, recipients, schedule, payments, contracts, files, templates, notes, emailActivity, settings, counters]);
+      }),
+    [lead, quotes, recipients, schedule, payments, contracts, files, templates, notes, emailActivity, settings, counters]
+  );
+
+  const dashboardTotals = useMemo(() => {
+    if (workspaceSummaries.length === 0) {
+      return {
+        totalLeads: 1,
+        pipelineValue: Number(lead?.balance || 0),
+        acceptedRevenue: Number(lead?.revenue || 0),
+      };
+    }
+    return {
+      totalLeads: workspaceSummaries.length,
+      pipelineValue: workspaceSummaries.reduce((sum, item) => sum + Number(item.balance || 0), 0),
+      acceptedRevenue: workspaceSummaries.reduce((sum, item) => sum + Number(item.revenue || 0), 0),
+    };
+  }, [workspaceSummaries, lead?.balance, lead?.revenue]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadWorkspace = async () => {
+      setWorkspaceLoading(true);
+      setWorkspaceSaveState("loading");
+      setWorkspaceError("");
+
+      try {
+        const { data, error } = await supabase
+          .from(WORKSPACE_TABLE)
+          .select("*")
+          .order("updated_at", { ascending: false });
+        if (canceled) return;
+        if (error) throw error;
+
+        if (Array.isArray(data) && data.length > 0) {
+          setWorkspaceSummaries(data.map(workspaceRowToSummary));
+          applyWorkspaceSnapshot(workspaceRowToSnapshot(data[0]), data[0].id);
+          setWorkspaceSaveState("saved");
+          return;
+        }
+
+        const seedRow = buildWorkspaceRow(initial);
+        const { data: created, error: createError } = await supabase
+          .from(WORKSPACE_TABLE)
+          .insert(seedRow)
+          .select()
+          .single();
+        if (canceled) return;
+        if (createError) throw createError;
+
+        setWorkspaceId(created.id);
+        setWorkspaceSummaries([workspaceRowToSummary(created)]);
+        applyWorkspaceSnapshot(workspaceRowToSnapshot(created), created.id);
+        setWorkspaceSaveState("saved");
+      } catch (err) {
+        console.error("Failed to load workspace:", err);
+        if (!canceled) {
+          setWorkspaceError(err.message || "Could not load saved workspace data.");
+          setWorkspaceSaveState("error");
+        }
+      } finally {
+        if (!canceled) setWorkspaceLoading(false);
+      }
+    };
+
+    loadWorkspace();
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (workspaceLoading) return;
+    if (hydratingWorkspaceRef.current) {
+      hydratingWorkspaceRef.current = false;
+      return;
+    }
+
+    const serialized = serializeWorkspace(workspaceSnapshot);
+    if (serialized === lastPersistedRef.current) return;
+
+    const timeout = setTimeout(async () => {
+      setWorkspaceSaveState("saving");
+      setWorkspaceError("");
+
+      try {
+        const row = buildWorkspaceRow(workspaceSnapshot, workspaceId);
+        const query = workspaceId
+          ? supabase.from(WORKSPACE_TABLE).update(row).eq("id", workspaceId).select().single()
+          : supabase.from(WORKSPACE_TABLE).insert(row).select().single();
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data?.id && data.id !== workspaceId) setWorkspaceId(data.id);
+        if (data) {
+          setWorkspaceSummaries((prev) => upsertWorkspaceSummary(prev, workspaceRowToSummary(data)));
+        }
+        lastPersistedRef.current = serialized;
+        setWorkspaceSaveState("saved");
+      } catch (err) {
+        console.error("Failed to save workspace:", err);
+        setWorkspaceSaveState("error");
+        setWorkspaceError(err.message || "Could not save workspace to Supabase.");
+      }
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [workspaceSnapshot, workspaceId, workspaceLoading]);
 
   useEffect(() => {
     const applyApprovedQuote = (row) => {
@@ -5837,39 +6083,6 @@ export default function NSPBusinessSuite() {
       if (supabase.removeChannel) supabase.removeChannel(channel);
     };
   }, []);
-
-  useEffect(() => {
-    let canceled = false;
-    const fallback = {
-      totalLeads: 1,
-      pipelineValue: Number(lead?.balance || 0),
-      acceptedRevenue: Number(lead?.revenue || 0),
-    };
-
-    const loadDashboardTotals = async () => {
-      try {
-        const { data, error } = await supabase.from("leads").select("id, revenue, balance");
-        if (canceled) return;
-        if (error || !Array.isArray(data) || data.length === 0) {
-          setDashboardTotals(fallback);
-          return;
-        }
-        const next = {
-          totalLeads: data.length,
-          pipelineValue: data.reduce((sum, row) => sum + Number(row.balance || 0), 0),
-          acceptedRevenue: data.reduce((sum, row) => sum + Number(row.revenue || 0), 0),
-        };
-        setDashboardTotals(next);
-      } catch {
-        if (!canceled) setDashboardTotals(fallback);
-      }
-    };
-
-    loadDashboardTotals();
-    return () => {
-      canceled = true;
-    };
-  }, [lead?.balance, lead?.revenue]);
 
   const quoteBadge = quotes.length;
 
@@ -6137,13 +6350,41 @@ export default function NSPBusinessSuite() {
     setNewClientOpen(true);
   };
 
-  const handleCreateClientAndContinue = () => {
+  const openWorkspace = async (id) => {
+    if (!id) return;
+    if (id === workspaceId) {
+      setScreen("lead");
+      setActiveTab("overview");
+      return;
+    }
+
+    setWorkspaceLoading(true);
+    setWorkspaceError("");
+    try {
+      const { data, error } = await supabase.from(WORKSPACE_TABLE).select("*").eq("id", id).single();
+      if (error) throw error;
+      applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
+      setWorkspaceSummaries((prev) => upsertWorkspaceSummary(prev, workspaceRowToSummary(data)));
+      setWorkspaceSaveState("saved");
+      setScreen("lead");
+      setActiveTab("overview");
+    } catch (err) {
+      console.error("Failed to open workspace:", err);
+      setWorkspaceSaveState("error");
+      setWorkspaceError(err.message || "Could not open this client workspace.");
+      setSidebarToast({ type: "error", message: err.message || "Could not open this client workspace." });
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  };
+
+  const handleCreateClientAndContinue = async () => {
     if (!newClientForm.name.trim()) {
       setSidebarToast({ type: "error", message: "Client name is required." });
       return;
     }
     const createdLead = {
-      id: Date.now(),
+      id: genUuid(),
       name: newClientForm.name.trim(),
       email: newClientForm.email.trim(),
       phone: newClientForm.phone.trim(),
@@ -6173,28 +6414,80 @@ export default function NSPBusinessSuite() {
         ]
       : [];
 
-    setLead(createdLead);
-    setQuotes([]);
-    setRecipients([]);
-    setSchedule(initialSchedule);
-    setPayments([]);
-    setContracts([]);
-    setFiles([]);
-    setNotes([]);
-    setEmailActivity([]);
-    setScreen("lead");
-    setActiveTab("quotes");
-    setNewClientOpen(false);
-    setSidebarToast({
-      type: "success",
-      message: `Created client: ${createdLead.name}. Continue in Quotes & Orders.`,
+    const nextSnapshot = normalizeWorkspaceSnapshot({
+      ...cloneDefaultData(),
+      lead: createdLead,
+      schedule: initialSchedule,
+      notes: [],
+      emailActivity: [],
+      payments: [],
+      contracts: [],
+      files: [],
+      quotes: [],
+      recipients: [],
+      templates: mergeDefaultTemplates(templates),
+      settings,
+      counters: { nextQuoteNumber: 1 },
     });
+
+    setWorkspaceSaveState("saving");
+    setWorkspaceError("");
+
+    try {
+      const { data, error } = await supabase
+        .from(WORKSPACE_TABLE)
+        .insert(buildWorkspaceRow(nextSnapshot))
+        .select()
+        .single();
+      if (error) throw error;
+
+      setWorkspaceSummaries((prev) => upsertWorkspaceSummary(prev, workspaceRowToSummary(data)));
+      applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
+      setWorkspaceSaveState("saved");
+      setScreen("lead");
+      setActiveTab("quotes");
+      setNewClientOpen(false);
+      setSidebarToast({
+        type: "success",
+        message: `Created client: ${createdLead.name}. Continue in Quotes & Orders.`,
+      });
+    } catch (err) {
+      console.error("Failed to create client workspace:", err);
+      setWorkspaceSaveState("error");
+      setWorkspaceError(err.message || "Could not create client workspace.");
+      setSidebarToast({
+        type: "error",
+        message: err.message || "Could not create client workspace.",
+      });
+    }
   };
 
-  const handleDeleteLead = () => {
-    if (!window.confirm("Delete local lead data for this page?")) return;
-    if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
-    window.location.reload();
+  const handleDeleteLead = async () => {
+    if (!workspaceId) return;
+    if (!window.confirm("Delete this client workspace from Supabase?")) return;
+
+    try {
+      const deletingId = workspaceId;
+      await supabase.from(WORKSPACE_TABLE).delete().eq("id", deletingId);
+
+      const remaining = workspaceSummaries.filter((item) => item.id !== deletingId);
+      setWorkspaceSummaries(remaining);
+
+      if (remaining.length > 0) {
+        await openWorkspace(remaining[0].id);
+      } else {
+        const seedRow = buildWorkspaceRow(initial);
+        const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(seedRow).select().single();
+        if (error) throw error;
+        setWorkspaceSummaries([workspaceRowToSummary(data)]);
+        applyWorkspaceSnapshot(workspaceRowToSnapshot(data), data.id);
+      }
+
+      setSidebarToast({ type: "success", message: "Client workspace deleted." });
+    } catch (err) {
+      console.error("Failed to delete workspace:", err);
+      setSidebarToast({ type: "error", message: err.message || "Could not delete client workspace." });
+    }
   };
 
   const goToTab = (tabKey) => {
@@ -6205,9 +6498,16 @@ export default function NSPBusinessSuite() {
   const SIDEBAR_ACTIONS = [
     { label: "+ New Client", variant: "secondary", onClick: handleNewClient },
     {
-      label: screen === "dashboard" ? "→ Open Lead Workspace" : "← Return to Leads Dashboard",
+      label: screen === "dashboard" ? "→ Open Client Workspace" : "← Return to Leads Dashboard",
       variant: "primary",
-      onClick: () => setScreen((prev) => (prev === "dashboard" ? "lead" : "dashboard")),
+      onClick: () => {
+        if (screen === "dashboard") {
+          const targetId = workspaceId || workspaceSummaries[0]?.id;
+          if (targetId) openWorkspace(targetId);
+        } else {
+          setScreen("dashboard");
+        }
+      },
     },
     { label: "✉ New Email", variant: "secondary", onClick: openNewEmailComposer },
     { label: sidebarEmailLoading ? "Sending..." : "✉ Email Latest Quote", variant: "secondary", onClick: handleEmailQuote, disabled: sidebarEmailLoading },
@@ -6384,6 +6684,13 @@ export default function NSPBusinessSuite() {
               <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
                 Global CRM view
               </div>
+              <div style={{ fontSize: 12, color: workspaceSaveState === "error" ? G.red : G.textMuted, marginTop: 8 }}>
+                {workspaceSaveState === "saving"
+                  ? "Saving to Supabase..."
+                  : workspaceSaveState === "error"
+                    ? workspaceError || "Save failed"
+                    : "Synced with Supabase"}
+              </div>
             </>
           ) : (
             <>
@@ -6391,6 +6698,13 @@ export default function NSPBusinessSuite() {
               <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
                 Inquired on{" "}
                 <span style={{ fontWeight: 700, color: G.text }}>{fmtShort(lead.inquiredOn)}</span>
+              </div>
+              <div style={{ fontSize: 12, color: workspaceSaveState === "error" ? G.red : G.textMuted, marginTop: 8 }}>
+                {workspaceSaveState === "saving"
+                  ? "Saving to Supabase..."
+                  : workspaceSaveState === "error"
+                    ? workspaceError || "Save failed"
+                    : "Synced with Supabase"}
               </div>
             </>
           )}
@@ -6442,14 +6756,22 @@ export default function NSPBusinessSuite() {
         }}
       >
         <div style={{ padding: "24px 28px", overflowY: "auto" }}>
-          {screen === "dashboard" ? (
+          {workspaceLoading ? (
+            <Card>
+              <SectionLabel>Workspace</SectionLabel>
+              <div style={{ fontSize: 13, color: G.textMuted }}>Loading saved Supabase workspace...</div>
+            </Card>
+          ) : screen === "dashboard" ? (
             <DashboardView
               lead={lead}
               quotes={quotes}
               schedule={schedule}
               notes={notes}
               emailActivity={emailActivity}
+              workspaceSummaries={workspaceSummaries}
+              activeWorkspaceId={workspaceId}
               onNavigate={goToTab}
+              onOpenWorkspace={openWorkspace}
             />
           ) : (
             renderTab()
