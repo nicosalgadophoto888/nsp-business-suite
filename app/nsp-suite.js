@@ -410,6 +410,37 @@ www.nicosalgadophotography.com`,
   },
 ];
 
+const DEFAULT_QUESTIONNAIRE_TEMPLATES = [
+  {
+    id: "tpl-questionnaire-branding",
+    type: "questionnaire",
+    action: "Collect",
+    name: "Branding Client Intake",
+    category: "Questionnaires",
+    folder: "Made for you",
+    content: `Please share the details below so I can finalize your session and prep everything properly.
+
+- Best phone number
+- Preferred location / venue
+- Final event or session title
+- Goals for this session
+- Shot priorities or must-have images
+- Wardrobe / styling notes
+- Anything else I should know`,
+    fields: [
+      { key: "phone", label: "Best phone number", type: "text" },
+      { key: "location", label: "Preferred location / venue", type: "text" },
+      { key: "eventName", label: "Final event or session title", type: "text" },
+      { key: "goals", label: "Goals for this session", type: "textarea" },
+      { key: "mustHaves", label: "Shot priorities or must-have images", type: "textarea" },
+      { key: "styleNotes", label: "Wardrobe / styling notes", type: "textarea" },
+      { key: "additionalNotes", label: "Anything else I should know", type: "textarea" },
+    ],
+    createdAt: "2026-04-07T10:00:00",
+    updatedAt: "2026-04-07T10:00:00",
+  },
+];
+
 const DEFAULT_DATA = {
   lead: {
     id: 1,
@@ -543,7 +574,12 @@ const DEFAULT_DATA = {
       lastVisit: null,
     },
   ],
-  templates: [...DEFAULT_FILE_TEMPLATES, ...DEFAULT_PACKAGE_TEMPLATES, ...DEFAULT_EMAIL_TEMPLATES],
+  templates: [
+    ...DEFAULT_FILE_TEMPLATES,
+    ...DEFAULT_PACKAGE_TEMPLATES,
+    ...DEFAULT_EMAIL_TEMPLATES,
+    ...DEFAULT_QUESTIONNAIRE_TEMPLATES,
+  ],
   counters: { nextQuoteNumber: 2 },
   settings: DEFAULT_SETTINGS,
 };
@@ -2120,6 +2156,8 @@ function QuotesTab({
   payments,
   contracts,
   workspaceRows,
+  workspaceId,
+  onNavigate,
   settings,
   counters,
   setCounters,
@@ -2151,11 +2189,17 @@ function QuotesTab({
   const questionnaireOptions = useMemo(() => {
     const all = new Map();
     (templates || []).forEach((tpl) => {
+      if (tpl.type === "questionnaire") {
+        const value = String(tpl.name || "").trim();
+        if (!value) return;
+        all.set(value.toLowerCase(), { value, detail: tpl.category || "Questionnaire", templateId: tpl.id });
+        return;
+      }
       const haystack = [tpl.name, tpl.subject, tpl.category, tpl.content].join(" ").toLowerCase();
       if (!/questionnaire/.test(haystack)) return;
       const value = String(tpl.name || tpl.subject || "").trim();
       if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: tpl.subject || tpl.category || "" });
+      all.set(value.toLowerCase(), { value, detail: tpl.subject || tpl.category || "", templateId: tpl.id });
     });
     return Array.from(all.values());
   }, [templates]);
@@ -2164,17 +2208,10 @@ function QuotesTab({
     (contracts || []).forEach((item) => {
       const value = String(item.title || item.name || "").trim();
       if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: item.status || "" });
-    });
-    quoteTemplates.forEach((tpl) => {
-      const haystack = [tpl.name, tpl.action, tpl.category].join(" ").toLowerCase();
-      if (!/contract|agreement/.test(haystack)) return;
-      const value = String(tpl.name || "").trim();
-      if (!value) return;
-      all.set(value.toLowerCase(), { value, detail: tpl.category || tpl.action || "" });
+      all.set(value.toLowerCase(), { value, detail: item.status || "Contract", templateId: item.templateId || item.id });
     });
     return Array.from(all.values());
-  }, [contracts, quoteTemplates]);
+  }, [contracts]);
   const clientDirectory = useMemo(() => {
     const map = new Map();
     const pushClient = (client) => {
@@ -2216,7 +2253,10 @@ function QuotesTab({
     discountValue: 0,
     paymentSchedule: "",
     questionnaire: "",
+    questionnaireTemplateId: "",
     contractTemplate: "",
+    contractTemplateId: "",
+    workspaceId: workspaceId || "",
     createdAt: null,
     updatedAt: null,
     lastViewed: null,
@@ -2496,6 +2536,11 @@ function QuotesTab({
       setEmailingApproval(true);
       setQuoteNotice(null);
       const totals = calcQuoteTotals(quote);
+      const selectedQuestionnaireTemplate = (templates || []).find(
+        (tpl) =>
+          tpl.id === quote.questionnaireTemplateId ||
+          (tpl.type === "questionnaire" && tpl.name === quote.questionnaire)
+      );
       const sectionSummary = (quote.sections || [])
         .map((s) => {
           const lineTotal = (s.lineItems || []).reduce(
@@ -2525,8 +2570,13 @@ function QuotesTab({
           bookingProcess: {
             paymentSchedule: quote.paymentSchedule || "",
             questionnaire: quote.questionnaire || "",
+            questionnaireTemplateId: quote.questionnaireTemplateId || "",
+            questionnaireTemplateContent: selectedQuestionnaireTemplate?.content || "",
+            questionnaireFields: selectedQuestionnaireTemplate?.fields || [],
             contractTemplate: quote.contractTemplate || "",
+            contractTemplateId: quote.contractTemplateId || "",
           },
+          workspaceId: quote.workspaceId || workspaceId || "",
           sections: (quote.sections || []).map((s) => ({
             packageName: s.packageName || "",
             description: s.description || "",
@@ -2951,6 +3001,16 @@ function QuotesTab({
                     </option>
                   ))}
                 </select>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("financials")}
+                    style={{ background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                  >
+                    Search in Financials
+                  </button>
+                  <span style={{ fontSize: 12, color: G.textMuted }}>Use payment schedules from your Financials tab.</span>
+                </div>
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label
@@ -2966,7 +3026,14 @@ function QuotesTab({
                 </label>
                 <select
                   value={building.questionnaire || ""}
-                  onChange={(e) => setField("questionnaire", e.target.value)}
+                  onChange={(e) => {
+                    const selected = questionnaireOptions.find((option) => option.value === e.target.value);
+                    setBuilding((prev) => ({
+                      ...prev,
+                      questionnaire: e.target.value,
+                      questionnaireTemplateId: selected?.templateId || "",
+                    }));
+                  }}
                   style={{
                     width: "100%",
                     background: G.surface,
@@ -2984,6 +3051,16 @@ function QuotesTab({
                     </option>
                   ))}
                 </select>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("templates")}
+                    style={{ background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                  >
+                    Search in Templates
+                  </button>
+                  <span style={{ fontSize: 12, color: G.textMuted }}>Questionnaire templates live in your Templates tab.</span>
+                </div>
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label
@@ -2999,7 +3076,14 @@ function QuotesTab({
                 </label>
                 <select
                   value={building.contractTemplate || ""}
-                  onChange={(e) => setField("contractTemplate", e.target.value)}
+                  onChange={(e) => {
+                    const selected = contractOptions.find((option) => option.value === e.target.value);
+                    setBuilding((prev) => ({
+                      ...prev,
+                      contractTemplate: e.target.value,
+                      contractTemplateId: selected?.templateId || "",
+                    }));
+                  }}
                   style={{
                     width: "100%",
                     background: G.surface,
@@ -3017,6 +3101,16 @@ function QuotesTab({
                     </option>
                   ))}
                 </select>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.("contracts")}
+                    style={{ background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 12, fontWeight: 600 }}
+                  >
+                    Search in Contracts
+                  </button>
+                  <span style={{ fontSize: 12, color: G.textMuted }}>Choose from documents you already use in your Contracts tab.</span>
+                </div>
               </div>
             </div>
           </Card>
@@ -5452,7 +5546,7 @@ function TemplatesTab({ templates, setTemplates }) {
     brand: "#a68b5b",
     brandBg: "rgba(166,139,91,.12)",
   };
-  const [mode, setMode] = useState("file"); // file | email
+  const [mode, setMode] = useState("file"); // file | email | questionnaire
   const [layout, setLayout] = useState("cards"); // cards | list
   const [filter, setFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -5465,6 +5559,7 @@ function TemplatesTab({ templates, setTemplates }) {
     "Discount Request Response": "💬",
     "Questionnaire Follow-Up": "📋",
     "New Client Questionnaire": "📝",
+    "Branding Client Intake": "🗂",
   };
 
   const folders = ["All", "Made for you", "My Templates"];
@@ -5498,12 +5593,22 @@ function TemplatesTab({ templates, setTemplates }) {
     setEditing({
       id: genId("tpl"),
       type: mode,
-      action: mode === "file" ? "Contract" : "Send",
+      action: mode === "file" ? "Contract" : mode === "email" ? "Send" : "Collect",
       name: "",
-      category: mode === "file" ? "Contracts" : "Onboarding",
+      category: mode === "file" ? "Contracts" : mode === "email" ? "Onboarding" : "Questionnaires",
       folder: "My Templates",
       subject: mode === "email" ? "New message for {{client_name}}" : "",
       content: "",
+      fields:
+        mode === "questionnaire"
+          ? [
+              { key: "phone", label: "Best phone number", type: "text" },
+              { key: "location", label: "Location / venue", type: "text" },
+              { key: "eventName", label: "Event or session title", type: "text" },
+              { key: "goals", label: "Goals for this session", type: "textarea" },
+              { key: "additionalNotes", label: "Anything else I should know", type: "textarea" },
+            ]
+          : [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -5557,6 +5662,9 @@ function TemplatesTab({ templates, setTemplates }) {
         </Btn>
         <Btn variant={mode === "email" ? "secondary" : "ghost"} small onClick={() => setMode("email")}>
           Email templates
+        </Btn>
+        <Btn variant={mode === "questionnaire" ? "secondary" : "ghost"} small onClick={() => setMode("questionnaire")}>
+          Questionnaire templates
         </Btn>
       </div>
 
@@ -5659,7 +5767,7 @@ function TemplatesTab({ templates, setTemplates }) {
                   onClick={() => setEditing({ ...tpl })}
                 >
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
-                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
+                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : tpl.type === "questionnaire" ? "📝 " : ""}
                     {tpl.name}
                   </div>
                   <div style={{ fontSize: 11, color: LT.muted, marginBottom: 8 }}>
@@ -5670,8 +5778,13 @@ function TemplatesTab({ templates, setTemplates }) {
                       Subject: {tpl.subject}
                     </div>
                   ) : null}
+                  {tpl.type === "questionnaire" && Array.isArray(tpl.fields) && tpl.fields.length > 0 ? (
+                    <div style={{ fontSize: 11, color: LT.dim, marginBottom: 8 }}>
+                      {tpl.fields.length} intake field{tpl.fields.length !== 1 ? "s" : ""}
+                    </div>
+                  ) : null}
                   <Pill color={LT.brand} bg={LT.brandBg}>
-                    {tpl.action || (mode === "file" ? "Contract" : "Send")}
+                    {tpl.action || (mode === "file" ? "Contract" : mode === "email" ? "Send" : "Collect")}
                   </Pill>
                 </div>
               ))}
@@ -5693,12 +5806,16 @@ function TemplatesTab({ templates, setTemplates }) {
                   }}
                 >
                   <div style={{ fontSize: 13, fontWeight: 600 }}>
-                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : ""}
+                    {templateIcons[tpl.name] ? `${templateIcons[tpl.name]} ` : tpl.type === "questionnaire" ? "📝 " : ""}
                     {tpl.name}
                   </div>
                   <div style={{ fontSize: 12, color: LT.dim }}>{tpl.action}</div>
                   <div style={{ fontSize: 12, color: LT.dim }}>
-                    {tpl.type === "email" && tpl.subject ? tpl.subject : tpl.folder}
+                    {tpl.type === "email" && tpl.subject
+                      ? tpl.subject
+                      : tpl.type === "questionnaire" && Array.isArray(tpl.fields)
+                        ? `${tpl.fields.length} fields`
+                        : tpl.folder}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
                     <Btn variant="ghost" small onClick={() => setEditing({ ...tpl })}>
@@ -5774,6 +5891,27 @@ function TemplatesTab({ templates, setTemplates }) {
               label="Email Subject"
               value={editing.subject || ""}
               onChange={(e) => setEditing((p) => ({ ...p, subject: e.target.value }))}
+            />
+          )}
+          {editing.type === "questionnaire" && (
+            <InputField
+              label="Questionnaire Fields"
+              value={(editing.fields || []).map((field) => field.label).join(", ")}
+              onChange={(e) =>
+                setEditing((p) => ({
+                  ...p,
+                  fields: e.target.value
+                    .split(",")
+                    .map((label) => label.trim())
+                    .filter(Boolean)
+                    .map((label, index) => ({
+                      key: `field_${index + 1}`,
+                      label,
+                      type: index >= 3 ? "textarea" : "text",
+                    })),
+                }))
+              }
+              placeholder="Phone, Venue, Goals, Styling Notes"
             />
           )}
           <InputField
@@ -7869,6 +8007,8 @@ export default function NSPBusinessSuite() {
             payments={payments}
             contracts={contracts}
             workspaceRows={workspaceRows}
+            workspaceId={workspaceId}
+            onNavigate={goToTab}
             settings={settings}
             counters={counters}
             setCounters={setCounters}
