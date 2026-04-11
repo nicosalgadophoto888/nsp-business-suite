@@ -3822,8 +3822,8 @@ function QuotesTab({
                     Email Approval
                   </Btn>
                   {q.status !== "Accepted" && (
-                    <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
-                      Mark Accepted
+                    <Btn variant="gold" small onClick={() => markQuoteAccepted(q.id)}>
+                      Manual Book & Accept
                     </Btn>
                   )}
                   <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
@@ -4671,7 +4671,7 @@ function FinancialsTab({ payments, setPayments, quotes, lead, settings }) {
                         </Btn>
                       )}
                       {inv.status === "Draft" && <Btn variant="ghost" small onClick={() => markSent(inv.id)}>Send</Btn>}
-                      {inv.balanceDue > 0 && <Btn small onClick={() => startRecordPayment(inv)}>+ Payment</Btn>}
+                      {inv.balanceDue > 0 && <Btn variant="gold" small onClick={() => startRecordPayment(inv)}>Record Payment Received</Btn>}
                       <Btn variant="ghost" small onClick={() => printInvoice(inv)}>PDF</Btn>
                       <Btn variant="ghost" small onClick={() => startEdit(inv)}>Edit</Btn>
                       <Btn variant="danger" small onClick={() => deleteInvoice(inv.id)}>✕</Btn>
@@ -5487,6 +5487,9 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
                     <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
                       {emailSending === c.id ? "..." : "✉ Email"}
                     </Btn>
+                    {c.status !== "Signed" && (
+                      <Btn variant="gold" small onClick={() => updateStatus(c.id, "Signed")}>Mark Signed</Btn>
+                    )}
                     <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
                     <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
                   </div>
