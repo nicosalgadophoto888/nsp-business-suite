@@ -46,6 +46,10 @@ const TABS = [
 ];
 
 const WORKSPACE_TABLE = "crm_workspaces";
+const CLIENTS_TABLE = "clients";
+const QUOTES_TABLE = "quotes";
+const SESSIONS_TABLE = "sessions";
+const TEMPLATES_TABLE = "templates";
 
 const DEFAULT_SETTINGS = {
   businessName: "Nico Salgado Photography",
@@ -713,6 +717,18 @@ function toDateInputValue(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
   return parsed.toISOString().slice(0, 10);
+}
+
+function isoDateOrNull(value) {
+  const dateValue = toDateInputValue(value);
+  return dateValue || null;
+}
+
+function makeExternalId(...parts) {
+  return parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(":");
 }
 
 function toImportedNumber(value) {
@@ -7224,6 +7240,165 @@ export default function NSPBusinessSuite() {
 
     return () => clearTimeout(timeout);
   }, [workspaceSnapshot, workspaceId, workspaceLoading]);
+
+  useEffect(() => {
+    if (workspaceLoading || !workspaceId) return;
+
+    const timeout = setTimeout(async () => {
+      try {
+        const clientName = String(lead?.name || "").trim();
+        const clientEmail = String(lead?.email || "").trim();
+
+        await supabase.from(CLIENTS_TABLE).upsert(
+          {
+            id: workspaceId,
+            workspace_id: workspaceId,
+            name: clientName,
+            email: clientEmail,
+            phone: String(lead?.phone || "").trim(),
+            type: String(lead?.type || "").trim(),
+            stage: String(lead?.stage || "Lead").trim() || "Lead",
+            event_date: isoDateOrNull(lead?.eventDate),
+            inquired_on: isoDateOrNull(lead?.inquiredOn),
+            location: String(lead?.location || "").trim(),
+            referral_source: String(lead?.referralSource || "").trim(),
+            notes: String(lead?.notes || "").trim(),
+            total_revenue: Number(lead?.revenue || 0),
+            balance_due: Number(lead?.balance || 0),
+          },
+          { onConflict: "id" }
+        );
+
+        const templateRows = (templates || []).map((tpl) => ({
+          external_id: makeExternalId("template", tpl.id || genId("tpl")),
+          name: String(tpl.name || "").trim(),
+          category: String(tpl.category || "").trim(),
+          action: String(tpl.action || "").trim(),
+          type: String(tpl.type || "file").trim(),
+          subject: String(tpl.subject || "").trim(),
+          content: String(tpl.content || "").trim(),
+          folder: String(tpl.folder || "My Templates").trim(),
+          template_kind: inferTemplateKind(tpl),
+          is_active: true,
+        }));
+        if (templateRows.length) {
+          await supabase.from(TEMPLATES_TABLE).upsert(templateRows, { onConflict: "external_id" });
+        }
+
+        const quoteRows = (quotes || []).map((q) => {
+          const totals = calcQuoteTotals(q);
+          return {
+            external_id: makeExternalId("quote", workspaceId, q.id || q.quoteNumberLabel || genId("q")),
+            client_id: workspaceId,
+            quote_number: Number(q.quoteNumber || 0) || null,
+            quote_number_label: String(q.quoteNumberLabel || "").trim(),
+            status: String(q.status || "Draft").trim() || "Draft",
+            client_name: String(q.clientName || clientName).trim(),
+            client_email: String(q.clientEmail || clientEmail).trim(),
+            event_name: String(q.eventName || "").trim(),
+            event_date: isoDateOrNull(q.eventDate),
+            introduction: String(q.introduction || "").trim(),
+            expiration: isoDateOrNull(q.expiration),
+            notes: String(q.notes || "").trim(),
+            promo_code: String(q.promoCode || "").trim(),
+            discount_type: String(q.discountType || "amount").trim(),
+            discount_value: Number(q.discountValue || 0),
+            subtotal: Number(totals.subtotal || 0),
+            discount_amount: Number(totals.discountAmount || 0),
+            total_amount: Number(totals.total || 0),
+            payment_schedule: String(q.paymentSchedule || "").trim(),
+            questionnaire: String(q.questionnaire || "").trim(),
+            contract_template: String(q.contractTemplate || "").trim(),
+            raw: q,
+          };
+        });
+
+        if (quoteRows.length) {
+          const { data: upsertedQuotes } = await supabase
+            .from(QUOTES_TABLE)
+            .upsert(quoteRows, { onConflict: "external_id" })
+            .select("id, external_id, status, quote_number_label, event_name, event_date, total_amount");
+
+          const externalIds = quoteRows.map((row) => row.external_id);
+          const { data: existingQuotes } = await supabase
+            .from(QUOTES_TABLE)
+            .select("id, external_id")
+            .eq("client_id", workspaceId);
+          const staleQuoteIds = (existingQuotes || [])
+            .filter((row) => !externalIds.includes(row.external_id))
+            .map((row) => row.id);
+          if (staleQuoteIds.length) {
+            await supabase.from(QUOTES_TABLE).delete().in("id", staleQuoteIds);
+          }
+
+          const acceptedQuotes = (upsertedQuotes || []).filter((q) => q.status === "Accepted");
+          if (acceptedQuotes.length) {
+            const acceptedIds = acceptedQuotes.map((q) => q.id);
+            const { data: existingInvoices } = await supabase
+              .from("invoices")
+              .select("quote_id")
+              .eq("client_id", workspaceId)
+              .in("quote_id", acceptedIds);
+            const existingSet = new Set((existingInvoices || []).map((inv) => String(inv.quote_id)));
+            const missing = acceptedQuotes.filter((q) => !existingSet.has(String(q.id)));
+            if (missing.length) {
+              const invoiceRows = missing.map((q, idx) => ({
+                title: q.event_name || "Accepted Quote",
+                invoice_number: `INV-${Date.now()}-${idx + 1}`,
+                client_name: clientName,
+                client_email: clientEmail,
+                total_amount: Number(q.total_amount || 0),
+                amount: Number(q.total_amount || 0),
+                amount_paid: 0,
+                balance_due: Number(q.total_amount || 0),
+                status: "Draft",
+                issued_on: new Date().toISOString().slice(0, 10),
+                lead_id: lead?.id || null,
+                client_id: workspaceId,
+                quote_id: q.id,
+              }));
+              await supabase.from("invoices").insert(invoiceRows);
+            }
+          }
+        } else {
+          await supabase.from(QUOTES_TABLE).delete().eq("client_id", workspaceId);
+        }
+
+        const sessionRows = (schedule || []).map((session) => ({
+          external_id: makeExternalId("session", workspaceId, session.id || genId("s")),
+          client_id: workspaceId,
+          title: String(session.title || "").trim(),
+          session_date: isoDateOrNull(session.date),
+          session_time: String(session.time || "").trim(),
+          end_time: String(session.endTime || "").trim(),
+          location: String(session.location || "").trim(),
+          status: String(session.status || "Tentative").trim(),
+          notes: String(session.notes || "").trim(),
+        }));
+
+        if (sessionRows.length) {
+          await supabase.from(SESSIONS_TABLE).upsert(sessionRows, { onConflict: "external_id" });
+          const externalIds = sessionRows.map((row) => row.external_id);
+          const { data: existingSessions } = await supabase
+            .from(SESSIONS_TABLE)
+            .select("id, external_id")
+            .eq("client_id", workspaceId);
+          const staleSessionIds = (existingSessions || [])
+            .filter((row) => !externalIds.includes(row.external_id))
+            .map((row) => row.id);
+          if (staleSessionIds.length) {
+            await supabase.from(SESSIONS_TABLE).delete().in("id", staleSessionIds);
+          }
+        } else {
+          await supabase.from(SESSIONS_TABLE).delete().eq("client_id", workspaceId);
+        }
+      } catch (err) {
+        console.error("Failed to sync relational CRM tables:", err);
+      }
+    }, 700);
+
+    return () => clearTimeout(timeout);
+  }, [workspaceLoading, workspaceId, lead, quotes, schedule, templates]);
 
   useEffect(() => {
     const applyApprovedQuote = (row) => {
