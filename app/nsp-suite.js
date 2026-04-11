@@ -2155,6 +2155,7 @@ function QuotesTab({
   templates,
   payments,
   contracts,
+  setContracts,
   workspaceRows,
   workspaceId,
   onNavigate,
@@ -2698,13 +2699,150 @@ function QuotesTab({
     if (ok) setBuilding(null);
   };
 
-  const markQuoteAccepted = (quoteId) => {
+  const markQuoteAccepted = async (quoteId) => {
+    const acceptedQuote = quotes.find((q) => q.id === quoteId);
+    if (!acceptedQuote) return;
+
+    // 1. Update quote status
     const nextQuotes = quotes.map((q) =>
       q.id === quoteId ? { ...q, status: "Accepted", updatedAt: new Date().toISOString() } : q
     );
     setQuotes(nextQuotes);
     recalcLeadNumbers(nextQuotes);
-    setQuoteNotice({ type: "success", message: "Quote marked as accepted." });
+
+    // 2. Auto-advance lead stage to Booked
+    setLead((prev) => ({ ...prev, stage: "Booked" }));
+
+    const summaryParts = ["Quote accepted", "Stage → Booked"];
+    const totals = calcQuoteTotals(acceptedQuote);
+
+    // 3. Auto-generate contract from Booking Process template
+    if (acceptedQuote.contractTemplateId || acceptedQuote.contractTemplate) {
+      try {
+        const contractId = genUuid();
+        const newContract = {
+          id: contractId,
+          templateId: acceptedQuote.contractTemplateId || null,
+          title: acceptedQuote.contractTemplate || "Photography Agreement",
+          clientName: acceptedQuote.clientName || lead.name || "",
+          clientEmail: acceptedQuote.clientEmail || lead.email || "",
+          sessionType: acceptedQuote.eventName || lead.type || "",
+          sessionDate: acceptedQuote.eventDate || lead.eventDate || "",
+          location: lead.location || "",
+          packageName: (acceptedQuote.sections || [])[0]?.packageName || "",
+          totalAmount: totals.total,
+          status: "Draft",
+          sentOn: "",
+          signedOn: "",
+          signer: acceptedQuote.clientName || lead.name || "",
+          version: "v1",
+          body: "",
+          leadId: lead.id?.toString() || null,
+          type: "contract",
+        };
+        const dbRow = {
+          id: contractId,
+          template_id: newContract.templateId,
+          title: newContract.title,
+          client_name: newContract.clientName,
+          client_email: newContract.clientEmail,
+          session_type: newContract.sessionType,
+          session_date: newContract.sessionDate || null,
+          location: newContract.location,
+          package_name: newContract.packageName,
+          total_amount: newContract.totalAmount,
+          status: "Draft",
+          signer: newContract.signer,
+          version: "v1",
+          body: "",
+          lead_id: newContract.leadId,
+        };
+        const { data: savedContract } = await supabase.from("contracts").insert(dbRow).select().single();
+        if (savedContract) {
+          setContracts((prev) => [{
+            ...newContract,
+            id: savedContract.id,
+          }, ...prev]);
+        } else {
+          setContracts((prev) => [newContract, ...prev]);
+        }
+        summaryParts.push("Contract drafted");
+      } catch (err) {
+        console.error("Auto-create contract failed:", err);
+      }
+    }
+
+    // 4. Auto-generate invoice from Booking Process payment schedule
+    if (acceptedQuote.paymentSchedule) {
+      try {
+        const matchedSchedule = (payments || []).find(
+          (p) => p.name === acceptedQuote.paymentSchedule
+        );
+        const total = totals.total;
+        let invoiceAmount = total;
+        let invoiceTitle = "Full Balance";
+        let invoiceType = "full";
+
+        if (matchedSchedule) {
+          const pct = Number(matchedSchedule.initialPayment || 0);
+          if (matchedSchedule.initialType === "Percent of Order" && pct > 0 && pct < 100) {
+            invoiceAmount = Math.round(total * (pct / 100) * 100) / 100;
+            invoiceTitle = `Retainer (${pct}%)`;
+            invoiceType = "retainer";
+          } else if (matchedSchedule.initialType === "Fixed amount" && pct > 0) {
+            invoiceAmount = pct;
+            invoiceTitle = `Retainer ($${pct})`;
+            invoiceType = "retainer";
+          }
+        }
+
+        // Find next invoice number
+        const { data: existingInvs } = await supabase
+          .from("invoices")
+          .select("invoice_number")
+          .order("created_at", { ascending: false })
+          .limit(1);
+        let nextNum = 1;
+        if (existingInvs?.length) {
+          const match = (existingInvs[0].invoice_number || "").match(/(\d+)/);
+          if (match) nextNum = parseInt(match[1]) + 1;
+        }
+        const invoiceNumber = `INV-${String(nextNum).padStart(3, "0")}`;
+
+        const invoiceId = genUuid();
+        const dbInvoice = {
+          id: invoiceId,
+          invoice_number: invoiceNumber,
+          title: invoiceTitle,
+          client_name: acceptedQuote.clientName || lead.name || "",
+          client_email: acceptedQuote.clientEmail || lead.email || "",
+          session_type: acceptedQuote.eventName || lead.type || "",
+          session_date: acceptedQuote.eventDate || lead.eventDate || null,
+          package_name: (acceptedQuote.sections || [])[0]?.packageName || "",
+          subtotal: total,
+          discount_amount: 0,
+          total_amount: invoiceAmount,
+          amount: invoiceAmount,
+          amount_paid: 0,
+          balance_due: invoiceAmount,
+          status: "Draft",
+          due_date: null,
+          invoice_type: invoiceType,
+          payment_method: "square",
+          square_link: "",
+          notes: `Auto-generated from quote ${acceptedQuote.quoteNumberLabel || ""}`,
+          issued_on: new Date().toISOString().split("T")[0],
+          lead_id: lead.id?.toString() || null,
+          quote_id: acceptedQuote.id || null,
+        };
+        await supabase.from("invoices").insert(dbInvoice);
+        summaryParts.push(`${invoiceTitle} invoice created (${invoiceNumber})`);
+      } catch (err) {
+        console.error("Auto-create invoice failed:", err);
+      }
+    }
+
+    setQuoteNotice({ type: "success", message: "✓ " + summaryParts.join(" → ") });
   };
 
   const deleteQuote = (id) => {
@@ -3628,15 +3766,16 @@ function QuotesTab({
                   background: G.card,
                   border: `1px solid ${G.border}`,
                   borderRadius: 10,
+                  cursor: "pointer",
                 }}
+                onClick={() => setPreviewQuote(q)}
               >
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 600 }}>
-                    {q.clientName || "Untitled"}
+                    {q.quoteNumberLabel || "Quote"} {q.eventName ? `— ${q.eventName}` : ""}
                   </div>
                   <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
-                    {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
-                    {fmtShort(q.createdAt)}
+                    For {q.clientName || "Untitled Client"} · {fmtShort(q.createdAt)}
                   </div>
                   <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
                     {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
@@ -3659,7 +3798,7 @@ function QuotesTab({
                   {fmt$(total)}
                 </div>
 
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
                   <Btn
                     variant="ghost"
                     small
@@ -7158,6 +7297,14 @@ export default function NSPBusinessSuite() {
   const [emailActivity, setEmailActivity] = useState(initial.emailActivity || []);
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
+
+  useEffect(() => {
+    if (screen === "dashboard") {
+      document.title = "Leads Dashboard | NSP Business Suite";
+    } else if (lead?.name) {
+      document.title = `${lead.name} | NSP Business Suite`;
+    }
+  }, [screen, lead?.name]);
 
   const applyWorkspaceSnapshot = (snapshot, nextWorkspaceId = null) => {
     const normalized = normalizeWorkspaceSnapshot(snapshot);
