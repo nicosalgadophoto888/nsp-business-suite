@@ -825,7 +825,12 @@ function genUuid() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  return genId("uuid");
+  // Fallback for non-secure contexts or older browsers
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 function isUuid(value) {
@@ -4127,16 +4132,24 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings 
   };
 
   const saveInvoice = async () => {
-    const dbRow = invoiceToDb(form);
-    const existing = invoices.find(i => i.id === form.id);
-    if (existing && isUuid(form.id)) {
-      await supabase.from("invoices").update(dbRow).eq("id", form.id);
-      setInvoices(prev => prev.map(i => i.id === form.id ? { ...form } : i));
-    } else {
-      const { data } = await supabase.from("invoices").insert(dbRow).select().single();
-      setInvoices(prev => [dbToInvoice(data || dbRow), ...prev]);
+    try {
+      const dbRow = invoiceToDb(form);
+      const existing = invoices.find(i => i.id === form.id);
+      if (existing && isUuid(form.id)) {
+        const { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+        if (error) throw error;
+        setInvoices(prev => prev.map(i => i.id === form.id ? { ...form } : i));
+      } else {
+        const { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
+        if (error) throw error;
+        setInvoices(prev => [dbToInvoice(data || dbRow), ...prev]);
+      }
+      setToast({ type: "success", message: "Invoice saved" });
+      setView("list"); setForm({}); setActiveInvoice(null);
+    } catch (err) {
+      console.error("Save invoice failed:", err);
+      setToast({ type: "error", message: `Could not save invoice: ${err.message || "Database error"}` });
     }
-    setView("list"); setForm({}); setActiveInvoice(null);
   };
 
   const deleteInvoice = async (id) => {
@@ -4179,34 +4192,43 @@ function FinancialsTab({ payments, setPayments, quotes, lead, setLead, settings 
   };
 
   const savePayment = async () => {
-    const paymentRow = {
-      id: genUuid(), invoice_id: activeInvoice.id,
-      amount: Number(payForm.amount) || 0, method: payForm.method,
-      reference: payForm.reference, note: payForm.note,
-      paid_on: payForm.paidOn,
-    };
-    if (isUuid(activeInvoice.id)) {
-      await supabase.from("payments").insert(paymentRow);
-    }
-    setPaymentRecords(prev => [paymentRow, ...prev]);
+    try {
+      const paymentId = genUuid();
+      const paymentRow = {
+        id: paymentId, invoice_id: activeInvoice.id,
+        amount: Number(payForm.amount) || 0, method: payForm.method,
+        reference: payForm.reference, note: payForm.note,
+        paid_on: payForm.paidOn,
+      };
+      if (isUuid(activeInvoice.id)) {
+        const { error: piErr } = await supabase.from("payments").insert(paymentRow);
+        if (piErr) throw piErr;
+      }
+      setPaymentRecords(prev => [paymentRow, ...prev]);
 
-    // Update invoice
-    const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
-    const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
-    const newStatus = newBalance <= 0 ? "Paid" : "Partial";
-    if (isUuid(activeInvoice.id)) {
-      await supabase
-        .from("invoices")
-        .update({
-          amount_paid: newPaid,
-          balance_due: newBalance,
-          status: newStatus,
-        })
-        .eq("id", activeInvoice.id);
-    }
-    setInvoices(prev => prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i));
+      // Update invoice
+      const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
+      const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
+      const newStatus = newBalance <= 0 ? "Paid" : "Partial";
+      if (isUuid(activeInvoice.id)) {
+        const { error: iuErr } = await supabase
+          .from("invoices")
+          .update({
+            amount_paid: newPaid,
+            balance_due: newBalance,
+            status: newStatus,
+          })
+          .eq("id", activeInvoice.id);
+        if (iuErr) throw iuErr;
+      }
+      setInvoices(prev => prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i));
 
-    setView("list"); setPayForm({}); setActiveInvoice(null);
+      setToast({ type: "success", message: "Payment recorded" });
+      setView("list"); setPayForm({}); setActiveInvoice(null);
+    } catch (err) {
+      console.error("Save payment failed:", err);
+      setToast({ type: "error", message: `Could not record payment: ${err.message || "Database error"}` });
+    }
   };
 
   // ── Invoice PDF ──
@@ -5008,6 +5030,7 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   const [rTemplates, setRTemplates] = useState(RELEASE_TEMPLATES);
   const [showMergePanel, setShowMergePanel] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
   const bodyRef = React.useRef(null);
 
   // ── Load from Supabase on mount ──
@@ -5133,20 +5156,28 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   };
 
   const saveForm = async () => {
-    const table = isReleases ? "model_releases" : "contracts";
-    const toDb = isReleases ? releaseToDb : contractToDb;
-    const existing = items.find(i => i.id === form.id);
-    const dbRow = toDb(form);
+    try {
+      const table = isReleases ? "model_releases" : "contracts";
+      const toDb = isReleases ? releaseToDb : contractToDb;
+      const existing = items.find(i => i.id === form.id);
+      const dbRow = toDb(form);
 
-    if (existing) {
-      await supabase.from(table).update(dbRow).eq("id", form.id);
-      setItems(prev => prev.map(i => i.id === form.id ? { ...form } : i));
-    } else {
-      const { data } = await supabase.from(table).insert(dbRow).select().single();
-      const mapped = isReleases ? dbToRelease(data || dbRow) : dbToContract(data || dbRow);
-      setItems(prev => [mapped, ...prev]);
+      if (existing && isUuid(form.id)) {
+        const { error } = await supabase.from(table).update(dbRow).eq("id", form.id);
+        if (error) throw error;
+        setItems(prev => prev.map(i => i.id === form.id ? { ...form } : i));
+      } else {
+        const { data, error } = await supabase.from(table).insert(dbRow).select().single();
+        if (error) throw error;
+        const mapped = isReleases ? dbToRelease(data || dbRow) : dbToContract(data || dbRow);
+        setItems(prev => [mapped, ...prev]);
+      }
+      setToast({ type: "success", message: `${isReleases ? "Release" : "Contract"} saved` });
+      setView("list"); setForm({}); setActiveItem(null);
+    } catch (err) {
+      console.error("Save form failed:", err);
+      setToast({ type: "error", message: `Could not save: ${err.message || "Database error"}` });
     }
-    setView("list"); setForm({}); setActiveItem(null);
   };
 
   const deleteItem = async (id) => {
@@ -5190,16 +5221,26 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   };
 
   const saveTemplate = async () => {
-    const table = isReleases ? "release_templates" : "contract_templates";
-    const existing = templates.find(t => t.id === templateForm.id);
-    if (existing) {
-      await supabase.from(table).update({ name: templateForm.name, category: templateForm.category, body: templateForm.body, updated_at: new Date().toISOString() }).eq("id", templateForm.id);
-      setTemplatesState(prev => prev.map(t => t.id === templateForm.id ? { ...templateForm } : t));
-    } else {
-      const { data } = await supabase.from(table).insert({ id: templateForm.id, name: templateForm.name, category: templateForm.category, body: templateForm.body }).select().single();
-      setTemplatesState(prev => [data || templateForm, ...prev]);
+    try {
+      const table = isReleases ? "release_templates" : "contract_templates";
+      const dbRow = { id: templateForm.id, name: templateForm.name, category: templateForm.category, body: templateForm.body };
+      const existing = templates.find(t => t.id === templateForm.id);
+
+      if (existing && isUuid(templateForm.id)) {
+        const { error } = await supabase.from(table).update({ ...dbRow, updated_at: new Date().toISOString() }).eq("id", templateForm.id);
+        if (error) throw error;
+        setTemplatesState(prev => prev.map(t => t.id === templateForm.id ? { ...templateForm, updatedAt: new Date().toISOString() } : t));
+      } else {
+        const { data, error } = await supabase.from(table).insert(dbRow).select().single();
+        if (error) throw error;
+        setTemplatesState(prev => [data || templateForm, ...prev]);
+      }
+      setToast({ type: "success", message: "Template saved" });
+      setView("list"); setTemplateForm({});
+    } catch (err) {
+      console.error("Save template failed:", err);
+      setToast({ type: "error", message: `Could not save template: ${err.message || "Database error"}` });
     }
-    setView("list"); setTemplateForm({});
   };
 
   const deleteTemplate = async (id) => {
@@ -5536,6 +5577,18 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   if (view === "create" || view === "edit") {
     return (
       <Card>
+        {toast && toast.message && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 16,
+            background: toast.type === "success" ? G.greenBg : G.redBg,
+            color: toast.type === "success" ? G.green : G.red,
+            border: `1px solid ${toast.type === "success" ? G.green : G.red}33`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <span>{toast.type === "success" ? "✓ " : "✕ "}{toast.message}</span>
+            <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}>
           <Btn variant="ghost" small onClick={() => { setView("list"); setForm({}); setActiveItem(null); }}>
             ← Back to {itemLabel}s
@@ -5618,6 +5671,18 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
 
     return (
       <Card>
+        {toast && toast.message && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 16,
+            background: toast.type === "success" ? G.greenBg : G.redBg,
+            color: toast.type === "success" ? G.green : G.red,
+            border: `1px solid ${toast.type === "success" ? G.green : G.red}33`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <span>{toast.type === "success" ? "✓ " : "✕ "}{toast.message}</span>
+            <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <Btn variant="ghost" small onClick={() => { setView("list"); setActiveItem(null); }}>← Back</Btn>
           <div style={{ display: "flex", gap: 6 }}>
@@ -5662,6 +5727,18 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   if (view === "templateEdit") {
     return (
       <Card>
+        {toast && toast.message && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 16,
+            background: toast.type === "success" ? G.greenBg : G.redBg,
+            color: toast.type === "success" ? G.green : G.red,
+            border: `1px solid ${toast.type === "success" ? G.green : G.red}33`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <span>{toast.type === "success" ? "✓ " : "✕ "}{toast.message}</span>
+            <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
+          </div>
+        )}
         <div style={{ marginBottom: 16 }}>
           <Btn variant="ghost" small onClick={() => { setView("list"); setTemplateForm({}); }}>← Back to Templates</Btn>
         </div>
@@ -5813,6 +5890,18 @@ function TemplatesTab({ templates, setTemplates }) {
         color: LT.text,
       }}
     >
+      {toast && toast.message && (
+        <div style={{
+          padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, marginBottom: 16,
+          background: toast.type === "success" ? G.greenBg : G.redBg,
+          color: toast.type === "success" ? G.green : G.red,
+          border: `1px solid ${toast.type === "success" ? G.green : G.red}33`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <span>{toast.type === "success" ? "✓ " : "✕ "}{toast.message}</span>
+          <button onClick={() => setToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
+        </div>
+      )}
       <SectionLabel
         actions={
           <div style={{ display: "flex", gap: 8 }}>
