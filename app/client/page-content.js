@@ -29,37 +29,95 @@ export default function ClientPageContent() {
   const [tokenResolved, setTokenResolved] = useState(null);
   const [approveBusy, setApproveBusy] = useState(false);
   const [approveNotice, setApproveNotice] = useState(null);
-  const [showAdminNav, setShowAdminNav] = useState(false);
+  const showAdminNav = params.get("admin") === "1";
 
   useEffect(() => {
-    if (payload?.document) return;
-    const legacyType = params.get("type");
-    const legacyId = params.get("id");
-    if (!legacyType || !legacyId) return;
+    let canceled = false;
+    async function loadLegacyDoc() {
+      if (payload?.document) return;
+      const legacyType = params.get("type");
+      const legacyId = params.get("id");
+      if (!legacyType || !legacyId) {
+        setLegacyResolved(null);
+        return;
+      }
 
-    try {
-      const raw = window.localStorage.getItem("nsp_lead_detail_v2");
-      if (!raw) return;
-      const state = JSON.parse(raw);
-
-      if (legacyType === "contract") {
-        const contract = (state?.contracts || []).find((c) => String(c.id) === String(legacyId));
-        if (contract) {
+      try {
+        if (legacyType === "contract") {
+          const { data, error } = await supabase
+            .from("contracts")
+            .select("*")
+            .eq("id", legacyId)
+            .single();
+          if (canceled || error || !data) return;
           setLegacyResolved({
             type: "contract",
             document: {
-              title: contract.title || "",
-              clientName: contract.signer || "",
-              sessionType: contract.sessionType || "",
-              version: contract.version || "v1",
-              body: contract.body || "Contract body unavailable in this link.",
+              title: data.title || "",
+              clientName: data.client_name || data.signer || "",
+              sessionType: data.session_type || "",
+              version: data.version || "v1",
+              body: data.body || "Contract body unavailable in this link.",
+            },
+          });
+          return;
+        }
+
+        if (legacyType === "release") {
+          const { data, error } = await supabase
+            .from("model_releases")
+            .select("*")
+            .eq("id", legacyId)
+            .single();
+          if (canceled || error || !data) return;
+          setLegacyResolved({
+            type: "release",
+            document: {
+              title: data.title || "",
+              clientName: data.client_name || data.signer || "",
+              sessionType: data.session_type || "",
+              version: data.version || "v1",
+              body: data.body || "Release body unavailable in this link.",
+            },
+          });
+          return;
+        }
+
+        if (legacyType === "invoice") {
+          const { data, error } = await supabase
+            .from("invoices")
+            .select("*")
+            .eq("id", legacyId)
+            .single();
+          if (canceled || error || !data) return;
+          setLegacyResolved({
+            type: "invoice",
+            document: {
+              invoiceNumber: data.invoice_number || "",
+              title: data.title || "",
+              clientName: data.client_name || "",
+              sessionType: data.session_type || "",
+              packageName: data.package_name || "",
+              sessionDate: data.session_date || "",
+              totalAmount: Number(data.total_amount || data.amount || 0),
+              amountPaid: Number(data.amount_paid || 0),
+              balanceDue: Number(data.balance_due || 0),
+              dueDate: data.due_date || "",
+              notes: data.notes || "",
+              paymentMethod: data.payment_method || "",
+              squareLink: data.square_link || "",
             },
           });
         }
+      } catch {
+        if (!canceled) setLegacyResolved(null);
       }
-    } catch {
-      setLegacyResolved(null);
     }
+
+    loadLegacyDoc();
+    return () => {
+      canceled = true;
+    };
   }, [params, payload]);
 
   useEffect(() => {
@@ -93,14 +151,6 @@ export default function ClientPageContent() {
       canceled = true;
     };
   }, [token]);
-
-  useEffect(() => {
-    try {
-      setShowAdminNav(Boolean(window.localStorage.getItem("nsp_lead_detail_v2")));
-    } catch {
-      setShowAdminNav(false);
-    }
-  }, []);
 
   const resolved = tokenResolved?.document
     ? tokenResolved
