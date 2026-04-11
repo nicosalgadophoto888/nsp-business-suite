@@ -3767,6 +3767,7 @@ function FinancialsTab({
     String(errorLike?.message || errorLike || "")
       .toLowerCase()
       .includes("could not find the 'client_id' column of 'invoices'");
+  const hasDbInvoiceId = (value) => value !== null && value !== undefined && value !== "";
 
   const isCurrentClientInvoice = React.useCallback(
     (invoice) => {
@@ -3821,7 +3822,7 @@ function FinancialsTab({
       const data = await parseApiResponse(res, "Failed to generate link");
 
       // Save link to invoice in Supabase only when id is UUID-shaped.
-      if (isUuid(inv.id)) {
+      if (hasDbInvoiceId(inv.id)) {
         await supabase.from("invoices").update({ square_link: data.url }).eq("id", inv.id);
       }
       setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, squareLink: data.url } : i));
@@ -3913,7 +3914,7 @@ function FinancialsTab({
 
       // Mark as sent
       if (inv.status === "Draft") {
-        if (isUuid(inv.id)) {
+        if (hasDbInvoiceId(inv.id)) {
           await supabase
             .from("invoices")
             .update({ status: "Sent", issued_on: new Date().toISOString().split("T")[0] })
@@ -4032,6 +4033,9 @@ function FinancialsTab({
     if (!supportsInvoiceClientId) {
       delete row.client_id;
     }
+    if (!hasDbInvoiceId(item.id)) {
+      delete row.id;
+    }
     return row;
   }
 
@@ -4084,7 +4088,7 @@ function FinancialsTab({
     const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
 
     setForm({
-      id: genUuid(), invoiceNumber: nextInvNum,
+      id: null, invoiceNumber: nextInvNum,
       title: isRetainer ? "Retainer (50%)" : "Full Balance",
       clientName: lead?.name || "", clientEmail: lead?.email || "",
       sessionType: sourceQuote?.eventName || lead?.type || "",
@@ -4119,12 +4123,13 @@ function FinancialsTab({
   const saveInvoice = async () => {
     try {
       const dbRow = invoiceToDb(form);
-      const existing = invoices.find(i => i.id === form.id);
-      if (existing && isUuid(form.id)) {
-        let { error } = await supabase.from("invoices").update(dbRow).eq("id", form.id);
+      const existing = invoices.find(i => String(i.id) === String(form.id));
+      if (existing && hasDbInvoiceId(form.id)) {
+        const { id: _rowId, ...updatePayload } = dbRow;
+        let { error } = await supabase.from("invoices").update(updatePayload).eq("id", form.id);
         if (error && isMissingInvoiceClientIdError(error)) {
           setSupportsInvoiceClientId(false);
-          const { client_id, ...fallbackRow } = dbRow;
+          const { client_id, ...fallbackRow } = updatePayload;
           ({ error } = await supabase.from("invoices").update(fallbackRow).eq("id", form.id));
         }
         if (error) {
@@ -4137,10 +4142,11 @@ function FinancialsTab({
           return next;
         });
       } else {
-        let { data, error } = await supabase.from("invoices").insert(dbRow).select().single();
+        const { id: _rowId, ...insertPayload } = dbRow;
+        let { data, error } = await supabase.from("invoices").insert(insertPayload).select().single();
         if (error && isMissingInvoiceClientIdError(error)) {
           setSupportsInvoiceClientId(false);
-          const { client_id, ...fallbackRow } = dbRow;
+          const { client_id, ...fallbackRow } = insertPayload;
           ({ data, error } = await supabase.from("invoices").insert(fallbackRow).select().single());
         }
         if (error) {
@@ -4160,7 +4166,7 @@ function FinancialsTab({
   };
 
   const deleteInvoice = async (id) => {
-    if (isUuid(id)) {
+    if (hasDbInvoiceId(id)) {
       await supabase.from("invoices").delete().eq("id", id);
       await supabase.from("payments").delete().eq("invoice_id", id);
     }
@@ -4174,7 +4180,7 @@ function FinancialsTab({
   };
 
   const markSent = async (id) => {
-    if (isUuid(id)) {
+    if (hasDbInvoiceId(id)) {
       await supabase
         .from("invoices")
         .update({ status: "Sent", issued_on: new Date().toISOString().split("T")[0] })
@@ -4196,22 +4202,24 @@ function FinancialsTab({
   const savePayment = async () => {
     try {
       const paymentRow = {
-        id: genUuid(), invoice_id: activeInvoice.id,
+        invoice_id: activeInvoice.id,
         amount: Number(payForm.amount) || 0, method: payForm.method,
         reference: payForm.reference, note: payForm.note,
         paid_on: payForm.paidOn,
       };
-      if (isUuid(activeInvoice.id)) {
-        const { error } = await supabase.from("payments").insert(paymentRow);
+      let savedPaymentRow = paymentRow;
+      if (hasDbInvoiceId(activeInvoice.id)) {
+        const { data, error } = await supabase.from("payments").insert(paymentRow).select().single();
         if (error) throw error;
+        if (data) savedPaymentRow = data;
       }
-      setPaymentRecords(prev => [paymentRow, ...prev]);
+      setPaymentRecords(prev => [savedPaymentRow, ...prev]);
 
       // Update invoice
       const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
       const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
       const newStatus = newBalance <= 0 ? "Paid" : "Partial";
-      if (isUuid(activeInvoice.id)) {
+      if (hasDbInvoiceId(activeInvoice.id)) {
         const { error } = await supabase
           .from("invoices")
           .update({
