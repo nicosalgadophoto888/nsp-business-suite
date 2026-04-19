@@ -1,40 +1,7 @@
-import { Suspense } from "react";
-import ClientPageContent from "./page-content";
+"use client";
 
-function ClientFallback() {
-  return (
-    <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          borderRadius: 12,
-          overflow: "hidden",
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        <div
-          style={{
-            background: "#0e0f11",
-            color: "#d4a853",
-            padding: "22px 28px",
-            fontSize: 34,
-            fontWeight: 800,
-          }}
-        >
-          NSP Suite
-        </div>
-        <div style={{ padding: "28px", color: "#6b7280", fontSize: 16 }}>Loading document...</div>
-      </div>
-    </div>
-  );
-}
+import AuthGate from "./auth-gate";
 
-export default function ClientPage() {
-  return (
-    <Suspense fallback={<ClientFallback />}>
-      <ClientPageContent />
-    </Suspense>
-  );
+export default function Page() {
+  return <AuthGate />;
 }
