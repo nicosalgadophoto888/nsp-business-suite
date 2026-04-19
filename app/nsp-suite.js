@@ -799,26 +799,26 @@ function importedRowToWorkspace(row, templates, settings) {
     },
     schedule: sessionTitle || eventDate
       ? [
-        {
-          id: genId("schedule"),
-          title: sessionTitle || type || "Session",
-          date: eventDate,
-          time: "",
-          endTime: "",
-          location,
-          status: sessionStatus,
-          notes: "",
-        },
-      ]
+          {
+            id: genId("schedule"),
+            title: sessionTitle || type || "Session",
+            date: eventDate,
+            time: "",
+            endTime: "",
+            location,
+            status: sessionStatus,
+            notes: "",
+          },
+        ]
       : [],
     notes: notes
       ? [
-        {
-          id: genId("note"),
-          text: notes,
-          date: new Date().toISOString(),
-        },
-      ]
+          {
+            id: genId("note"),
+            text: notes,
+            date: new Date().toISOString(),
+          },
+        ]
       : [],
     emailActivity: [],
     payments: [],
@@ -905,9 +905,9 @@ const fmtTime = (d) => {
   return Number.isNaN(parsed.getTime())
     ? ""
     : parsed.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
+        hour: "numeric",
+        minute: "2-digit",
+      });
 };
 
 function cleanIncludes(arr) {
@@ -977,22 +977,25 @@ function quoteToPrintableHtml(quote, settings) {
       ? `
         <div style="margin-top:28px;padding:18px 20px;border:1px solid #e5e5e5;border-radius:12px;background:#faf7f2;">
           <div style="font-size:15px;font-weight:700;margin-bottom:10px;">Booking Process</div>
-          ${quote.paymentSchedule
-        ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
-          quote.paymentSchedule
-        )}</div>`
-        : ""
-      }
-          ${quote.questionnaire
-        ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
-          quote.questionnaire
-        )}</div>`
-        : ""
-      }
-          ${contractsList.length
-        ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(contractsList.join(", "))}</div>`
-        : ""
-      }
+          ${
+            quote.paymentSchedule
+              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
+                  quote.paymentSchedule
+                )}</div>`
+              : ""
+          }
+          ${
+            quote.questionnaire
+              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
+                  quote.questionnaire
+                )}</div>`
+              : ""
+          }
+          ${
+            contractsList.length
+              ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(contractsList.join(", "))}</div>`
+              : ""
+          }
         </div>
       `
       : "";
@@ -1013,18 +1016,18 @@ function quoteToPrintableHtml(quote, settings) {
           const qtyText =
             toQty(li.qty) > 1
               ? `<div style="font-size:11px;color:#888;">(${escapeHtml(
-                fmt$(li.price)
-              )} × ${toQty(li.qty)})</div>`
+                  fmt$(li.price)
+                )} × ${toQty(li.qty)})</div>`
               : "";
           return `
             <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #eee;padding-top:10px;margin-top:10px;gap:12px;">
               <div style="font-size:14px;font-weight:700;">${escapeHtml(
-            li.name || "Untitled item"
-          )}</div>
+                li.name || "Untitled item"
+              )}</div>
               <div style="text-align:right;white-space:nowrap;">
                 <div style="font-size:14px;font-weight:700;font-family:monospace;">${escapeHtml(
-            fmt$(lineTotal)
-          )}</div>
+                  fmt$(lineTotal)
+                )}</div>
                 ${qtyText}
               </div>
             </div>
@@ -1034,25 +1037,28 @@ function quoteToPrintableHtml(quote, settings) {
 
       return `
         <div style="margin-bottom:28px;">
-          ${section.packageName
-          ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
+          ${
             section.packageName
-          )}</div>`
-          : ""
-        }
-          ${section.description
-          ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
+              ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
+                  section.packageName
+                )}</div>`
+              : ""
+          }
+          ${
             section.description
-          )}</div>`
-          : ""
-        }
+              ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
+                  section.description
+                )}</div>`
+              : ""
+          }
           ${includesHtml}
-          ${section.notes
-          ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
+          ${
             section.notes
-          )}</div>`
-          : ""
-        }
+              ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
+                  section.notes
+                )}</div>`
+              : ""
+          }
           ${itemsHtml}
         </div>
       `;
@@ -1074,15 +1080,16 @@ function quoteToPrintableHtml(quote, settings) {
         <div style="max-width:800px;margin:0 auto;">
           <div style="display:flex;justify-content:space-between;margin-bottom:32px;gap:24px;">
             <div>
-              ${logoUrl
-      ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
-        settings.businessName || "Business"
-      )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
-      : ""
-    }
+              ${
+                logoUrl
+                  ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
+                      settings.businessName || "Business"
+                    )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
+                  : ""
+              }
               <div style="font-size:22px;font-weight:800;color:${G.teal};letter-spacing:-.02em;">${escapeHtml(
-      settings.businessName || "Business"
-    )}</div>
+    settings.businessName || "Business"
+  )}</div>
               <div style="font-size:12px;color:#666;line-height:1.7;margin-top:4px;">
                 ${settings.address1 ? `${escapeHtml(settings.address1)}<br />` : ""}
                 ${settings.address2 ? `${escapeHtml(settings.address2)}<br />` : ""}
@@ -1093,83 +1100,91 @@ function quoteToPrintableHtml(quote, settings) {
             </div>
             <div style="text-align:right;">
               <div style="font-size:18px;font-weight:700;">${escapeHtml(
-      quote.quoteNumberLabel || "Quote Summary"
-    )}</div>
+                quote.quoteNumberLabel || "Quote Summary"
+              )}</div>
               <div style="font-size:13px;color:#666;margin-top:4px;">Quote Total: <strong>${escapeHtml(
-      fmt$(total)
-    )}</strong></div>
+                fmt$(total)
+              )}</strong></div>
               <div style="margin-top:12px;">
                 <div style="font-size:14px;font-weight:700;">Recipient</div>
                 <div style="font-size:13px;color:#666;">${escapeHtml(
-      quote.clientName || "—"
-    )}</div>
-                ${quote.clientEmail
-      ? `<div style="font-size:13px;color:#666;">${escapeHtml(
-        quote.clientEmail
-      )}</div>`
-      : ""
-    }
+                  quote.clientName || "—"
+                )}</div>
+                ${
+                  quote.clientEmail
+                    ? `<div style="font-size:13px;color:#666;">${escapeHtml(
+                        quote.clientEmail
+                      )}</div>`
+                    : ""
+                }
               </div>
             </div>
           </div>
 
-          ${quote.eventName || quote.eventDate
-      ? `
+          ${
+            quote.eventName || quote.eventDate
+              ? `
             <div style="text-align:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #e0e0e0;">
               <div style="font-size:18px;font-weight:700;color:${G.teal};">
-                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
-      }
+                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${
+                  quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
+                }
               </div>
             </div>
           `
-      : ""
-    }
+              : ""
+          }
 
-          ${quote.introduction
-      ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
-        quote.introduction
-      )}</div>`
-      : ""
-    }
+          ${
+            quote.introduction
+              ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
+                  quote.introduction
+                )}</div>`
+              : ""
+          }
           ${sectionsHtml}
-          ${quote.notes
-      ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
-        quote.notes
-      )}</div>`
-      : ""
-    }
-          ${quote.expiration
-      ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
-        fmtShort(quote.expiration)
-      )}</div>`
-      : ""
-    }
+          ${
+            quote.notes
+              ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
+                  quote.notes
+                )}</div>`
+              : ""
+          }
+          ${
+            quote.expiration
+              ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
+                  fmtShort(quote.expiration)
+                )}</div>`
+              : ""
+          }
           ${bookingHtml}
 
           <div style="border-top:2px solid #1a1a1a;padding-top:16px;margin-top:20px;">
             <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
               <div style="font-size:14px;color:#666;">Subtotal:</div>
               <div style="font-size:16px;font-weight:700;font-family:monospace;">${escapeHtml(
-      fmt$(subtotal)
-    )}</div>
+                fmt$(subtotal)
+              )}</div>
             </div>
-            ${discountAmount > 0
-      ? `
+            ${
+              discountAmount > 0
+                ? `
               <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
-                <div style="font-size:14px;color:#666;">Discount${quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
-      }:</div>
+                <div style="font-size:14px;color:#666;">Discount${
+                  quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
+                }:</div>
                 <div style="font-size:16px;font-weight:700;font-family:monospace;color:#b42318;">-${escapeHtml(
-        fmt$(discountAmount)
-      )}</div>
+                  fmt$(discountAmount)
+                )}</div>
               </div>
             `
-      : ""
-    }
+                : ""
+            }
             <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:16px;">
               <div style="font-size:14px;color:#666;">Total:</div>
               <div style="font-size:18px;font-weight:800;font-family:monospace;">${escapeHtml(
-      fmt$(total)
-    )}</div>
+                fmt$(total)
+              )}</div>
             </div>
           </div>
         </div>
@@ -2863,8 +2878,8 @@ function QuotesTab({
             contractTemplates: Array.isArray(quote.contractTemplates)
               ? quote.contractTemplates
               : quote.contractTemplate
-                ? [quote.contractTemplate]
-                : [],
+              ? [quote.contractTemplate]
+              : [],
           },
           sections: (quote.sections || []).map((s) => ({
             packageName: s.packageName || "",
@@ -2914,27 +2929,28 @@ function QuotesTab({
 <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto;">
   <div style="background:#0e0f11;padding:24px 28px;border-radius:12px 12px 0 0;">
     <div style="font-size:18px;font-weight:800;color:#d4a853;">${escapeHtml(
-        settings.businessName || "Nico Salgado Photography"
-      )}</div>
+      settings.businessName || "Nico Salgado Photography"
+    )}</div>
   </div>
   <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
     <h2 style="margin:0 0 8px;font-size:18px;">Quote Approval Request</h2>
     <p style="margin:0 0 16px;font-size:13px;color:#555;">Quote ${escapeHtml(
-        quote.quoteNumberLabel || ""
-      )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
+      quote.quoteNumberLabel || ""
+    )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
     <ul style="padding-left:18px;margin:0 0 14px;">${sectionSummary}</ul>
-    ${(() => {
-          const cl = Array.isArray(quote.contractTemplates) ? quote.contractTemplates : quote.contractTemplate ? [quote.contractTemplate] : [];
-          return (quote.paymentSchedule || quote.questionnaire || cl.length)
-            ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
+    ${
+      (() => {
+        const cl = Array.isArray(quote.contractTemplates) ? quote.contractTemplates : quote.contractTemplate ? [quote.contractTemplate] : [];
+        return (quote.paymentSchedule || quote.questionnaire || cl.length)
+          ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
       <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Booking Process Included</div>
       ${quote.paymentSchedule ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Payment Schedule:</strong> ${escapeHtml(quote.paymentSchedule)}</div>` : ""}
       ${quote.questionnaire ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Questionnaire:</strong> ${escapeHtml(quote.questionnaire)}</div>` : ""}
       ${cl.length ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(cl.join(", "))}</div>` : ""}
     </div>`
-            : "";
-        })()
-        }
+          : "";
+      })()
+    }
     <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;font-size:14px;">
       <strong>Total:</strong> ${escapeHtml(fmt$(totals.total))}
     </div>
@@ -2959,8 +2975,9 @@ function QuotesTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: recipient,
-          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${settings.businessName || "Nico Salgado Photography"
-            }`.trim(),
+          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${
+            settings.businessName || "Nico Salgado Photography"
+          }`.trim(),
           htmlBody,
         }),
       });
@@ -3146,8 +3163,9 @@ function QuotesTab({
           <div
             style={{
               background: quoteNotice.type === "success" ? G.greenBg : G.redBg,
-              border: `1px solid ${quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
-                }`,
+              border: `1px solid ${
+                quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
+              }`,
               color: quoteNotice.type === "success" ? G.green : G.red,
               borderRadius: 8,
               padding: "10px 14px",
@@ -3286,7 +3304,7 @@ function QuotesTab({
                 label="Quote Number"
                 value={building.quoteNumberLabel}
                 readOnly
-                onChange={() => { }}
+                onChange={() => {}}
               />
             </div>
           </Card>
@@ -3940,115 +3958,115 @@ function QuotesTab({
             />
           ) : (
             visibleQuotes.map((q) => {
-              const statusColorMap = {
-                Draft: { color: G.textDim, bg: G.surface },
-                Sent: { color: G.amber, bg: G.amberBg },
-                Accepted: { color: G.green, bg: G.greenBg },
-                Declined: { color: G.red, bg: G.redBg },
-              };
-              const colors = statusColorMap[q.status] || {
-                color: G.textDim,
-                bg: G.surface,
-              };
-              const total = calcQuoteTotals(q).total;
+            const statusColorMap = {
+              Draft: { color: G.textDim, bg: G.surface },
+              Sent: { color: G.amber, bg: G.amberBg },
+              Accepted: { color: G.green, bg: G.greenBg },
+              Declined: { color: G.red, bg: G.redBg },
+            };
+            const colors = statusColorMap[q.status] || {
+              color: G.textDim,
+              bg: G.surface,
+            };
+            const total = calcQuoteTotals(q).total;
 
-              return (
+            return (
+              <div
+                key={q.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto auto auto",
+                  gap: 14,
+                  alignItems: "center",
+                  padding: "16px 18px",
+                  background: G.card,
+                  border: `1px solid ${G.border}`,
+                  borderRadius: 10,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>
+                    {q.clientName || "Untitled"}
+                  </div>
+                  <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
+                    {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
+                    {fmtShort(q.createdAt)}
+                  </div>
+                  <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
+                    {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
+                  </div>
+                </div>
+
+                <Pill color={colors.color} bg={colors.bg}>
+                  {q.status}
+                </Pill>
+
                 <div
-                  key={q.id}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto auto auto",
-                    gap: 14,
-                    alignItems: "center",
-                    padding: "16px 18px",
-                    background: G.card,
-                    border: `1px solid ${G.border}`,
-                    borderRadius: 10,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: G.gold,
+                    minWidth: 90,
+                    textAlign: "right",
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600 }}>
-                      {q.clientName || "Untitled"}
-                    </div>
-                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
-                      {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
-                      {fmtShort(q.createdAt)}
-                    </div>
-                    <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
-                      {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
-                    </div>
-                  </div>
+                  {fmt$(total)}
+                </div>
 
-                  <Pill color={colors.color} bg={colors.bg}>
-                    {q.status}
-                  </Pill>
-
-                  <div
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 700,
-                      color: G.gold,
-                      minWidth: 90,
-                      textAlign: "right",
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <Btn
+                    variant="ghost"
+                    small
+                    onClick={() => {
+                      setErrors([]);
+                      setBuilding(JSON.parse(JSON.stringify(q)));
                     }}
                   >
-                    {fmt$(total)}
-                  </div>
-
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <Btn
-                      variant="ghost"
-                      small
-                      onClick={() => {
-                        setErrors([]);
-                        setBuilding(JSON.parse(JSON.stringify(q)));
-                      }}
-                    >
-                      Edit
-                    </Btn>
-                    <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
-                      Preview
-                    </Btn>
+                    Edit
+                  </Btn>
+                  <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
+                    Preview
+                  </Btn>
+                  <Btn
+                    variant="secondary"
+                    small
+                    onClick={async () => {
+                      await emailQuoteForApproval(q);
+                    }}
+                  >
+                    Email Approval
+                  </Btn>
+                  {q.status === "Accepted" ? (
                     <Btn
                       variant="secondary"
                       small
-                      onClick={async () => {
-                        await emailQuoteForApproval(q);
+                      onClick={() => {
+                        if (onCreateInvoiceFromQuote) {
+                          onCreateInvoiceFromQuote(q);
+                          return;
+                        }
+                        onNavigateToFinancials?.("financials");
                       }}
                     >
-                      Email Approval
+                      Create Invoice
                     </Btn>
-                    {q.status === "Accepted" ? (
-                      <Btn
-                        variant="secondary"
-                        small
-                        onClick={() => {
-                          if (onCreateInvoiceFromQuote) {
-                            onCreateInvoiceFromQuote(q);
-                            return;
-                          }
-                          onNavigateToFinancials?.("financials");
-                        }}
-                      >
-                        Create Invoice
-                      </Btn>
-                    ) : (
-                      <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
-                        Mark Accepted
-                      </Btn>
-                    )}
-                    <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
-                      PDF
+                  ) : (
+                    <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
+                      Mark Accepted
                     </Btn>
-                    <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
-                      Duplicate
-                    </Btn>
-                    <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
-                      ×
-                    </Btn>
-                  </div>
+                  )}
+                  <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
+                    PDF
+                  </Btn>
+                  <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
+                    Duplicate
+                  </Btn>
+                  <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
+                    ×
+                  </Btn>
                 </div>
-              );
+              </div>
+            );
             })
           )}
         </div>
@@ -4068,6 +4086,7 @@ function FinancialsTab({
   clientRecordId,
   invoiceSeedQuote,
   onInvoiceSeedConsumed,
+  workspaceInvoices,
 }) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
   const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
@@ -4097,11 +4116,11 @@ function FinancialsTab({
       const byEmail =
         lead?.email &&
         String(invoice.clientEmail || "").trim().toLowerCase() ===
-        String(lead.email || "").trim().toLowerCase();
+          String(lead.email || "").trim().toLowerCase();
       const byName =
         lead?.name &&
         String(invoice.clientName || "").trim().toLowerCase() ===
-        String(lead.name || "").trim().toLowerCase();
+          String(lead.name || "").trim().toLowerCase();
       return Boolean(byClientId || byLeadId || byEmail || byName);
     },
     [clientRecordId, lead?.id, lead?.email, lead?.name]
@@ -4367,14 +4386,18 @@ function FinancialsTab({
     return { color: G.textDim, bg: G.surface };
   };
 
-  // ── Next invoice number ──
+  // ── Next invoice number — global across all workspaces ──
   const nextInvNum = useMemo(() => {
-    const nums = invoices.map(i => {
-      const match = (i.invoiceNumber || "").match(/(\d+)/);
+    const allInvoiceNumbers = [
+      ...(invoices || []).map(i => i.invoiceNumber || ""),
+      ...(workspaceInvoices || []).map(i => i.invoice_number || i.invoiceNumber || ""),
+    ];
+    const nums = allInvoiceNumbers.map(n => {
+      const match = n.match(/(\d+)/);
       return match ? parseInt(match[1]) : 0;
     });
     return `INV-${String(Math.max(0, ...nums) + 1).padStart(3, "0")}`;
-  }, [invoices]);
+  }, [invoices, workspaceInvoices]);
 
   // ── Totals ──
   const totalRevenue = invoices.reduce((s, i) => s + (i.amountPaid || 0), 0);
@@ -4399,9 +4422,9 @@ function FinancialsTab({
     const total = Number(sourceTotals.total || 0);
     const packageName = sourceQuote
       ? (sourceQuote.sections || [])
-        .map((section) => String(section.packageName || "").trim())
-        .filter(Boolean)
-        .join(" / ")
+          .map((section) => String(section.packageName || "").trim())
+          .filter(Boolean)
+          .join(" / ")
       : "";
     const isRetainer = type === "retainer";
     const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
@@ -4537,48 +4560,48 @@ function FinancialsTab({
         if (data) savedPaymentRow = data;
       }
       setPaymentRecords(prev => [savedPaymentRow, ...prev]);
-      const newPaid =
-        Number(activeInvoice.amountPaid || 0) + (Number(payForm.amount) || 0);
+const newPaid =
+  Number(activeInvoice.amountPaid || 0) + (Number(payForm.amount) || 0);
 
-      const newBalance = Math.max(
-        0,
-        Number(activeInvoice.totalAmount || 0) - newPaid
-      );
+const newBalance = Math.max(
+  0,
+  Number(activeInvoice.totalAmount || 0) - newPaid
+);
 
-      const newStatus = newBalance <= 0 ? "Paid" : "Partial";
+const newStatus = newBalance <= 0 ? "Paid" : "Partial";
 
-      if (hasDbInvoiceId(activeInvoice.id)) {
-        const { error: invoiceUpdateError } = await supabase
-          .from("invoices")
-          .update({
-            amount_paid: newPaid,
-            balance_due: newBalance,
-            status: newStatus,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", activeInvoice.id);
+if (hasDbInvoiceId(activeInvoice.id)) {
+  const { error: invoiceUpdateError } = await supabase
+    .from("invoices")
+    .update({
+      amount_paid: newPaid,
+      balance_due: newBalance,
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", activeInvoice.id);
 
-        if (invoiceUpdateError) throw invoiceUpdateError;
-      }
+  if (invoiceUpdateError) throw invoiceUpdateError;
+}
 
-      setInvoices(prev => {
-        const next = prev.map(i =>
-          i.id === activeInvoice.id
-            ? {
-              ...i,
-              amountPaid: newPaid,
-              balanceDue: newBalance,
-              status: newStatus,
-            }
-            : i
-        );
-        syncLeadBalance(next);
-        return next;
-      });
+setInvoices(prev => {
+  const next = prev.map(i =>
+    i.id === activeInvoice.id
+      ? {
+          ...i,
+          amountPaid: newPaid,
+          balanceDue: newBalance,
+          status: newStatus,
+        }
+      : i
+  );
+  syncLeadBalance(next);
+  return next;
+});
 
-      setView("list");
-      setPayForm({});
-      setActiveInvoice(null);
+setView("list");
+setPayForm({});
+setActiveInvoice(null);
     } catch (err) {
       setToast({ type: "error", message: err.message || "Failed to record payment." });
     }
@@ -4596,8 +4619,8 @@ function FinancialsTab({
     const paymentsHtml = payments.length ? payments.map(p =>
       `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">
         <span>${escapeHtml(fmtShort(p.paid_on))} — ${escapeHtml(
-        p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
-      )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
+          p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
+        )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
         <span style="color:#16a34a;font-weight:700;">+ ${escapeHtml(fmt$(p.amount))}</span>
       </div>`
     ).join("") : '<div style="font-size:13px;color:#999;padding:8px 0;">No payments recorded yet.</div>';
@@ -4668,11 +4691,9 @@ function FinancialsTab({
             color: subTab === t.key ? "#0e0f11" : G.textDim, transition: "all .15s",
           }}>
           {t.label}
-          <span style={{
-            marginLeft: 5, fontSize: 10, padding: "1px 6px", borderRadius: 10,
+          <span style={{ marginLeft: 5, fontSize: 10, padding: "1px 6px", borderRadius: 10,
             background: subTab === t.key ? "rgba(0,0,0,.15)" : G.border,
-            color: subTab === t.key ? "#0e0f11" : G.textMuted
-          }}>{t.count}</span>
+            color: subTab === t.key ? "#0e0f11" : G.textMuted }}>{t.count}</span>
         </button>
       ))}
     </div>
@@ -4935,13 +4956,13 @@ function FinancialsTab({
                     if (t.k === "balance") amt = Math.max(0, baseTotal - (form.amountPaid || 0));
                     setForm(p => ({ ...p, invoiceType: t.k, totalAmount: amt, balanceDue: Math.max(0, amt - (p.amountPaid || 0)), title: t.k === "retainer" ? "Retainer (50%)" : t.k === "balance" ? "Balance Due" : "Full Payment" }));
                   }}
-                    style={{
-                      flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                      background: form.invoiceType === t.k ? G.gold : G.surface,
-                      color: form.invoiceType === t.k ? "#0e0f11" : G.textDim,
-                      border: `1px solid ${form.invoiceType === t.k ? G.gold : G.border}`,
-                      borderRadius: i === 0 ? "6px 0 0 6px" : i === 2 ? "0 6px 6px 0" : 0,
-                    }}>{t.l}</button>
+                  style={{
+                    flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    background: form.invoiceType === t.k ? G.gold : G.surface,
+                    color: form.invoiceType === t.k ? "#0e0f11" : G.textDim,
+                    border: `1px solid ${form.invoiceType === t.k ? G.gold : G.border}`,
+                    borderRadius: i === 0 ? "6px 0 0 6px" : i === 2 ? "0 6px 6px 0" : 0,
+                  }}>{t.l}</button>
                 ))}
               </div>
             </div>
@@ -5695,7 +5716,7 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
     <h2 style="margin:0 0 4px;font-size:18px;">${label}: ${item.title || ""}</h2>
     <p style="color:#666;font-size:13px;margin:0 0 20px;">${item.clientName || ""} · ${item.sessionType || ""}</p>
-    <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#333;padding:20px;background:#f9f9f9;border-radius:8px;max-height:400px;overflow:hidden;">${merged.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+    <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#333;padding:20px;background:#f9f9f9;border-radius:8px;max-height:400px;overflow:hidden;">${merged.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
     <p style="text-align:center;margin:24px 0;"><a href="${signLink}" style="display:inline-block;padding:14px 36px;background:#d4a853;color:#0e0f11;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Review & Sign ${label}</a></p>
     <p style="font-size:12px;color:#999;text-align:center;">Click the button above to review the full ${label.toLowerCase()} and sign digitally.<br/>Questions? Reply to this email or text Nico directly.</p>
   </div>
@@ -5891,67 +5912,67 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
             <button onClick={() => setCToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
           </div>
         )}
-        <Card>
-          <SubTabs />
-          <SectionLabel actions={<TemplatePicker onSelect={startCreate} onCreateNew={() => startCreate(templates[0]?.id)} />}>
-            {isReleases ? "Model Releases" : "Contracts"}
-          </SectionLabel>
+      <Card>
+        <SubTabs />
+        <SectionLabel actions={<TemplatePicker onSelect={startCreate} onCreateNew={() => startCreate(templates[0]?.id)} />}>
+          {isReleases ? "Model Releases" : "Contracts"}
+        </SectionLabel>
 
-          {/* Summary row */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-            {[
-              { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
-              { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
-              { label: "Signed", count: items.filter(i => i.status === "Signed").length, ...statusColor("Signed") },
-            ].map((c, i) => (
-              <div key={i} style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>{c.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{c.count}</div>
-              </div>
-            ))}
-          </div>
+        {/* Summary row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+          {[
+            { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
+            { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
+            { label: "Signed", count: items.filter(i => i.status === "Signed").length, ...statusColor("Signed") },
+          ].map((c, i) => (
+            <div key={i} style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>{c.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{c.count}</div>
+            </div>
+          ))}
+        </div>
 
-          {items.length === 0 ? (
-            <EmptyState icon={isReleases ? "📝" : "📄"} text={`No ${itemLabel.toLowerCase()}s yet`} />
-          ) : (
-            <div style={{ display: "grid", gap: 8 }}>
-              {items.map(c => {
-                const sc = statusColor(c.status);
-                return (
-                  <div key={c.id} style={{
-                    display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
-                    padding: "14px 16px", background: G.surface, borderRadius: 8, border: `1px solid ${G.border}`,
-                  }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
-                      <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
-                        {c.signer || c.clientName || "—"}
-                        {c.sessionType ? ` · ${c.sessionType}` : ""}
-                        {c.totalAmount ? ` · ${fmt$(c.totalAmount)}` : ""}
-                        {" · "}{c.version || "v1"}
-                      </div>
-                      <div style={{ fontSize: 11, color: G.textMuted, marginTop: 2 }}>
-                        {c.sentOn ? `Sent ${fmtShort(c.sentOn)}` : "Not sent"}
-                        {c.signedOn ? ` · Signed ${fmtShort(c.signedOn)}` : ""}
-                      </div>
+        {items.length === 0 ? (
+          <EmptyState icon={isReleases ? "📝" : "📄"} text={`No ${itemLabel.toLowerCase()}s yet`} />
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {items.map(c => {
+              const sc = statusColor(c.status);
+              return (
+                <div key={c.id} style={{
+                  display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
+                  padding: "14px 16px", background: G.surface, borderRadius: 8, border: `1px solid ${G.border}`,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
+                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
+                      {c.signer || c.clientName || "—"}
+                      {c.sessionType ? ` · ${c.sessionType}` : ""}
+                      {c.totalAmount ? ` · ${fmt$(c.totalAmount)}` : ""}
+                      {" · "}{c.version || "v1"}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <Pill color={sc.color} bg={sc.bg}>{c.status}</Pill>
-                      <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
-                      <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
-                      <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
-                      <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
-                        {emailSending === c.id ? "..." : "✉ Email"}
-                      </Btn>
-                      <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
-                      <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
+                    <div style={{ fontSize: 11, color: G.textMuted, marginTop: 2 }}>
+                      {c.sentOn ? `Sent ${fmtShort(c.sentOn)}` : "Not sent"}
+                      {c.signedOn ? ` · Signed ${fmtShort(c.signedOn)}` : ""}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Pill color={sc.color} bg={sc.bg}>{c.status}</Pill>
+                    <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
+                    <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
+                    <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
+                    <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
+                      {emailSending === c.id ? "..." : "✉ Email"}
+                    </Btn>
+                    <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
+                    <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
       </div>
     );
   }
@@ -6501,10 +6522,44 @@ function DashboardView({
   notes,
   emailActivity,
   workspaceSummaries,
+  workspaceRows,
+  workspaceInvoices,
   activeWorkspaceId,
   onNavigate,
   onOpenWorkspace,
 }) {
+  // Build a global upcoming sessions list from all workspaces
+  const globalSchedule = useMemo(() => {
+    const sessions = [];
+    (workspaceRows || []).forEach((row) => {
+      const snapshot = workspaceRowToSnapshot(row);
+      const clientName = row.client_name || snapshot.lead?.name || "Client";
+      (snapshot.schedule || []).forEach((ev) => {
+        if (ev.date) sessions.push({ ...ev, clientName, workspaceId: row.id });
+      });
+      // Also pull from invoice due dates if no session exists for that date
+      (workspaceInvoices || [])
+        .filter(inv => (inv.lead_id === row.id || inv.client_name === clientName) && inv.due_date)
+        .forEach(inv => {
+          const alreadyHas = sessions.some(s => s.workspaceId === row.id && s.date === inv.due_date);
+          if (!alreadyHas) {
+            sessions.push({
+              id: `inv-${inv.id}`,
+              title: inv.title || "Payment Due",
+              date: inv.due_date,
+              time: "",
+              status: "Payment Due",
+              clientName,
+              workspaceId: row.id,
+              isInvoice: true,
+            });
+          }
+        });
+    });
+    return sessions
+      .filter(s => s.date)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [workspaceRows, workspaceInvoices]);
   const totalQuoted = quotes.reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
   const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
   const openQuotes = quotes.filter((q) => q.status !== "Declined").length;
@@ -6720,58 +6775,104 @@ function DashboardView({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <Card>
-          <SectionLabel>Client Workspaces</SectionLabel>
-          {workspaceSummaries.length === 0 ? (
-            <EmptyState icon="👥" text="No saved client workspaces yet." />
+          <SectionLabel>Open Jobs</SectionLabel>
+          {workspaceSummaries.filter(w => w.stage !== "Completed").length === 0 ? (
+            <EmptyState icon="✓" text="No open jobs — all clients are complete." />
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
-              {workspaceSummaries.map((item) => {
-                const active = item.id === activeWorkspaceId;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => onOpenWorkspace?.(item.id)}
-                    style={{
-                      padding: "12px 14px",
-                      border: `1px solid ${active ? G.gold : G.border}`,
-                      borderRadius: 8,
-                      background: active ? G.goldBg : G.surface,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700 }}>{item.name}</div>
-                        <div style={{ fontSize: 12, color: G.textDim }}>
-                          {item.email || "No email"}{item.eventDate ? ` · ${fmtShort(item.eventDate)}` : ""}
+              {workspaceSummaries
+                .filter(w => w.stage !== "Completed")
+                .sort((a, b) => {
+                  const order = { Fulfillment: 0, Booked: 1, Lead: 2 };
+                  return (order[a.stage] ?? 3) - (order[b.stage] ?? 3);
+                })
+                .map((item) => {
+                  const stageColor = item.stage === "Booked" ? G.gold : item.stage === "Fulfillment" ? "#a78bfa" : G.textMuted;
+                  const active = item.id === activeWorkspaceId;
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        padding: "10px 12px",
+                        border: `1px solid ${active ? G.gold : G.border}`,
+                        borderRadius: 8,
+                        background: active ? G.goldBg : G.surface,
+                        display: "grid",
+                        gridTemplateColumns: "1fr auto",
+                        gap: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <div
+                        onClick={() => onOpenWorkspace?.(item.id)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{item.name}</div>
+                        <div style={{ fontSize: 11, color: G.textDim }}>
+                          {item.eventDate ? fmtShort(item.eventDate) : "No date"}
+                          {item.balance > 0 ? ` · Bal: ` : ""}
+                          {item.balance > 0 ? <span style={{ color: G.amber }}>{fmt$(item.balance)}</span> : null}
                         </div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 12, color: G.gold, fontWeight: 700 }}>{item.stage}</div>
-                        <div style={{ fontSize: 11, color: G.textMuted }}>
-                          {item.updatedAt ? `Updated ${fmtShort(item.updatedAt)}` : "New workspace"}
-                        </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                        <Pill color={stageColor} bg={`${stageColor}22`}>{item.stage}</Pill>
+                        <button
+                          onClick={() => onOpenWorkspace?.(item.id)}
+                          style={{ fontSize: 10, color: G.gold, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                        >
+                          Open →
+                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </Card>
 
-        <Card style={{ cursor: schedule.length ? "pointer" : "default" }} onClick={() => schedule.length && onNavigate?.("schedule")}>
-          <SectionLabel>Upcoming Schedule</SectionLabel>
-          {schedule.length === 0 ? (
-            <EmptyState icon="📅" text="No events scheduled" />
+        <Card style={{ cursor: globalSchedule.length ? "pointer" : "default" }} onClick={() => globalSchedule.length && onNavigate?.("schedule")}>
+          <SectionLabel>Upcoming Sessions</SectionLabel>
+          {globalSchedule.length === 0 ? (
+            <EmptyState icon="📅" text="No sessions scheduled across any client" />
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
-              {schedule.slice(0, 5).map((ev) => (
-                <div key={ev.id} style={{ padding: "10px 12px", border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{ev.title}</div>
-                  <div style={{ fontSize: 12, color: G.textDim }}>{fmtShort(ev.date)} · {ev.time || "—"} · {ev.location || "—"}</div>
+              {globalSchedule.slice(0, 6).map((ev) => {
+                const isPast = ev.date && new Date(ev.date) < new Date();
+                const isBooked = ev.status === "Booked" || ev.status === "Confirmed";
+                const pillColor = ev.isInvoice ? G.amber : isBooked ? G.green : G.textMuted;
+                return (
+                  <div
+                    key={`${ev.workspaceId}-${ev.id}`}
+                    onClick={(e) => { e.stopPropagation(); onOpenWorkspace?.(ev.workspaceId); }}
+                    style={{
+                      padding: "10px 12px",
+                      border: `1px solid ${G.border}`,
+                      borderRadius: 8,
+                      background: isPast ? G.redBg : G.surface,
+                      cursor: "pointer",
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{ev.clientName}</div>
+                      <div style={{ fontSize: 12, color: G.textDim }}>
+                        {ev.title} · {fmtShort(ev.date)}{ev.time ? ` · ${ev.time}` : ""}
+                      </div>
+                    </div>
+                    <Pill color={pillColor} bg={`${pillColor}22`}>
+                      {ev.isInvoice ? "Due" : ev.status || "Tentative"}
+                    </Pill>
+                  </div>
+                );
+              })}
+              {globalSchedule.length > 6 && (
+                <div style={{ fontSize: 12, color: G.textMuted, textAlign: "center" }}>
+                  +{globalSchedule.length - 6} more — open Schedule tab
                 </div>
-              ))}
+              )}
             </div>
           )}
         </Card>
@@ -7404,14 +7505,14 @@ function ReportsTab({
   const drillTitle = drillFilter === "revenue"
     ? "Paid invoices"
     : drillFilter === "outstanding"
-      ? "Outstanding invoices"
-      : drillFilter === "totalInvoiced"
-        ? "Invoiced amounts"
-        : drillFilter === "openPipeline"
-          ? "Open pipeline quotes"
-          : drillFilter === "expenses"
-            ? "Expenses"
-            : "Details";
+    ? "Outstanding invoices"
+    : drillFilter === "totalInvoiced"
+    ? "Invoiced amounts"
+    : drillFilter === "openPipeline"
+    ? "Open pipeline quotes"
+    : drillFilter === "expenses"
+    ? "Expenses"
+    : "Details";
 
   const exportDrillData = async () => {
     if (!drillData || drillData.length === 0) return;
@@ -7432,9 +7533,9 @@ function ReportsTab({
     const key = metricKeyFromLabel(label);
     return key
       ? {
-        onClick: () => setDrillFilter(key),
-        style: { cursor: "pointer" },
-      }
+          onClick: () => setDrillFilter(key),
+          style: { cursor: "pointer" },
+        }
       : {};
   };
 
@@ -8641,11 +8742,12 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             .join("");
           return `<div style="margin-bottom:16px;">
             <div style="font-weight:700;font-size:14px;margin-bottom:6px;">${escapeHtml(
-            s.packageName || "Package"
-          )}</div>
-            ${includesHtml
-              ? `<ul style="margin:6px 0 10px 18px;padding:0;font-size:12px;color:#555;">${includesHtml}</ul>`
-              : ""
+              s.packageName || "Package"
+            )}</div>
+            ${
+              includesHtml
+                ? `<ul style="margin:6px 0 10px 18px;padding:0;font-size:12px;color:#555;">${includesHtml}</ul>`
+                : ""
             }
             <table style="width:100%;border-collapse:collapse;">${itemsHtml}</table>
           </div>`;
@@ -8790,17 +8892,17 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
 
     const initialSchedule = newClientForm.scheduleTitle.trim()
       ? [
-        {
-          id: Date.now() + 1,
-          title: newClientForm.scheduleTitle.trim(),
-          date: newClientForm.scheduleDate || newClientForm.eventDate || "",
-          time: newClientForm.scheduleTime || "",
-          endTime: "",
-          location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
-          status: newClientForm.scheduleStatus || "Tentative",
-          notes: "",
-        },
-      ]
+          {
+            id: Date.now() + 1,
+            title: newClientForm.scheduleTitle.trim(),
+            date: newClientForm.scheduleDate || newClientForm.eventDate || "",
+            time: newClientForm.scheduleTime || "",
+            endTime: "",
+            location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
+            status: newClientForm.scheduleStatus || "Tentative",
+            notes: "",
+          },
+        ]
       : [];
 
     const nextSnapshot = normalizeWorkspaceSnapshot({
@@ -9000,7 +9102,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
       }
 
       const rowsToInsert = snapshots.map((snapshot) => buildWorkspaceRow(snapshot));
-      const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
+          const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
       if (error) throw error;
 
       const insertedRows = Array.isArray(data) ? data : [];
@@ -9122,6 +9224,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             clientRecordId={clientRecordId}
             invoiceSeedQuote={invoiceSeedQuote}
             onInvoiceSeedConsumed={() => setInvoiceSeedQuote(null)}
+            workspaceInvoices={workspaceInvoices}
           />
         );
       case "contracts":
@@ -9390,6 +9493,8 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
                 notes={notes}
                 emailActivity={emailActivity}
                 workspaceSummaries={workspaceSummaries}
+                workspaceRows={workspaceRows}
+                workspaceInvoices={workspaceInvoices}
                 activeWorkspaceId={workspaceId}
                 onNavigate={goToTab}
                 onOpenWorkspace={openWorkspace}
