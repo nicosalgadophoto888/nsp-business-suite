@@ -1,7 +1,7 @@
 "use client";
 
-import AuthGate from "./auth-gate";
+import NSPBusinessSuite from "./nsp-suite";
 
 export default function Page() {
-  return <AuthGate />;
+  return <NSPBusinessSuite />;
 }
