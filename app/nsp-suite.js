@@ -6531,35 +6531,39 @@ function DashboardView({
   // Build a global upcoming sessions list from all workspaces
   const globalSchedule = useMemo(() => {
     const sessions = [];
+    const seenIds = new Set();
+
+    // Pull from all saved workspace rows
     (workspaceRows || []).forEach((row) => {
       const snapshot = workspaceRowToSnapshot(row);
       const clientName = row.client_name || snapshot.lead?.name || "Client";
+      const stage = row.stage || snapshot.lead?.stage || "Lead";
+      // Only show Booked or Fulfillment clients in upcoming sessions
+      if (stage !== "Booked" && stage !== "Fulfillment") return;
       (snapshot.schedule || []).forEach((ev) => {
-        if (ev.date) sessions.push({ ...ev, clientName, workspaceId: row.id });
+        if (ev.date && !seenIds.has(`${row.id}-${ev.id}`)) {
+          seenIds.add(`${row.id}-${ev.id}`);
+          sessions.push({ ...ev, clientName, workspaceId: row.id });
+        }
       });
-      // Also pull from invoice due dates if no session exists for that date
-      (workspaceInvoices || [])
-        .filter(inv => (inv.lead_id === row.id || inv.client_name === clientName) && inv.due_date)
-        .forEach(inv => {
-          const alreadyHas = sessions.some(s => s.workspaceId === row.id && s.date === inv.due_date);
-          if (!alreadyHas) {
-            sessions.push({
-              id: `inv-${inv.id}`,
-              title: inv.title || "Payment Due",
-              date: inv.due_date,
-              time: "",
-              status: "Payment Due",
-              clientName,
-              workspaceId: row.id,
-              isInvoice: true,
-            });
-          }
-        });
     });
+
+    // Also include current in-memory schedule (active workspace) if it's Booked/Fulfillment
+    const currentSummary = workspaceSummaries.find(w => w.id === activeWorkspaceId);
+    const currentStage = currentSummary?.stage || lead?.stage || "Lead";
+    if (currentStage === "Booked" || currentStage === "Fulfillment") {
+      (schedule || []).forEach((ev) => {
+        if (ev.date && !seenIds.has(`${activeWorkspaceId}-${ev.id}`)) {
+          seenIds.add(`${activeWorkspaceId}-${ev.id}`);
+          sessions.push({ ...ev, clientName: lead?.name || "Current Client", workspaceId: activeWorkspaceId });
+        }
+      });
+    }
+
     return sessions
       .filter(s => s.date)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [workspaceRows, workspaceInvoices]);
+  }, [workspaceRows, workspaceInvoices, schedule, activeWorkspaceId, lead, workspaceSummaries]);
   const totalQuoted = quotes.reduce((sum, q) => sum + calcQuoteTotals(q).total, 0);
   const acceptedCount = quotes.filter((q) => q.status === "Accepted").length;
   const openQuotes = quotes.filter((q) => q.status !== "Declined").length;
@@ -6776,15 +6780,15 @@ function DashboardView({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <Card>
           <SectionLabel>Open Jobs</SectionLabel>
-          {workspaceSummaries.filter(w => w.stage !== "Completed").length === 0 ? (
-            <EmptyState icon="✓" text="No open jobs — all clients are complete." />
+          {workspaceSummaries.filter(w => w.stage === "Booked" || w.stage === "Fulfillment").length === 0 ? (
+            <EmptyState icon="✓" text="No active bookings right now." />
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
               {workspaceSummaries
-                .filter(w => w.stage !== "Completed")
+                .filter(w => w.stage === "Booked" || w.stage === "Fulfillment")
                 .sort((a, b) => {
-                  const order = { Fulfillment: 0, Booked: 1, Lead: 2 };
-                  return (order[a.stage] ?? 3) - (order[b.stage] ?? 3);
+                  const order = { Fulfillment: 0, Booked: 1 };
+                  return (order[a.stage] ?? 2) - (order[b.stage] ?? 2);
                 })
                 .map((item) => {
                   const stageColor = item.stage === "Booked" ? G.gold : item.stage === "Fulfillment" ? "#a78bfa" : G.textMuted;
@@ -7394,49 +7398,54 @@ function ReportsTab({
   const [selectedReportId, setSelectedReportId] = useState("profit-loss");
 
   const reportStats = useMemo(() => {
-    const totalRevenue = (invoicePayments || []).reduce(
-      (sum, p) => sum + Number(p.amount || 0),
-      0
+    // Accepted revenue = sum of all client workspace accepted quote values
+    const acceptedRevenue = (workspaceSummaries || []).reduce(
+      (sum, w) => sum + Number(w.revenue || 0), 0
     );
-
+    // Cash collected = sum of payments recorded on invoices
+    const totalCollected = (workspaceInvoices || []).reduce(
+      (sum, inv) => sum + Number(inv.amount_paid || inv.amountPaid || 0), 0
+    );
     const outstanding = (workspaceInvoices || []).reduce(
-      (sum, invoice) => sum + Number(invoice.balance_due || invoice.balanceDue || 0),
-      0
+      (sum, inv) => sum + Number(inv.balance_due || inv.balanceDue || 0), 0
     );
-
     const totalInvoiced = (workspaceInvoices || []).reduce(
-      (sum, invoice) => sum + Number(invoice.total_amount || invoice.totalAmount || 0),
-      0
+      (sum, inv) => sum + Number(inv.total_amount || inv.totalAmount || 0), 0
     );
-
     const expenseTotal = (workspaceExpenses || []).reduce(
-      (sum, expense) => sum + Number(expense.amount || 0),
-      0
+      (sum, e) => sum + Number(e.amount || 0), 0
     );
+    // Open pipeline = Lead-stage clients only
+    const openPipeline = (workspaceSummaries || [])
+      .filter(w => w.stage === "Lead")
+      .reduce((sum, w) => sum + Number(w.balance || 0), 0);
 
-    const openPipeline = (quotes || [])
-      .filter((quote) => !["Accepted", "Declined"].includes(quote.status))
-      .reduce((sum, quote) => sum + Number(calcQuoteTotals(quote).total || 0), 0);
-
-    const acceptedQuotes = (quotes || []).filter((quote) => quote.status === "Accepted");
-    const bookedSessions = (schedule || []).filter((session) => session.status === "Booked").length;
+    const bookedCount = (workspaceSummaries || []).filter(w => w.stage === "Booked" || w.stage === "Fulfillment").length;
+    const completedCount = (workspaceSummaries || []).filter(w => w.stage === "Completed").length;
+    const leadCount = (workspaceSummaries || []).filter(w => w.stage === "Lead").length;
+    const acceptedQuotesCount = (quotes || []).filter(q => q.status === "Accepted").length;
+    const bookedSessions = (schedule || []).filter(s => s.status === "Booked" || s.status === "Confirmed").length;
 
     return {
-      totalRevenue,
+      totalRevenue: acceptedRevenue,
+      totalCollected,
       outstanding,
       totalInvoiced,
       openPipeline,
       expenseTotal,
-      netIncome: totalRevenue - outstanding - expenseTotal,
+      netIncome: acceptedRevenue - expenseTotal,
       totalPipeline: openPipeline,
       openQuoteValue: openPipeline,
-      acceptedCount: acceptedQuotes.length,
+      acceptedCount: acceptedQuotesCount,
       bookedSessions,
+      bookedCount,
+      completedCount,
+      leadCount,
       emailTouches: (emailActivity || []).length,
       notesCount: (notes || []).length,
       paymentPlans: (payments || []).length,
     };
-  }, [invoicePayments, workspaceExpenses, workspaceInvoices, quotes, schedule, emailActivity, notes, payments]);
+  }, [invoicePayments, workspaceExpenses, workspaceInvoices, workspaceSummaries, quotes, schedule, emailActivity, notes, payments]);
 
   const [drillFilter, setDrillFilter] = useState("revenue");
 
@@ -7555,84 +7564,91 @@ function ReportsTab({
         id: "profit-loss",
         group: "favorites",
         title: "Profit and Loss",
-        summary: "Revenue, outstanding balances, and open quote value across the CRM.",
+        summary: "Accepted revenue, cash collected, outstanding invoices, and net income.",
         value: fmt$(reportStats.totalRevenue),
         accent: G.green,
         rows: [
           ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
-          ["Open Pipeline", fmt$(reportStats.totalPipeline)],
+          ["Cash Collected", fmt$(reportStats.totalCollected)],
           ["Outstanding Invoices", fmt$(reportStats.outstanding)],
           ["Expenses", fmt$(reportStats.expenseTotal)],
           ["Net Income", fmt$(reportStats.netIncome)],
-          ["Open Quote Value", fmt$(reportStats.openQuoteValue)],
+          ["Lead Pipeline", fmt$(reportStats.openPipeline)],
         ],
       },
       {
         id: "accounts-receivable",
         group: "favorites",
-        title: "Accounts Receivable Aging Summary",
+        title: "Accounts Receivable",
         summary: "Outstanding invoice balances that still need to be collected.",
         value: fmt$(reportStats.outstanding),
         accent: G.amber,
         rows: [
-          ["Open Receivables", fmt$(reportStats.outstanding)],
-          ["Booked Sessions", String(reportStats.bookedSessions)],
-          ["Payment Plans", String(reportStats.paymentPlans)],
-          ["Client Workspaces", String((workspaceSummaries || []).length || 1)],
+          ["Outstanding Balance", fmt$(reportStats.outstanding)],
+          ["Total Invoiced", fmt$(reportStats.totalInvoiced)],
+          ["Cash Collected", fmt$(reportStats.totalCollected)],
+          ["Active Bookings", String(reportStats.bookedCount)],
+          ["Completed Jobs", String(reportStats.completedCount)],
         ],
       },
       {
         id: "balance-sheet",
         group: "favorites",
         title: "Balance Sheet",
-        summary: "High-level snapshot of active client balances and accepted quote totals.",
-        value: fmt$(reportStats.totalPipeline + reportStats.totalRevenue),
+        summary: "Total accepted revenue vs outstanding balances across all clients.",
+        value: fmt$(reportStats.totalRevenue),
         accent: G.gold,
         rows: [
-          ["Total Active Value", fmt$(reportStats.totalPipeline + reportStats.totalRevenue)],
-          ["Accepted Quotes", String(reportStats.acceptedCount)],
-          ["Booked Sessions", String(reportStats.bookedSessions)],
-          ["Email Touches", String(reportStats.emailTouches)],
+          ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
+          ["Outstanding", fmt$(reportStats.outstanding)],
+          ["Lead Pipeline", fmt$(reportStats.openPipeline)],
+          ["Active Bookings", String(reportStats.bookedCount)],
+          ["Completed Jobs", String(reportStats.completedCount)],
+          ["Total Clients", String((workspaceSummaries || []).length)],
         ],
       },
       {
         id: "cash-flow",
         group: "business",
         title: "Cash Flow Overview",
-        summary: "Cash already won versus balances still moving through the pipeline.",
-        value: fmt$(reportStats.totalRevenue - reportStats.outstanding),
+        summary: "Cash collected versus accepted revenue and open balances.",
+        value: fmt$(reportStats.totalCollected),
         accent: G.teal,
         rows: [
-          ["Revenue Collected", fmt$(reportStats.totalRevenue)],
-          ["Expenses", fmt$(reportStats.expenseTotal)],
+          ["Cash Collected", fmt$(reportStats.totalCollected)],
+          ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
           ["Still Outstanding", fmt$(reportStats.outstanding)],
-          ["Net Cash Position", fmt$(reportStats.totalRevenue - reportStats.outstanding)],
-          ["Open Pipeline", fmt$(reportStats.totalPipeline)],
+          ["Expenses", fmt$(reportStats.expenseTotal)],
+          ["Net Income", fmt$(reportStats.netIncome)],
+          ["Lead Pipeline", fmt$(reportStats.openPipeline)],
         ],
       },
       {
         id: "lead-funnel",
         group: "sales",
-        title: "Lead Funnel Snapshot",
-        summary: "How many leads are active, quoted, and accepted right now.",
-        value: String((workspaceSummaries || []).length || 1),
+        title: "Lead Funnel",
+        summary: "Breakdown of all clients by stage — leads, booked, fulfillment, completed.",
+        value: String((workspaceSummaries || []).length),
         accent: G.blue,
         rows: [
-          ["Saved Clients", String((workspaceSummaries || []).length || 1)],
-          ["Total Quotes", String((quotes || []).length)],
+          ["Total Clients", String((workspaceSummaries || []).length)],
+          ["Leads", String(reportStats.leadCount)],
+          ["Active Bookings", String(reportStats.bookedCount)],
+          ["Completed Jobs", String(reportStats.completedCount)],
           ["Accepted Quotes", String(reportStats.acceptedCount)],
-          ["Booked Sessions", String(reportStats.bookedSessions)],
+          ["Open Quotes", String((quotes || []).filter(q => q.status === "Draft" || q.status === "Sent").length)],
         ],
       },
       {
         id: "booking-readiness",
         group: "operations",
         title: "Booking Readiness",
-        summary: "Visibility into schedules, notes, and pre-session readiness.",
-        value: `${reportStats.bookedSessions} booked`,
+        summary: "Active bookings, sessions scheduled, notes, and payment plans in place.",
+        value: `${reportStats.bookedCount} active`,
         accent: G.gold,
         rows: [
-          ["Booked Sessions", String(reportStats.bookedSessions)],
+          ["Active Bookings", String(reportStats.bookedCount)],
+          ["Sessions Booked", String(reportStats.bookedSessions)],
           ["Active Notes", String(reportStats.notesCount)],
           ["Payment Plans", String(reportStats.paymentPlans)],
           ["Email Activity", String(reportStats.emailTouches)],
@@ -7992,16 +8008,20 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
     if (workspaceSummaries.length === 0) {
       return {
         totalLeads: 1,
+        bookedCount: 0,
         pipelineValue: Number(lead?.balance || 0),
         acceptedRevenue: Number(lead?.revenue || 0),
+        outstanding: 0,
       };
     }
     return {
       totalLeads: workspaceSummaries.length,
-      pipelineValue: workspaceSummaries.reduce((sum, item) => sum + Number(item.balance || 0), 0),
+      bookedCount: workspaceSummaries.filter(w => w.stage === "Booked" || w.stage === "Fulfillment").length,
+      pipelineValue: workspaceSummaries.filter(w => w.stage === "Lead").reduce((sum, item) => sum + Number(item.balance || 0), 0),
       acceptedRevenue: workspaceSummaries.reduce((sum, item) => sum + Number(item.revenue || 0), 0),
+      outstanding: workspaceInvoices.reduce((sum, inv) => sum + Number(inv.balance_due || inv.balanceDue || 0), 0),
     };
-  }, [workspaceSummaries, lead?.balance, lead?.revenue]);
+  }, [workspaceSummaries, workspaceInvoices, lead?.balance, lead?.revenue]);
 
   const selectedClient = lead;
 
@@ -9306,47 +9326,25 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
                 </h1>
               </div>
               <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
-                <div
-                  style={{
-                    border: `1px solid ${G.border}`,
-                    borderRadius: 8,
-                    padding: "8px 10px",
-                    background: G.card,
-                    minWidth: 160,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Leads</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: G.text }}>
-                    {dashboardTotals.totalLeads}
-                  </div>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 120 }}>
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Clients</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.text }}>{dashboardTotals.totalLeads}</div>
                 </div>
-                <div
-                  style={{
-                    border: `1px solid ${G.border}`,
-                    borderRadius: 8,
-                    padding: "8px 10px",
-                    background: G.card,
-                    minWidth: 160,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Pipeline</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: G.gold }}>
-                    {fmt$(dashboardTotals.pipelineValue)}
-                  </div>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 120 }}>
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Active Bookings</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.gold }}>{dashboardTotals.bookedCount}</div>
                 </div>
-                <div
-                  style={{
-                    border: `1px solid ${G.border}`,
-                    borderRadius: 8,
-                    padding: "8px 10px",
-                    background: G.card,
-                    minWidth: 160,
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: G.textMuted }}>Total Accepted Revenue</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: G.green }}>
-                    {fmt$(dashboardTotals.acceptedRevenue)}
-                  </div>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 160 }}>
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Accepted Revenue</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.green }}>{fmt$(dashboardTotals.acceptedRevenue)}</div>
+                </div>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 150 }}>
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Outstanding</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: dashboardTotals.outstanding > 0 ? G.amber : G.green }}>{fmt$(dashboardTotals.outstanding)}</div>
+                </div>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 140 }}>
+                  <div style={{ fontSize: 11, color: G.textMuted }}>Lead Pipeline</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: G.blue }}>{fmt$(dashboardTotals.pipelineValue)}</div>
                 </div>
               </div>
             </>
