@@ -1,7 +1,7 @@
 import "./globals.css";
 export const metadata = {
-  title: "NSP Business Suite — Nico Salgado Photography",
-  description: "Lead tracking, proposals, contracts, invoicing, scheduling, and financial reporting for Nico Salgado Photography.",
+  title: "NSP Business Suite — NSP Suite",
+  description: "Lead tracking, proposals, contracts, invoicing, scheduling, and financial reporting for NSP Suite.",
 };
 
 export default function RootLayout({ children }) {
