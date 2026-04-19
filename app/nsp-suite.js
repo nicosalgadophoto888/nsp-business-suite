@@ -799,26 +799,26 @@ function importedRowToWorkspace(row, templates, settings) {
     },
     schedule: sessionTitle || eventDate
       ? [
-          {
-            id: genId("schedule"),
-            title: sessionTitle || type || "Session",
-            date: eventDate,
-            time: "",
-            endTime: "",
-            location,
-            status: sessionStatus,
-            notes: "",
-          },
-        ]
+        {
+          id: genId("schedule"),
+          title: sessionTitle || type || "Session",
+          date: eventDate,
+          time: "",
+          endTime: "",
+          location,
+          status: sessionStatus,
+          notes: "",
+        },
+      ]
       : [],
     notes: notes
       ? [
-          {
-            id: genId("note"),
-            text: notes,
-            date: new Date().toISOString(),
-          },
-        ]
+        {
+          id: genId("note"),
+          text: notes,
+          date: new Date().toISOString(),
+        },
+      ]
       : [],
     emailActivity: [],
     payments: [],
@@ -905,9 +905,9 @@ const fmtTime = (d) => {
   return Number.isNaN(parsed.getTime())
     ? ""
     : parsed.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      hour: "numeric",
+      minute: "2-digit",
+    });
 };
 
 function cleanIncludes(arr) {
@@ -969,32 +969,30 @@ function toAbsoluteAssetUrl(path) {
 function quoteToPrintableHtml(quote, settings) {
   const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
   const logoUrl = toAbsoluteAssetUrl(settings.logoUrl || "/nsp-logo.jpg");
+  const contractsList = Array.isArray(quote.contractTemplates)
+    ? quote.contractTemplates
+    : quote.contractTemplate ? [quote.contractTemplate] : [];
   const bookingHtml =
-    quote.paymentSchedule || quote.questionnaire || quote.contractTemplate
+    quote.paymentSchedule || quote.questionnaire || contractsList.length
       ? `
         <div style="margin-top:28px;padding:18px 20px;border:1px solid #e5e5e5;border-radius:12px;background:#faf7f2;">
           <div style="font-size:15px;font-weight:700;margin-bottom:10px;">Booking Process</div>
-          ${
-            quote.paymentSchedule
-              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
-                  quote.paymentSchedule
-                )}</div>`
-              : ""
-          }
-          ${
-            quote.questionnaire
-              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
-                  quote.questionnaire
-                )}</div>`
-              : ""
-          }
-          ${
-            quote.contractTemplate
-              ? `<div style="font-size:13px;color:#444;"><strong>Contract:</strong> ${escapeHtml(
-                  quote.contractTemplate
-                )}</div>`
-              : ""
-          }
+          ${quote.paymentSchedule
+        ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
+          quote.paymentSchedule
+        )}</div>`
+        : ""
+      }
+          ${quote.questionnaire
+        ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
+          quote.questionnaire
+        )}</div>`
+        : ""
+      }
+          ${contractsList.length
+        ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(contractsList.join(", "))}</div>`
+        : ""
+      }
         </div>
       `
       : "";
@@ -1015,18 +1013,18 @@ function quoteToPrintableHtml(quote, settings) {
           const qtyText =
             toQty(li.qty) > 1
               ? `<div style="font-size:11px;color:#888;">(${escapeHtml(
-                  fmt$(li.price)
-                )} × ${toQty(li.qty)})</div>`
+                fmt$(li.price)
+              )} × ${toQty(li.qty)})</div>`
               : "";
           return `
             <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #eee;padding-top:10px;margin-top:10px;gap:12px;">
               <div style="font-size:14px;font-weight:700;">${escapeHtml(
-                li.name || "Untitled item"
-              )}</div>
+            li.name || "Untitled item"
+          )}</div>
               <div style="text-align:right;white-space:nowrap;">
                 <div style="font-size:14px;font-weight:700;font-family:monospace;">${escapeHtml(
-                  fmt$(lineTotal)
-                )}</div>
+            fmt$(lineTotal)
+          )}</div>
                 ${qtyText}
               </div>
             </div>
@@ -1036,28 +1034,25 @@ function quoteToPrintableHtml(quote, settings) {
 
       return `
         <div style="margin-bottom:28px;">
-          ${
+          ${section.packageName
+          ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
             section.packageName
-              ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
-                  section.packageName
-                )}</div>`
-              : ""
-          }
-          ${
+          )}</div>`
+          : ""
+        }
+          ${section.description
+          ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
             section.description
-              ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
-                  section.description
-                )}</div>`
-              : ""
-          }
+          )}</div>`
+          : ""
+        }
           ${includesHtml}
-          ${
+          ${section.notes
+          ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
             section.notes
-              ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
-                  section.notes
-                )}</div>`
-              : ""
-          }
+          )}</div>`
+          : ""
+        }
           ${itemsHtml}
         </div>
       `;
@@ -1079,16 +1074,15 @@ function quoteToPrintableHtml(quote, settings) {
         <div style="max-width:800px;margin:0 auto;">
           <div style="display:flex;justify-content:space-between;margin-bottom:32px;gap:24px;">
             <div>
-              ${
-                logoUrl
-                  ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
-                      settings.businessName || "Business"
-                    )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
-                  : ""
-              }
+              ${logoUrl
+      ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
+        settings.businessName || "Business"
+      )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
+      : ""
+    }
               <div style="font-size:22px;font-weight:800;color:${G.teal};letter-spacing:-.02em;">${escapeHtml(
-    settings.businessName || "Business"
-  )}</div>
+      settings.businessName || "Business"
+    )}</div>
               <div style="font-size:12px;color:#666;line-height:1.7;margin-top:4px;">
                 ${settings.address1 ? `${escapeHtml(settings.address1)}<br />` : ""}
                 ${settings.address2 ? `${escapeHtml(settings.address2)}<br />` : ""}
@@ -1099,91 +1093,83 @@ function quoteToPrintableHtml(quote, settings) {
             </div>
             <div style="text-align:right;">
               <div style="font-size:18px;font-weight:700;">${escapeHtml(
-                quote.quoteNumberLabel || "Quote Summary"
-              )}</div>
+      quote.quoteNumberLabel || "Quote Summary"
+    )}</div>
               <div style="font-size:13px;color:#666;margin-top:4px;">Quote Total: <strong>${escapeHtml(
-                fmt$(total)
-              )}</strong></div>
+      fmt$(total)
+    )}</strong></div>
               <div style="margin-top:12px;">
                 <div style="font-size:14px;font-weight:700;">Recipient</div>
                 <div style="font-size:13px;color:#666;">${escapeHtml(
-                  quote.clientName || "—"
-                )}</div>
-                ${
-                  quote.clientEmail
-                    ? `<div style="font-size:13px;color:#666;">${escapeHtml(
-                        quote.clientEmail
-                      )}</div>`
-                    : ""
-                }
+      quote.clientName || "—"
+    )}</div>
+                ${quote.clientEmail
+      ? `<div style="font-size:13px;color:#666;">${escapeHtml(
+        quote.clientEmail
+      )}</div>`
+      : ""
+    }
               </div>
             </div>
           </div>
 
-          ${
-            quote.eventName || quote.eventDate
-              ? `
+          ${quote.eventName || quote.eventDate
+      ? `
             <div style="text-align:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #e0e0e0;">
               <div style="font-size:18px;font-weight:700;color:${G.teal};">
-                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${
-                  quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
-                }
+                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
+      }
               </div>
             </div>
           `
-              : ""
-          }
+      : ""
+    }
 
-          ${
-            quote.introduction
-              ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
-                  quote.introduction
-                )}</div>`
-              : ""
-          }
+          ${quote.introduction
+      ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
+        quote.introduction
+      )}</div>`
+      : ""
+    }
           ${sectionsHtml}
-          ${
-            quote.notes
-              ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
-                  quote.notes
-                )}</div>`
-              : ""
-          }
-          ${
-            quote.expiration
-              ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
-                  fmtShort(quote.expiration)
-                )}</div>`
-              : ""
-          }
+          ${quote.notes
+      ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
+        quote.notes
+      )}</div>`
+      : ""
+    }
+          ${quote.expiration
+      ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
+        fmtShort(quote.expiration)
+      )}</div>`
+      : ""
+    }
           ${bookingHtml}
 
           <div style="border-top:2px solid #1a1a1a;padding-top:16px;margin-top:20px;">
             <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
               <div style="font-size:14px;color:#666;">Subtotal:</div>
               <div style="font-size:16px;font-weight:700;font-family:monospace;">${escapeHtml(
-                fmt$(subtotal)
-              )}</div>
+      fmt$(subtotal)
+    )}</div>
             </div>
-            ${
-              discountAmount > 0
-                ? `
+            ${discountAmount > 0
+      ? `
               <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
-                <div style="font-size:14px;color:#666;">Discount${
-                  quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
-                }:</div>
+                <div style="font-size:14px;color:#666;">Discount${quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
+      }:</div>
                 <div style="font-size:16px;font-weight:700;font-family:monospace;color:#b42318;">-${escapeHtml(
-                  fmt$(discountAmount)
-                )}</div>
+        fmt$(discountAmount)
+      )}</div>
               </div>
             `
-                : ""
-            }
+      : ""
+    }
             <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:16px;">
               <div style="font-size:14px;color:#666;">Total:</div>
               <div style="font-size:18px;font-weight:800;font-family:monospace;">${escapeHtml(
-                fmt$(total)
-              )}</div>
+      fmt$(total)
+    )}</div>
             </div>
           </div>
         </div>
@@ -1426,6 +1412,264 @@ function ErrorList({ errors }) {
   );
 }
 
+function getQuoteValidationErrors(building, settings) {
+  if (!building) return [];
+  const nextErrors = [];
+  if (!String(building.clientName || "").trim()) {
+    nextErrors.push("Client name is required");
+  }
+  if (!(building.sections || []).length) {
+    nextErrors.push("Add at least one quote section");
+  }
+  if (building.clientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(building.clientEmail))) {
+    nextErrors.push("Invalid email format");
+  }
+  if (building.expiration && isNaN(Date.parse(building.expiration))) {
+    nextErrors.push("Expiration date is invalid");
+  }
+  return nextErrors;
+}
+
+function getNewClientValidationErrors(form) {
+  if (!form) return [];
+  const nextErrors = [];
+  if (!String(form.name || "").trim()) {
+    nextErrors.push("Client name is required");
+  }
+  if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(form.email))) {
+    nextErrors.push("Invalid email format");
+  }
+  if (form.scheduleDate && form.eventDate) {
+    const scheduleDate = new Date(form.scheduleDate);
+    const eventDate = new Date(form.eventDate);
+    if (!isNaN(scheduleDate.getTime()) && !isNaN(eventDate.getTime()) && scheduleDate < eventDate) {
+      nextErrors.push("Schedule date cannot be before the job/event date");
+    }
+  }
+  return nextErrors;
+}
+
+function NewClientModal({
+  form,
+  onChange,
+  onClose,
+  onSubmit,
+  suggestions,
+  onSelectSuggestion,
+  errors,
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.45)",
+        zIndex: 5100,
+        display: "grid",
+        placeItems: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "min(960px, 96vw)",
+          background: G.card,
+          border: `1px solid ${G.borderLight}`,
+          borderRadius: 12,
+          padding: 16,
+        }}
+      >
+        <SectionLabel
+          actions={
+            <Btn variant="ghost" small onClick={onClose}>
+              Cancel
+            </Btn>
+          }
+        >
+          New Client Intake
+        </SectionLabel>
+
+        <ErrorList errors={errors} />
+
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+          <div>
+            <Card style={{ padding: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Job Profile</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ position: "relative" }}>
+                  <InputField
+                    label="Client Name"
+                    value={form.name}
+                    onChange={(e) => onChange("name", e.target.value)}
+                    required
+                  />
+                  {suggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        top: 64,
+                        zIndex: 20,
+                        background: "#fff",
+                        border: `1px solid ${G.border}`,
+                        borderRadius: 10,
+                        boxShadow: "0 12px 30px rgba(15,23,42,0.12)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {suggestions.map((client) => (
+                        <button
+                          key={client.name}
+                          type="button"
+                          onClick={() => onSelectSuggestion(client)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            border: "none",
+                            background: "transparent",
+                            padding: "10px 12px",
+                            cursor: "pointer",
+                            borderBottom: `1px solid ${G.borderLight}`,
+                          }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 700, color: G.text }}>
+                            {client.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: G.textDim }}>
+                            {[client.email, client.phone, client.type, client.location]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <InputField
+                  label="Email"
+                  value={form.email}
+                  onChange={(e) => onChange("email", e.target.value)}
+                />
+                <InputField
+                  label="Phone"
+                  value={form.phone}
+                  onChange={(e) => onChange("phone", e.target.value)}
+                />
+                <InputField
+                  label="Job Type"
+                  value={form.type}
+                  onChange={(e) => onChange("type", e.target.value)}
+                />
+                <InputField
+                  label="Job Date"
+                  type="date"
+                  value={form.eventDate}
+                  onChange={(e) => onChange("eventDate", e.target.value)}
+                />
+                <InputField
+                  label="Lead Inquired On"
+                  type="date"
+                  value={form.inquiredOn}
+                  onChange={(e) => onChange("inquiredOn", e.target.value)}
+                />
+                <InputField
+                  label="Source"
+                  value={form.referralSource}
+                  onChange={(e) => onChange("referralSource", e.target.value)}
+                />
+                <InputField
+                  label="Location"
+                  value={form.location}
+                  onChange={(e) => onChange("location", e.target.value)}
+                />
+              </div>
+              <InputField
+                label="Lead Notes"
+                value={form.notes}
+                onChange={(e) => onChange("notes", e.target.value)}
+                multiline
+              />
+            </Card>
+
+            <Card style={{ padding: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Schedule</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 10 }}>
+                <InputField
+                  label="Event Title"
+                  value={form.scheduleTitle}
+                  onChange={(e) => onChange("scheduleTitle", e.target.value)}
+                />
+                <InputField
+                  label="Date"
+                  type="date"
+                  value={form.scheduleDate}
+                  onChange={(e) => onChange("scheduleDate", e.target.value)}
+                />
+                <InputField
+                  label="Time"
+                  value={form.scheduleTime}
+                  onChange={(e) => onChange("scheduleTime", e.target.value)}
+                />
+                <div style={{ marginBottom: 14 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: G.text,
+                      marginBottom: 5,
+                    }}
+                  >
+                    Status
+                  </label>
+                  <select
+                    value={form.scheduleStatus}
+                    onChange={(e) => onChange("scheduleStatus", e.target.value)}
+                    style={{
+                      width: "100%",
+                      background: G.surface,
+                      color: G.text,
+                      border: `1px solid ${G.border}`,
+                      borderRadius: 6,
+                      padding: "9px 12px",
+                      fontSize: 13,
+                    }}
+                  >
+                    <option value="Tentative">Tentative</option>
+                    <option value="Booked">Booked</option>
+                    <option value="Confirmed">Confirmed</option>
+                  </select>
+                </div>
+              </div>
+              <InputField
+                label="Event Location (optional)"
+                value={form.scheduleLocation}
+                onChange={(e) => onChange("scheduleLocation", e.target.value)}
+              />
+            </Card>
+          </div>
+
+          <Card style={{ padding: 14, height: "fit-content" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Workflow</div>
+            <div style={{ fontSize: 12, color: G.textDim, lineHeight: 1.6, marginBottom: 12 }}>
+              Fill client details and schedule first, then continue directly into Quotes & Orders to build and send approval.
+            </div>
+            <div style={{ display: "grid", gap: 8 }}>
+              <Btn variant="ghost" small onClick={onClose} full>
+                Cancel
+              </Btn>
+              <Btn small onClick={onSubmit} full>
+                Save & Continue to Quotes
+              </Btn>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InfoRow({ label, value, accent }) {
   return (
     <div
@@ -1632,9 +1876,14 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  const sortedEvents = [...(schedule || [])].sort(
-    (a, b) => new Date(`${a.date || ""} ${a.time || ""}`) - new Date(`${b.date || ""} ${b.time || ""}`)
-  );
+  const sortedEvents = [...(schedule || [])].sort((a, b) => {
+    // Booked/Confirmed float to top, then by date
+    const priority = (s) => (s === "Booked" || s === "Confirmed" ? 0 : 1);
+    const pa = priority(a.status);
+    const pb = priority(b.status);
+    if (pa !== pb) return pa - pb;
+    return new Date(`${a.date || ""} ${a.time || ""}`) - new Date(`${b.date || ""} ${b.time || ""}`);
+  });
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const visibleEvents = sortedEvents.filter((ev) => {
@@ -1777,7 +2026,15 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
       )}
 
       {visibleEvents.length === 0 && !adding ? (
-        <EmptyState icon="📅" text="No events scheduled for this client yet." />
+        <EmptyState
+          icon="📅"
+          text={
+            (quotes || []).some((q) => q.status === "Accepted")
+              ? "No sessions yet — accepting a new quote will auto-create one."
+              : "No events scheduled yet. Add one or accept a quote."
+          }
+          action={<Btn small onClick={() => setAdding(true)}>+ New Event</Btn>}
+        />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 250px", gap: 14 }}>
           <div>
@@ -1930,8 +2187,11 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
 
 function QuotePreview({ quote, settings, onBack, onDownloadPdf }) {
   const { subtotal, discountAmount, total } = calcQuoteTotals(quote);
+  const quoteContractsList = Array.isArray(quote.contractTemplates)
+    ? quote.contractTemplates
+    : quote.contractTemplate ? [quote.contractTemplate] : [];
   const hasBookingProcess =
-    quote.paymentSchedule || quote.questionnaire || quote.contractTemplate;
+    quote.paymentSchedule || quote.questionnaire || quoteContractsList.length;
 
   return (
     <div>
@@ -2158,9 +2418,9 @@ function QuotePreview({ quote, settings, onBack, onDownloadPdf }) {
                 <strong>Questionnaire:</strong> {quote.questionnaire}
               </div>
             )}
-            {quote.contractTemplate && (
+            {quoteContractsList.length > 0 && (
               <div style={{ fontSize: 13, color: "#444" }}>
-                <strong>Contract:</strong> {quote.contractTemplate}
+                <strong>Attached Documents:</strong> {quoteContractsList.join(", ")}
               </div>
             )}
           </div>
@@ -2213,6 +2473,7 @@ function QuotesTab({
   payments,
   contracts,
   workspaceRows,
+  clientDirectory,
   settings,
   counters,
   setCounters,
@@ -2233,16 +2494,23 @@ function QuotesTab({
     () => (templates || []).filter((t) => t.type === "file"),
     [templates]
   );
-  const paymentScheduleOptions = useMemo(
-    () =>
-      (payments || [])
-        .map((plan) => ({
-          value: plan.name || "",
-          detail: plan.description || "",
-        }))
-        .filter((plan) => plan.value),
-    [payments]
-  );
+  const paymentScheduleOptions = useMemo(() => {
+    const seen = new Set();
+    const results = [];
+    // Global: file templates with category "Payment Schedules"
+    (templates || []).forEach((tpl) => {
+      if (tpl.type === "file" && String(tpl.category || "").trim() === "Payment Schedules" && tpl.name) {
+        const value = String(tpl.name).trim();
+        if (!seen.has(value)) { seen.add(value); results.push({ value, detail: tpl.content ? tpl.content.slice(0, 80) : "" }); }
+      }
+    });
+    // Per-workspace: payments array plans
+    (payments || []).forEach((plan) => {
+      const value = String(plan.name || "").trim();
+      if (value && !seen.has(value)) { seen.add(value); results.push({ value, detail: plan.description || "" }); }
+    });
+    return results;
+  }, [templates, payments]);
   const questionnaireOptions = useMemo(() => {
     const all = new Map();
     (templates || []).forEach((tpl) => {
@@ -2256,39 +2524,14 @@ function QuotesTab({
   }, [templates]);
   const contractOptions = useMemo(() => {
     return (templates || [])
-      .filter((tpl) => {
-        if (tpl.template_kind === "contract") return true;
-        const name = String(tpl.name || "").toLowerCase();
-        return name.includes("contract") || name.includes("agreement");
-      })
+      .filter((tpl) => tpl.type === "file" && tpl.name)
       .map((tpl) => ({
         id: tpl.id,
         name: tpl.name,
         detail: tpl.category || "",
       }));
   }, [templates]);
-  const clientDirectory = useMemo(() => {
-    const map = new Map();
-    const pushClient = (client) => {
-      const name = String(client?.name || "").trim();
-      if (!name) return;
-      const key = name.toLowerCase();
-      const existing = map.get(key) || {};
-      map.set(key, {
-        name,
-        email: String(client?.email || existing.email || "").trim(),
-        type: String(client?.type || existing.type || "").trim(),
-        eventDate: String(client?.eventDate || existing.eventDate || "").trim(),
-        location: String(client?.location || existing.location || "").trim(),
-      });
-    };
-    pushClient(lead);
-    (workspaceRows || []).forEach((row) => {
-      const snapshot = workspaceRowToSnapshot(row);
-      pushClient(snapshot?.lead || {});
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [lead, workspaceRows]);
+
 
   const emptyQuote = {
     id: "",
@@ -2308,7 +2551,7 @@ function QuotesTab({
     discountValue: 0,
     paymentSchedule: "",
     questionnaire: "",
-    contractTemplate: "",
+    contractTemplates: [],
     createdAt: null,
     updatedAt: null,
     lastViewed: null,
@@ -2361,9 +2604,13 @@ function QuotesTab({
         return a.name.localeCompare(b.name);
       });
     if (matches.some((client) => client.name.toLowerCase() === search)) return [];
-    return matches
-      .slice(0, 6);
+    return matches.slice(0, 6);
   }, [building?.clientName, clientDirectory]);
+
+  const quoteValidationErrors = useMemo(
+    () => getQuoteValidationErrors(building, settings),
+    [building, settings]
+  );
 
   const addCustomSection = () => {
     setBuilding((prev) => ({
@@ -2487,9 +2734,9 @@ function QuotesTab({
   const acceptedQuoteCount = quotes.filter((q) => q.status === "Accepted").length;
 
   const validate = () => {
-    const nextErrors = [];
-    if (!building.clientName.trim()) nextErrors.push("Client name is required");
-    if (!(building.sections || []).length) nextErrors.push("Add at least one quote section");
+    const nextErrors = [
+      ...getQuoteValidationErrors(building, settings),
+    ];
     (building.sections || []).forEach((section, sIdx) => {
       if (!(section.lineItems || []).length) {
         nextErrors.push(`Section ${sIdx + 1} has no line items`);
@@ -2500,12 +2747,6 @@ function QuotesTab({
         }
       });
     });
-    if (
-      building.clientEmail &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(building.clientEmail)
-    ) {
-      nextErrors.push("Invalid email format");
-    }
     setErrors(nextErrors);
     return nextErrors.length === 0;
   };
@@ -2619,7 +2860,11 @@ function QuotesTab({
           bookingProcess: {
             paymentSchedule: quote.paymentSchedule || "",
             questionnaire: quote.questionnaire || "",
-            contractTemplate: quote.contractTemplate || "",
+            contractTemplates: Array.isArray(quote.contractTemplates)
+              ? quote.contractTemplates
+              : quote.contractTemplate
+                ? [quote.contractTemplate]
+                : [],
           },
           sections: (quote.sections || []).map((s) => ({
             packageName: s.packageName || "",
@@ -2669,25 +2914,27 @@ function QuotesTab({
 <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto;">
   <div style="background:#0e0f11;padding:24px 28px;border-radius:12px 12px 0 0;">
     <div style="font-size:18px;font-weight:800;color:#d4a853;">${escapeHtml(
-      settings.businessName || "Nico Salgado Photography"
-    )}</div>
+        settings.businessName || "Nico Salgado Photography"
+      )}</div>
   </div>
   <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
     <h2 style="margin:0 0 8px;font-size:18px;">Quote Approval Request</h2>
     <p style="margin:0 0 16px;font-size:13px;color:#555;">Quote ${escapeHtml(
-      quote.quoteNumberLabel || ""
-    )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
+        quote.quoteNumberLabel || ""
+      )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
     <ul style="padding-left:18px;margin:0 0 14px;">${sectionSummary}</ul>
-    ${
-      quote.paymentSchedule || quote.questionnaire || quote.contractTemplate
-        ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
+    ${(() => {
+          const cl = Array.isArray(quote.contractTemplates) ? quote.contractTemplates : quote.contractTemplate ? [quote.contractTemplate] : [];
+          return (quote.paymentSchedule || quote.questionnaire || cl.length)
+            ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
       <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Booking Process Included</div>
       ${quote.paymentSchedule ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Payment Schedule:</strong> ${escapeHtml(quote.paymentSchedule)}</div>` : ""}
       ${quote.questionnaire ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Questionnaire:</strong> ${escapeHtml(quote.questionnaire)}</div>` : ""}
-      ${quote.contractTemplate ? `<div style="font-size:13px;color:#444;"><strong>Contract:</strong> ${escapeHtml(quote.contractTemplate)}</div>` : ""}
+      ${cl.length ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(cl.join(", "))}</div>` : ""}
     </div>`
-        : ""
-    }
+            : "";
+        })()
+        }
     <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;font-size:14px;">
       <strong>Total:</strong> ${escapeHtml(fmt$(totals.total))}
     </div>
@@ -2712,9 +2959,8 @@ function QuotesTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: recipient,
-          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${
-            settings.businessName || "Nico Salgado Photography"
-          }`.trim(),
+          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${settings.businessName || "Nico Salgado Photography"
+            }`.trim(),
           htmlBody,
         }),
       });
@@ -2743,12 +2989,43 @@ function QuotesTab({
   };
 
   const markQuoteAccepted = (quoteId) => {
+    const accepted = quotes.find((q) => q.id === quoteId);
     const nextQuotes = quotes.map((q) =>
       q.id === quoteId ? { ...q, status: "Accepted", updatedAt: new Date().toISOString() } : q
     );
     setQuotes(nextQuotes);
     recalcLeadNumbers(nextQuotes);
-    setQuoteNotice({ type: "success", message: "Quote marked as accepted." });
+
+    // Auto-advance lead stage to Booked
+    setLead((prev) => ({
+      ...prev,
+      stage: prev.stage === "Lead" ? "Booked" : prev.stage,
+    }));
+
+    // Auto-create a schedule session if the quote has event info and no session exists yet
+    if (accepted) {
+      const sessionTitle = accepted.eventName || accepted.clientName || lead.type || "Booked Session";
+      const sessionDate = accepted.eventDate || lead.eventDate || "";
+      const alreadyExists = (schedule || []).some(
+        (s) => s.quoteId === accepted.id || (s.title === sessionTitle && s.date === sessionDate)
+      );
+      if (!alreadyExists) {
+        const newSession = {
+          id: Date.now(),
+          quoteId: accepted.id,
+          title: sessionTitle,
+          date: sessionDate,
+          time: "",
+          endTime: "",
+          location: lead.location || "",
+          status: "Booked",
+          notes: `Auto-created from ${accepted.quoteNumberLabel || "accepted quote"}`,
+        };
+        setSchedule((prev) => [...(prev || []), newSession]);
+      }
+    }
+
+    setQuoteNotice({ type: "success", message: "Quote accepted — session added to Schedule." });
   };
 
   const deleteQuote = (id) => {
@@ -2850,23 +3127,27 @@ function QuotesTab({
             <Btn variant="secondary" small onClick={() => setPreviewQuote(building)}>
               Preview Quote
             </Btn>
-            <Btn variant="secondary" small onClick={saveAndEmailQuote} disabled={emailingApproval}>
+            <Btn
+              variant="secondary"
+              small
+              onClick={saveAndEmailQuote}
+              disabled={emailingApproval || quoteValidationErrors.length > 0}
+            >
               {emailingApproval ? "Sending..." : "Save & Email Approval"}
             </Btn>
-            <Btn small onClick={saveQuote}>
+            <Btn small onClick={saveQuote} disabled={quoteValidationErrors.length > 0}>
               Save Quote
             </Btn>
           </div>
         </div>
 
-        <ErrorList errors={errors} />
+        <ErrorList errors={errors.length ? errors : quoteValidationErrors} />
         {quoteNotice && (
           <div
             style={{
               background: quoteNotice.type === "success" ? G.greenBg : G.redBg,
-              border: `1px solid ${
-                quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
-              }`,
+              border: `1px solid ${quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
+                }`,
               color: quoteNotice.type === "success" ? G.green : G.red,
               borderRadius: 8,
               padding: "10px 14px",
@@ -3005,7 +3286,7 @@ function QuotesTab({
                 label="Quote Number"
                 value={building.quoteNumberLabel}
                 readOnly
-                onChange={() => {}}
+                onChange={() => { }}
               />
             </div>
           </Card>
@@ -3089,31 +3370,69 @@ function QuotesTab({
                     marginBottom: 5,
                   }}
                 >
-                  Contract
+                  Contracts / Attachments
                 </label>
-                <select
-                  value={(contractOptions.find((option) => option.name === building.contractTemplate)?.id || "")}
-                  onChange={(e) => {
-                    const selected = contractOptions.find((option) => option.id === e.target.value);
-                    setField("contractTemplate", selected?.name || "");
-                  }}
-                  style={{
-                    width: "100%",
-                    background: G.surface,
-                    color: G.text,
-                    border: `1px solid ${G.border}`,
-                    borderRadius: 6,
-                    padding: "9px 12px",
-                    fontSize: 13,
-                  }}
-                >
-                  <option value="">Select a contract…</option>
-                  {contractOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
+                {contractOptions.length === 0 ? (
+                  <div style={{ fontSize: 12, color: G.textMuted, padding: "9px 0" }}>
+                    No templates found — add them in the Templates tab.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      border: `1px solid ${G.border}`,
+                      borderRadius: 6,
+                      background: G.surface,
+                      maxHeight: 160,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {contractOptions.map((option, idx) => {
+                      const checked = (building.contractTemplates || []).includes(option.name);
+                      return (
+                        <label
+                          key={option.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "8px 10px",
+                            cursor: "pointer",
+                            borderBottom: idx < contractOptions.length - 1 ? `1px solid ${G.border}` : "none",
+                            background: checked ? G.goldBg : "transparent",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const current = building.contractTemplates || [];
+                              setField(
+                                "contractTemplates",
+                                e.target.checked
+                                  ? [...current, option.name]
+                                  : current.filter((n) => n !== option.name)
+                              );
+                            }}
+                            style={{ accentColor: G.gold, width: 14, height: 14, flexShrink: 0 }}
+                          />
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: checked ? 700 : 400, color: G.text }}>
+                              {option.name}
+                            </div>
+                            {option.detail && (
+                              <div style={{ fontSize: 11, color: G.textMuted }}>{option.detail}</div>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {(building.contractTemplates || []).length > 0 && (
+                  <div style={{ fontSize: 11, color: G.gold, marginTop: 5 }}>
+                    {(building.contractTemplates || []).length} selected — will be attached to quote email
+                  </div>
+                )}
               </div>
             </div>
           </Card>
@@ -3621,115 +3940,115 @@ function QuotesTab({
             />
           ) : (
             visibleQuotes.map((q) => {
-            const statusColorMap = {
-              Draft: { color: G.textDim, bg: G.surface },
-              Sent: { color: G.amber, bg: G.amberBg },
-              Accepted: { color: G.green, bg: G.greenBg },
-              Declined: { color: G.red, bg: G.redBg },
-            };
-            const colors = statusColorMap[q.status] || {
-              color: G.textDim,
-              bg: G.surface,
-            };
-            const total = calcQuoteTotals(q).total;
+              const statusColorMap = {
+                Draft: { color: G.textDim, bg: G.surface },
+                Sent: { color: G.amber, bg: G.amberBg },
+                Accepted: { color: G.green, bg: G.greenBg },
+                Declined: { color: G.red, bg: G.redBg },
+              };
+              const colors = statusColorMap[q.status] || {
+                color: G.textDim,
+                bg: G.surface,
+              };
+              const total = calcQuoteTotals(q).total;
 
-            return (
-              <div
-                key={q.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto auto auto",
-                  gap: 14,
-                  alignItems: "center",
-                  padding: "16px 18px",
-                  background: G.card,
-                  border: `1px solid ${G.border}`,
-                  borderRadius: 10,
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600 }}>
-                    {q.clientName || "Untitled"}
-                  </div>
-                  <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
-                    {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
-                    {fmtShort(q.createdAt)}
-                  </div>
-                  <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
-                    {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
-                  </div>
-                </div>
-
-                <Pill color={colors.color} bg={colors.bg}>
-                  {q.status}
-                </Pill>
-
+              return (
                 <div
+                  key={q.id}
                   style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: G.gold,
-                    minWidth: 90,
-                    textAlign: "right",
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto auto auto",
+                    gap: 14,
+                    alignItems: "center",
+                    padding: "16px 18px",
+                    background: G.card,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 10,
                   }}
                 >
-                  {fmt$(total)}
-                </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>
+                      {q.clientName || "Untitled"}
+                    </div>
+                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
+                      {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
+                      {fmtShort(q.createdAt)}
+                    </div>
+                    <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
+                      {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
+                    </div>
+                  </div>
 
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  <Btn
-                    variant="ghost"
-                    small
-                    onClick={() => {
-                      setErrors([]);
-                      setBuilding(JSON.parse(JSON.stringify(q)));
+                  <Pill color={colors.color} bg={colors.bg}>
+                    {q.status}
+                  </Pill>
+
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: G.gold,
+                      minWidth: 90,
+                      textAlign: "right",
                     }}
                   >
-                    Edit
-                  </Btn>
-                  <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
-                    Preview
-                  </Btn>
-                  <Btn
-                    variant="secondary"
-                    small
-                    onClick={async () => {
-                      await emailQuoteForApproval(q);
-                    }}
-                  >
-                    Email Approval
-                  </Btn>
-                  {q.status === "Accepted" ? (
+                    {fmt$(total)}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <Btn
+                      variant="ghost"
+                      small
+                      onClick={() => {
+                        setErrors([]);
+                        setBuilding(JSON.parse(JSON.stringify(q)));
+                      }}
+                    >
+                      Edit
+                    </Btn>
+                    <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
+                      Preview
+                    </Btn>
                     <Btn
                       variant="secondary"
                       small
-                      onClick={() => {
-                        if (onCreateInvoiceFromQuote) {
-                          onCreateInvoiceFromQuote(q);
-                          return;
-                        }
-                        onNavigateToFinancials?.("financials");
+                      onClick={async () => {
+                        await emailQuoteForApproval(q);
                       }}
                     >
-                      Create Invoice
+                      Email Approval
                     </Btn>
-                  ) : (
-                    <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
-                      Mark Accepted
+                    {q.status === "Accepted" ? (
+                      <Btn
+                        variant="secondary"
+                        small
+                        onClick={() => {
+                          if (onCreateInvoiceFromQuote) {
+                            onCreateInvoiceFromQuote(q);
+                            return;
+                          }
+                          onNavigateToFinancials?.("financials");
+                        }}
+                      >
+                        Create Invoice
+                      </Btn>
+                    ) : (
+                      <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
+                        Mark Accepted
+                      </Btn>
+                    )}
+                    <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
+                      PDF
                     </Btn>
-                  )}
-                  <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
-                    PDF
-                  </Btn>
-                  <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
-                    Duplicate
-                  </Btn>
-                  <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
-                    ×
-                  </Btn>
+                    <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
+                      Duplicate
+                    </Btn>
+                    <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
+                      ×
+                    </Btn>
+                  </div>
                 </div>
-              </div>
-            );
+              );
             })
           )}
         </div>
@@ -3778,11 +4097,11 @@ function FinancialsTab({
       const byEmail =
         lead?.email &&
         String(invoice.clientEmail || "").trim().toLowerCase() ===
-          String(lead.email || "").trim().toLowerCase();
+        String(lead.email || "").trim().toLowerCase();
       const byName =
         lead?.name &&
         String(invoice.clientName || "").trim().toLowerCase() ===
-          String(lead.name || "").trim().toLowerCase();
+        String(lead.name || "").trim().toLowerCase();
       return Boolean(byClientId || byLeadId || byEmail || byName);
     },
     [clientRecordId, lead?.id, lead?.email, lead?.name]
@@ -4080,9 +4399,9 @@ function FinancialsTab({
     const total = Number(sourceTotals.total || 0);
     const packageName = sourceQuote
       ? (sourceQuote.sections || [])
-          .map((section) => String(section.packageName || "").trim())
-          .filter(Boolean)
-          .join(" / ")
+        .map((section) => String(section.packageName || "").trim())
+        .filter(Boolean)
+        .join(" / ")
       : "";
     const isRetainer = type === "retainer";
     const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
@@ -4158,6 +4477,9 @@ function FinancialsTab({
           syncLeadBalance(next);
           return next;
         });
+        if (dbRow.quote_id) {
+          setQuotes((prev) => prev.filter((q) => String(q.id) !== String(dbRow.quote_id)));
+        }
       }
       setView("list"); setForm({}); setActiveInvoice(null);
     } catch (err) {
@@ -4203,6 +4525,7 @@ function FinancialsTab({
     try {
       const paymentRow = {
         invoice_id: activeInvoice.id,
+        invoice_id_legacy: activeInvoice.id,
         amount: Number(payForm.amount) || 0, method: payForm.method,
         reference: payForm.reference, note: payForm.note,
         paid_on: payForm.paidOn,
@@ -4214,29 +4537,48 @@ function FinancialsTab({
         if (data) savedPaymentRow = data;
       }
       setPaymentRecords(prev => [savedPaymentRow, ...prev]);
+      const newPaid =
+        Number(activeInvoice.amountPaid || 0) + (Number(payForm.amount) || 0);
 
-      // Update invoice
-      const newPaid = (activeInvoice.amountPaid || 0) + Number(payForm.amount);
-      const newBalance = Math.max(0, (activeInvoice.totalAmount || 0) - newPaid);
+      const newBalance = Math.max(
+        0,
+        Number(activeInvoice.totalAmount || 0) - newPaid
+      );
+
       const newStatus = newBalance <= 0 ? "Paid" : "Partial";
+
       if (hasDbInvoiceId(activeInvoice.id)) {
-        const { error } = await supabase
+        const { error: invoiceUpdateError } = await supabase
           .from("invoices")
           .update({
             amount_paid: newPaid,
             balance_due: newBalance,
             status: newStatus,
+            updated_at: new Date().toISOString(),
           })
           .eq("id", activeInvoice.id);
-        if (error) throw error;
+
+        if (invoiceUpdateError) throw invoiceUpdateError;
       }
+
       setInvoices(prev => {
-        const next = prev.map(i => i.id === activeInvoice.id ? { ...i, amountPaid: newPaid, balanceDue: newBalance, status: newStatus } : i);
+        const next = prev.map(i =>
+          i.id === activeInvoice.id
+            ? {
+              ...i,
+              amountPaid: newPaid,
+              balanceDue: newBalance,
+              status: newStatus,
+            }
+            : i
+        );
         syncLeadBalance(next);
         return next;
       });
 
-      setView("list"); setPayForm({}); setActiveInvoice(null);
+      setView("list");
+      setPayForm({});
+      setActiveInvoice(null);
     } catch (err) {
       setToast({ type: "error", message: err.message || "Failed to record payment." });
     }
@@ -4254,8 +4596,8 @@ function FinancialsTab({
     const paymentsHtml = payments.length ? payments.map(p =>
       `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">
         <span>${escapeHtml(fmtShort(p.paid_on))} — ${escapeHtml(
-          p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
-        )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
+        p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
+      )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
         <span style="color:#16a34a;font-weight:700;">+ ${escapeHtml(fmt$(p.amount))}</span>
       </div>`
     ).join("") : '<div style="font-size:13px;color:#999;padding:8px 0;">No payments recorded yet.</div>';
@@ -4326,9 +4668,11 @@ function FinancialsTab({
             color: subTab === t.key ? "#0e0f11" : G.textDim, transition: "all .15s",
           }}>
           {t.label}
-          <span style={{ marginLeft: 5, fontSize: 10, padding: "1px 6px", borderRadius: 10,
+          <span style={{
+            marginLeft: 5, fontSize: 10, padding: "1px 6px", borderRadius: 10,
             background: subTab === t.key ? "rgba(0,0,0,.15)" : G.border,
-            color: subTab === t.key ? "#0e0f11" : G.textMuted }}>{t.count}</span>
+            color: subTab === t.key ? "#0e0f11" : G.textMuted
+          }}>{t.count}</span>
         </button>
       ))}
     </div>
@@ -4591,13 +4935,13 @@ function FinancialsTab({
                     if (t.k === "balance") amt = Math.max(0, baseTotal - (form.amountPaid || 0));
                     setForm(p => ({ ...p, invoiceType: t.k, totalAmount: amt, balanceDue: Math.max(0, amt - (p.amountPaid || 0)), title: t.k === "retainer" ? "Retainer (50%)" : t.k === "balance" ? "Balance Due" : "Full Payment" }));
                   }}
-                  style={{
-                    flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                    background: form.invoiceType === t.k ? G.gold : G.surface,
-                    color: form.invoiceType === t.k ? "#0e0f11" : G.textDim,
-                    border: `1px solid ${form.invoiceType === t.k ? G.gold : G.border}`,
-                    borderRadius: i === 0 ? "6px 0 0 6px" : i === 2 ? "0 6px 6px 0" : 0,
-                  }}>{t.l}</button>
+                    style={{
+                      flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      background: form.invoiceType === t.k ? G.gold : G.surface,
+                      color: form.invoiceType === t.k ? "#0e0f11" : G.textDim,
+                      border: `1px solid ${form.invoiceType === t.k ? G.gold : G.border}`,
+                      borderRadius: i === 0 ? "6px 0 0 6px" : i === 2 ? "0 6px 6px 0" : 0,
+                    }}>{t.l}</button>
                 ))}
               </div>
             </div>
@@ -5351,7 +5695,7 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
     <h2 style="margin:0 0 4px;font-size:18px;">${label}: ${item.title || ""}</h2>
     <p style="color:#666;font-size:13px;margin:0 0 20px;">${item.clientName || ""} · ${item.sessionType || ""}</p>
-    <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#333;padding:20px;background:#f9f9f9;border-radius:8px;max-height:400px;overflow:hidden;">${merged.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+    <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#333;padding:20px;background:#f9f9f9;border-radius:8px;max-height:400px;overflow:hidden;">${merged.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
     <p style="text-align:center;margin:24px 0;"><a href="${signLink}" style="display:inline-block;padding:14px 36px;background:#d4a853;color:#0e0f11;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Review & Sign ${label}</a></p>
     <p style="font-size:12px;color:#999;text-align:center;">Click the button above to review the full ${label.toLowerCase()} and sign digitally.<br/>Questions? Reply to this email or text Nico directly.</p>
   </div>
@@ -5547,67 +5891,67 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
             <button onClick={() => setCToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
           </div>
         )}
-      <Card>
-        <SubTabs />
-        <SectionLabel actions={<TemplatePicker onSelect={startCreate} onCreateNew={() => startCreate(templates[0]?.id)} />}>
-          {isReleases ? "Model Releases" : "Contracts"}
-        </SectionLabel>
+        <Card>
+          <SubTabs />
+          <SectionLabel actions={<TemplatePicker onSelect={startCreate} onCreateNew={() => startCreate(templates[0]?.id)} />}>
+            {isReleases ? "Model Releases" : "Contracts"}
+          </SectionLabel>
 
-        {/* Summary row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-          {[
-            { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
-            { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
-            { label: "Signed", count: items.filter(i => i.status === "Signed").length, ...statusColor("Signed") },
-          ].map((c, i) => (
-            <div key={i} style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>{c.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{c.count}</div>
-            </div>
-          ))}
-        </div>
-
-        {items.length === 0 ? (
-          <EmptyState icon={isReleases ? "📝" : "📄"} text={`No ${itemLabel.toLowerCase()}s yet`} />
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {items.map(c => {
-              const sc = statusColor(c.status);
-              return (
-                <div key={c.id} style={{
-                  display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
-                  padding: "14px 16px", background: G.surface, borderRadius: 8, border: `1px solid ${G.border}`,
-                }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
-                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
-                      {c.signer || c.clientName || "—"}
-                      {c.sessionType ? ` · ${c.sessionType}` : ""}
-                      {c.totalAmount ? ` · ${fmt$(c.totalAmount)}` : ""}
-                      {" · "}{c.version || "v1"}
-                    </div>
-                    <div style={{ fontSize: 11, color: G.textMuted, marginTop: 2 }}>
-                      {c.sentOn ? `Sent ${fmtShort(c.sentOn)}` : "Not sent"}
-                      {c.signedOn ? ` · Signed ${fmtShort(c.signedOn)}` : ""}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Pill color={sc.color} bg={sc.bg}>{c.status}</Pill>
-                    <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
-                    <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
-                    <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
-                    <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
-                      {emailSending === c.id ? "..." : "✉ Email"}
-                    </Btn>
-                    <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
-                    <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Summary row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+            {[
+              { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
+              { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
+              { label: "Signed", count: items.filter(i => i.status === "Signed").length, ...statusColor("Signed") },
+            ].map((c, i) => (
+              <div key={i} style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>{c.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{c.count}</div>
+              </div>
+            ))}
           </div>
-        )}
-      </Card>
+
+          {items.length === 0 ? (
+            <EmptyState icon={isReleases ? "📝" : "📄"} text={`No ${itemLabel.toLowerCase()}s yet`} />
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {items.map(c => {
+                const sc = statusColor(c.status);
+                return (
+                  <div key={c.id} style={{
+                    display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
+                    padding: "14px 16px", background: G.surface, borderRadius: 8, border: `1px solid ${G.border}`,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
+                      <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
+                        {c.signer || c.clientName || "—"}
+                        {c.sessionType ? ` · ${c.sessionType}` : ""}
+                        {c.totalAmount ? ` · ${fmt$(c.totalAmount)}` : ""}
+                        {" · "}{c.version || "v1"}
+                      </div>
+                      <div style={{ fontSize: 11, color: G.textMuted, marginTop: 2 }}>
+                        {c.sentOn ? `Sent ${fmtShort(c.sentOn)}` : "Not sent"}
+                        {c.signedOn ? ` · Signed ${fmtShort(c.signedOn)}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Pill color={sc.color} bg={sc.bg}>{c.status}</Pill>
+                      <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
+                      <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
+                      <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
+                      <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
+                        {emailSending === c.id ? "..." : "✉ Email"}
+                      </Btn>
+                      <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
+                      <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       </div>
     );
   }
@@ -5754,7 +6098,7 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
             <select value={templateForm.category || ""} onChange={(e) => setTemplateForm(p => ({ ...p, category: e.target.value }))}
               style={{ width: "100%", background: G.surface, color: G.text, border: `1px solid ${G.border}`, borderRadius: 6, padding: "9px 12px", fontSize: 13 }}>
               <option>Headshot</option><option>Personal Branding</option><option>Events</option><option>Wedding</option>
-              <option>Standard</option><option>Minor</option><option>Property</option><option>Other</option>
+              <option>Standard</option><option>Minor</option><option>Property</option><option>Payment Schedules</option><option>Other</option>
             </select>
           </div>
         </div>
@@ -5822,6 +6166,7 @@ function TemplatesTab({ templates, setTemplates }) {
     "Proposals",
     "Quotes",
     "Questionnaires",
+    "Payment Schedules",
     "Headshots",
     "Personal Branding",
     "Events",
@@ -6250,10 +6595,8 @@ function DashboardView({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <Card>
-        <SectionLabel>Leads Dashboard</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
           {[
-            { label: "Lead Name", value: lead.name || "—", accent: G.gold },
             { label: "Open Quotes", value: String(openQuotes), accent: G.blue, tab: "quotes" },
             { label: "Accepted Quotes", value: String(acceptedCount), accent: G.green, tab: "quotes" },
             { label: "Pipeline Value", value: fmt$(totalQuoted), accent: G.amber, tab: "financials" },
@@ -6627,7 +6970,7 @@ function ClientsTab({
                       <td style={{ padding: "12px 8px" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <Btn small onClick={() => onOpenWorkspace?.(item.row.id)}>
-                            {active ? "Open" : "Edit"}
+                            Open
                           </Btn>
                           <Btn variant="ghost" small onClick={() => onExportWorkspace?.(item)}>
                             Export
@@ -6937,6 +7280,8 @@ function ReportsTab({
   quotes,
   schedule,
   payments,
+  invoicePayments,
+  workspaceExpenses,
   notes,
   emailActivity,
   workspaceSummaries,
@@ -6948,34 +7293,150 @@ function ReportsTab({
   const [selectedReportId, setSelectedReportId] = useState("profit-loss");
 
   const reportStats = useMemo(() => {
-    const totalPipeline = (workspaceSummaries || []).reduce(
-      (sum, item) => sum + Number(item.balance || 0),
-      Number(lead?.balance || 0)
-    );
-    const totalRevenue = (workspaceSummaries || []).reduce(
-      (sum, item) => sum + Number(item.revenue || 0),
-      Number(lead?.revenue || 0)
-    );
-    const acceptedQuotes = (quotes || []).filter((quote) => quote.status === "Accepted");
-    const bookedSessions = (schedule || []).filter((session) => session.status === "Booked").length;
-    const outstanding = (workspaceInvoices || []).reduce(
-      (sum, invoice) => sum + Number(invoice.balance_due || 0),
+    const totalRevenue = (invoicePayments || []).reduce(
+      (sum, p) => sum + Number(p.amount || 0),
       0
     );
+
+    const outstanding = (workspaceInvoices || []).reduce(
+      (sum, invoice) => sum + Number(invoice.balance_due || invoice.balanceDue || 0),
+      0
+    );
+
+    const totalInvoiced = (workspaceInvoices || []).reduce(
+      (sum, invoice) => sum + Number(invoice.total_amount || invoice.totalAmount || 0),
+      0
+    );
+
+    const expenseTotal = (workspaceExpenses || []).reduce(
+      (sum, expense) => sum + Number(expense.amount || 0),
+      0
+    );
+
+    const openPipeline = (quotes || [])
+      .filter((quote) => !["Accepted", "Declined"].includes(quote.status))
+      .reduce((sum, quote) => sum + Number(calcQuoteTotals(quote).total || 0), 0);
+
+    const acceptedQuotes = (quotes || []).filter((quote) => quote.status === "Accepted");
+    const bookedSessions = (schedule || []).filter((session) => session.status === "Booked").length;
+
     return {
-      totalPipeline,
       totalRevenue,
+      outstanding,
+      totalInvoiced,
+      openPipeline,
+      expenseTotal,
+      netIncome: totalRevenue - outstanding - expenseTotal,
+      totalPipeline: openPipeline,
+      openQuoteValue: openPipeline,
       acceptedCount: acceptedQuotes.length,
       bookedSessions,
-      outstanding,
-      openQuoteValue: (quotes || [])
-        .filter((quote) => quote.status !== "Declined")
-        .reduce((sum, quote) => sum + calcQuoteTotals(quote).total, 0),
       emailTouches: (emailActivity || []).length,
       notesCount: (notes || []).length,
       paymentPlans: (payments || []).length,
     };
-  }, [workspaceSummaries, lead?.balance, lead?.revenue, quotes, schedule, workspaceInvoices, emailActivity, notes, payments]);
+  }, [invoicePayments, workspaceExpenses, workspaceInvoices, quotes, schedule, emailActivity, notes, payments]);
+
+  const [drillFilter, setDrillFilter] = useState("revenue");
+
+  const metricKeyFromLabel = (label) => {
+    if (/revenue/i.test(label)) return "revenue";
+    if (/outstanding|receivables/i.test(label)) return "outstanding";
+    if (/open pipeline/i.test(label)) return "openPipeline";
+    if (/open quote/i.test(label)) return "openPipeline";
+    if (/expenses?/i.test(label)) return "expenses";
+    if (/net income/i.test(label)) return "netIncome";
+    return null;
+  };
+
+  const drillData = useMemo(() => {
+    if (drillFilter === "expenses") {
+      return (workspaceExpenses || [])
+        .map((expense) => ({
+          id: expense.id,
+          description: expense.description || expense.category || "Expense",
+          vendor: expense.vendor || "",
+          amount: Number(expense.amount || 0),
+          date: expense.incurred_on || "",
+        }))
+        .sort((a, b) => b.amount - a.amount);
+    }
+
+    if (drillFilter === "openPipeline") {
+      return (quotes || [])
+        .filter((quote) => !["Accepted", "Declined"].includes(quote.status))
+        .map((quote) => ({
+          id: quote.id,
+          label: quote.quoteNumberLabel || quote.quoteNumber || "Untitled Quote",
+          client: quote.clientName || quote.clientEmail || "Unknown",
+          amount: Number(calcQuoteTotals(quote).total || 0),
+          status: quote.status || "Draft",
+        }))
+        .sort((a, b) => b.amount - a.amount);
+    }
+
+    const invoiceRows = (workspaceInvoices || []).map((invoice) => ({
+      id: invoice.id,
+      invoiceNumber: invoice.invoice_number || invoice.invoiceNumber || "",
+      client: invoice.client_name || invoice.clientName || invoice.client_email || invoice.clientEmail || "",
+      totalAmount: Number(invoice.total_amount || invoice.totalAmount || 0),
+      paidAmount: Number(invoice.amount_paid || invoice.amountPaid || 0),
+      balanceDue: Number(invoice.balance_due || invoice.balanceDue || 0),
+      status: invoice.status || "",
+      date: invoice.session_date || invoice.sessionDate || "",
+    }));
+
+    if (drillFilter === "outstanding") {
+      return invoiceRows.filter((inv) => inv.balanceDue > 0).sort((a, b) => b.balanceDue - a.balanceDue);
+    }
+
+    if (drillFilter === "totalInvoiced") {
+      return invoiceRows.sort((a, b) => b.totalAmount - a.totalAmount);
+    }
+
+    if (drillFilter === "revenue") {
+      return invoiceRows.filter((inv) => inv.paidAmount > 0).sort((a, b) => b.paidAmount - a.paidAmount);
+    }
+
+    return invoiceRows;
+  }, [drillFilter, workspaceExpenses, workspaceInvoices, quotes]);
+
+  const drillTitle = drillFilter === "revenue"
+    ? "Paid invoices"
+    : drillFilter === "outstanding"
+      ? "Outstanding invoices"
+      : drillFilter === "totalInvoiced"
+        ? "Invoiced amounts"
+        : drillFilter === "openPipeline"
+          ? "Open pipeline quotes"
+          : drillFilter === "expenses"
+            ? "Expenses"
+            : "Details";
+
+  const exportDrillData = async () => {
+    if (!drillData || drillData.length === 0) return;
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.utils.book_new();
+    const sheetName = drillTitle.replace(/[^a-zA-Z0-9]+/g, "_");
+    const sheetData = [
+      Object.keys(drillData[0]).map((key) => key.replace(/([A-Z])/g, " $1").trim()),
+      ...drillData.map((row) => Object.values(row)),
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31));
+    const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    downloadBlob(`${sheetName.toLowerCase()}.xlsx`, new Blob([arrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  };
+
+  const metricClickProps = (label) => {
+    const key = metricKeyFromLabel(label);
+    return key
+      ? {
+        onClick: () => setDrillFilter(key),
+        style: { cursor: "pointer" },
+      }
+      : {};
+  };
 
   const reportGroups = useMemo(
     () => [
@@ -7000,6 +7461,8 @@ function ReportsTab({
           ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
           ["Open Pipeline", fmt$(reportStats.totalPipeline)],
           ["Outstanding Invoices", fmt$(reportStats.outstanding)],
+          ["Expenses", fmt$(reportStats.expenseTotal)],
+          ["Net Income", fmt$(reportStats.netIncome)],
           ["Open Quote Value", fmt$(reportStats.openQuoteValue)],
         ],
       },
@@ -7040,6 +7503,7 @@ function ReportsTab({
         accent: G.teal,
         rows: [
           ["Revenue Collected", fmt$(reportStats.totalRevenue)],
+          ["Expenses", fmt$(reportStats.expenseTotal)],
           ["Still Outstanding", fmt$(reportStats.outstanding)],
           ["Net Cash Position", fmt$(reportStats.totalRevenue - reportStats.outstanding)],
           ["Open Pipeline", fmt$(reportStats.totalPipeline)],
@@ -7259,20 +7723,26 @@ function ReportsTab({
         <Card>
           <SectionLabel>Business Overview</SectionLabel>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {(selectedReport?.rows || []).map(([label, value]) => (
-              <div
-                key={label}
-                style={{
-                  border: `1px solid ${G.border}`,
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  background: G.surface,
-                }}
-              >
-                <div style={{ fontSize: 12, color: G.textMuted }}>{label}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: G.text, marginTop: 6 }}>{value}</div>
-              </div>
-            ))}
+            {(selectedReport?.rows || []).map(([label, value]) => {
+              const clickProps = metricClickProps(label);
+              return (
+                <div
+                  key={label}
+                  {...clickProps}
+                  style={{
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 10,
+                    padding: "14px 16px",
+                    background: G.surface,
+                    transition: "transform .15s, box-shadow .15s",
+                    ...(clickProps.onClick ? { cursor: "pointer" } : {}),
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: G.textMuted }}>{label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: G.text, marginTop: 6 }}>{value}</div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       </div>
@@ -7344,7 +7814,7 @@ function ReportsTab({
   );
 }
 
-export default function NSPBusinessSuite() {
+export default function NSPBusinessSuite({ onSignOut, userEmail }) {
   const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
 
   const [workspaceId, setWorkspaceId] = useState(null);
@@ -7366,6 +7836,8 @@ export default function NSPBusinessSuite() {
   const [recipients, setRecipients] = useState(initial.recipients);
   const [schedule, setSchedule] = useState(initial.schedule);
   const [payments, setPayments] = useState(initial.payments);
+  const [invoicePayments, setInvoicePayments] = useState([]);
+  const [workspaceExpenses, setWorkspaceExpenses] = useState([]);
   const [contracts, setContracts] = useState(initial.contracts);
   const [files, setFiles] = useState(initial.files);
   const [templates, setTemplates] = useState(initial.templates || []);
@@ -7429,6 +7901,52 @@ export default function NSPBusinessSuite() {
       acceptedRevenue: workspaceSummaries.reduce((sum, item) => sum + Number(item.revenue || 0), 0),
     };
   }, [workspaceSummaries, lead?.balance, lead?.revenue]);
+
+  const selectedClient = lead;
+
+  const reportStats = useMemo(() => {
+    const totalRevenue = (invoicePayments || []).reduce(
+      (sum, p) => sum + Number(p.amount || 0),
+      0
+    );
+
+    const outstanding = (workspaceInvoices || []).reduce(
+      (sum, inv) => sum + Number(inv.balance_due || inv.balanceDue || 0),
+      0
+    );
+
+    const totalInvoiced = (workspaceInvoices || []).reduce(
+      (sum, inv) => sum + Number(inv.total_amount || inv.totalAmount || 0),
+      0
+    );
+
+    const openPipeline = (quotes || [])
+      .filter((q) => !["Accepted", "Declined"].includes(q.status))
+      .reduce((sum, q) => sum + Number(calcQuoteTotals(q).total || 0), 0);
+
+    return {
+      totalRevenue,
+      outstanding,
+      totalInvoiced,
+      openPipeline,
+    };
+  }, [invoicePayments, workspaceInvoices, quotes]);
+
+  const isGlobalReportsView = activeTab === "reports";
+  const isClientScopedView = !isGlobalReportsView && !!selectedClient;
+  const displayClientName = activeTab !== "reports" ? selectedClient?.name : null;
+
+  const headerTitle = isGlobalReportsView
+    ? "Financial Reports"
+    : displayClientName || lead?.name || "Leads Dashboard";
+
+  const headerRevenue = isGlobalReportsView
+    ? reportStats?.totalRevenue || 0
+    : (selectedClient?.revenue || lead?.revenue || 0);
+
+  const headerBalance = isGlobalReportsView
+    ? reportStats?.outstanding || 0
+    : (selectedClient?.balance || lead?.balance || 0);
 
   useEffect(() => {
     let canceled = false;
@@ -7502,6 +8020,50 @@ export default function NSPBusinessSuite() {
     };
 
     loadWorkspaceInvoices();
+    return () => {
+      canceled = true;
+    };
+  }, [activeTab, workspaceId]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadInvoicePayments = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("payments")
+          .select("id, invoice_id, amount, paid_on, method, reference, note");
+        if (canceled) return;
+        if (error) throw error;
+        setInvoicePayments(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load invoice payments:", err);
+      }
+    };
+
+    loadInvoicePayments();
+    return () => {
+      canceled = true;
+    };
+  }, [activeTab, workspaceId]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadWorkspaceExpenses = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("expenses")
+          .select("id, description, amount, incurred_on, category, vendor");
+        if (canceled) return;
+        if (error) throw error;
+        setWorkspaceExpenses(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load workspace expenses:", err);
+      }
+    };
+
+    loadWorkspaceExpenses();
     return () => {
       canceled = true;
     };
@@ -7678,7 +8240,7 @@ export default function NSPBusinessSuite() {
             total_amount: Number(totals.total || 0),
             payment_schedule: String(q.paymentSchedule || "").trim(),
             questionnaire: String(q.questionnaire || "").trim(),
-            contract_template: String(q.contractTemplate || "").trim(),
+            contract_template: JSON.stringify(Array.isArray(q.contractTemplates) ? q.contractTemplates : q.contractTemplate ? [q.contractTemplate] : []),
             raw: q,
           };
         });
@@ -7778,11 +8340,13 @@ export default function NSPBusinessSuite() {
 
       setQuotes((prev) => {
         let changed = false;
+        let acceptedQuote = null;
         const next = prev.map((q) => {
           const byId = quoteId && String(q.id) === quoteId;
           const byNumber = quoteNumber && String(q.quoteNumberLabel) === quoteNumber;
           if ((byId || byNumber) && q.status !== "Accepted") {
             changed = true;
+            acceptedQuote = q;
             return { ...q, status: "Accepted", updatedAt: new Date().toISOString() };
           }
           return q;
@@ -7795,9 +8359,34 @@ export default function NSPBusinessSuite() {
         const latestAccepted = next.find((q) => q.status === "Accepted");
         setLead((curr) => ({
           ...curr,
+          stage: curr.stage === "Lead" ? "Booked" : curr.stage,
           revenue: acceptedRevenue,
           balance: latestAccepted ? calcQuoteTotals(latestAccepted).total : curr.balance,
         }));
+
+        // Auto-create schedule session
+        if (acceptedQuote) {
+          const sessionTitle = acceptedQuote.eventName || acceptedQuote.clientName || "Booked Session";
+          const sessionDate = acceptedQuote.eventDate || "";
+          setSchedule((prevSched) => {
+            const alreadyExists = (prevSched || []).some(
+              (s) => s.quoteId === acceptedQuote.id || (s.title === sessionTitle && s.date === sessionDate)
+            );
+            if (alreadyExists) return prevSched;
+            return [...(prevSched || []), {
+              id: Date.now(),
+              quoteId: acceptedQuote.id,
+              title: sessionTitle,
+              date: sessionDate,
+              time: "",
+              endTime: "",
+              location: "",
+              status: "Booked",
+              notes: `Auto-created from ${acceptedQuote.quoteNumberLabel || "accepted quote"}`,
+            }];
+          });
+        }
+
         return next;
       });
     };
@@ -7834,6 +8423,7 @@ export default function NSPBusinessSuite() {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
   const [newClientOpen, setNewClientOpen] = useState(false);
+  const [newClientErrors, setNewClientErrors] = useState([]);
   const [composer, setComposer] = useState({
     templateId: "",
     to: "",
@@ -7856,6 +8446,58 @@ export default function NSPBusinessSuite() {
     scheduleLocation: "",
     scheduleStatus: "Tentative",
   });
+  const clientDirectory = useMemo(() => {
+    const map = new Map();
+    const pushClient = (client) => {
+      const name = String(client?.name || "").trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      const existing = map.get(key) || {};
+      map.set(key, {
+        name,
+        email: String(client?.email || existing.email || "").trim(),
+        phone: String(client?.phone || existing.phone || "").trim(),
+        type: String(client?.type || existing.type || "").trim(),
+        eventDate: String(client?.eventDate || existing.eventDate || "").trim(),
+        location: String(client?.location || existing.location || "").trim(),
+        referralSource: String(client?.referralSource || existing.referralSource || "").trim(),
+      });
+    };
+    pushClient(lead);
+    (workspaceRows || []).forEach((row) => {
+      const snapshot = workspaceRowToSnapshot(row);
+      pushClient(snapshot?.lead || {});
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [lead, workspaceRows]);
+  const newClientSuggestions = useMemo(() => {
+    const search = String(newClientForm?.name || "").trim().toLowerCase();
+    if (search.length < 3) return [];
+    const matches = clientDirectory
+      .filter((client) => client.name.toLowerCase().includes(search))
+      .sort((a, b) => {
+        const aStarts = a.name.toLowerCase().startsWith(search);
+        const bStarts = b.name.toLowerCase().startsWith(search);
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    if (matches.some((client) => client.name.toLowerCase() === search)) return [];
+    return matches.slice(0, 6);
+  }, [newClientForm?.name, clientDirectory]);
+
+  const applyNewClientSuggestion = (client) => {
+    if (!client) return;
+    setNewClientForm((prev) => ({
+      ...prev,
+      name: client.name || prev.name,
+      email: client.email || prev.email,
+      phone: client.phone || prev.phone,
+      type: client.type || prev.type,
+      eventDate: client.eventDate || prev.eventDate,
+      location: client.location || prev.location,
+      referralSource: client.referralSource || prev.referralSource,
+    }));
+  };
   const emailTemplates = useMemo(
     () => (templates || []).filter((t) => t.type === "email"),
     [templates]
@@ -7999,12 +8641,11 @@ export default function NSPBusinessSuite() {
             .join("");
           return `<div style="margin-bottom:16px;">
             <div style="font-weight:700;font-size:14px;margin-bottom:6px;">${escapeHtml(
-              s.packageName || "Package"
-            )}</div>
-            ${
-              includesHtml
-                ? `<ul style="margin:6px 0 10px 18px;padding:0;font-size:12px;color:#555;">${includesHtml}</ul>`
-                : ""
+            s.packageName || "Package"
+          )}</div>
+            ${includesHtml
+              ? `<ul style="margin:6px 0 10px 18px;padding:0;font-size:12px;color:#555;">${includesHtml}</ul>`
+              : ""
             }
             <table style="width:100%;border-collapse:collapse;">${itemsHtml}</table>
           </div>`;
@@ -8090,6 +8731,7 @@ export default function NSPBusinessSuite() {
       scheduleLocation: "",
       scheduleStatus: "Tentative",
     });
+    setNewClientErrors([]);
     setNewClientOpen(true);
   };
 
@@ -8123,10 +8765,13 @@ export default function NSPBusinessSuite() {
   };
 
   const handleCreateClientAndContinue = async () => {
-    if (!newClientForm.name.trim()) {
-      setSidebarToast({ type: "error", message: "Client name is required." });
+    const validationErrors = getNewClientValidationErrors(newClientForm);
+    if (validationErrors.length) {
+      setNewClientErrors(validationErrors);
+      setSidebarToast({ type: "error", message: validationErrors[0] });
       return;
     }
+    setNewClientErrors([]);
     const createdLead = {
       id: genUuid(),
       name: newClientForm.name.trim(),
@@ -8145,17 +8790,17 @@ export default function NSPBusinessSuite() {
 
     const initialSchedule = newClientForm.scheduleTitle.trim()
       ? [
-          {
-            id: Date.now() + 1,
-            title: newClientForm.scheduleTitle.trim(),
-            date: newClientForm.scheduleDate || newClientForm.eventDate || "",
-            time: newClientForm.scheduleTime || "",
-            endTime: "",
-            location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
-            status: newClientForm.scheduleStatus || "Tentative",
-            notes: "",
-          },
-        ]
+        {
+          id: Date.now() + 1,
+          title: newClientForm.scheduleTitle.trim(),
+          date: newClientForm.scheduleDate || newClientForm.eventDate || "",
+          time: newClientForm.scheduleTime || "",
+          endTime: "",
+          location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
+          status: newClientForm.scheduleStatus || "Tentative",
+          notes: "",
+        },
+      ]
       : [];
 
     const nextSnapshot = normalizeWorkspaceSnapshot({
@@ -8355,7 +9000,7 @@ export default function NSPBusinessSuite() {
       }
 
       const rowsToInsert = snapshots.map((snapshot) => buildWorkspaceRow(snapshot));
-          const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
+      const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
       if (error) throw error;
 
       const insertedRows = Array.isArray(data) ? data : [];
@@ -8456,6 +9101,7 @@ export default function NSPBusinessSuite() {
             payments={payments}
             contracts={contracts}
             workspaceRows={workspaceRows}
+            clientDirectory={clientDirectory}
             settings={settings}
             counters={counters}
             setCounters={setCounters}
@@ -8500,6 +9146,8 @@ export default function NSPBusinessSuite() {
             quotes={quotes}
             schedule={schedule}
             payments={payments}
+            invoicePayments={invoicePayments}
+            workspaceExpenses={workspaceExpenses}
             notes={notes}
             emailActivity={emailActivity}
             workspaceSummaries={workspaceSummaries}
@@ -8561,7 +9209,7 @@ export default function NSPBusinessSuite() {
                     borderRadius: 8,
                     padding: "8px 10px",
                     background: G.card,
-                    minWidth: 140,
+                    minWidth: 160,
                   }}
                 >
                   <div style={{ fontSize: 11, color: G.textMuted }}>Total Leads</div>
@@ -8589,7 +9237,7 @@ export default function NSPBusinessSuite() {
                     borderRadius: 8,
                     padding: "8px 10px",
                     background: G.card,
-                    minWidth: 190,
+                    minWidth: 160,
                   }}
                 >
                   <div style={{ fontSize: 11, color: G.textMuted }}>Total Accepted Revenue</div>
@@ -8600,22 +9248,33 @@ export default function NSPBusinessSuite() {
               </div>
             </>
           ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-.02em" }}>
-                  {lead.name}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+              <div>
+                <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>
+                  {isGlobalReportsView ? "Business Overview" : "Client Workspace"}
+                </div>
+
+                <h1 style={{ fontSize: 28, fontWeight: 800, color: G.text, margin: 0 }}>
+                  {headerTitle}
                 </h1>
-                <span style={{ color: G.textMuted, fontSize: 16 }}>📌</span>
+
+                <div style={{ display: "flex", gap: 24, marginTop: 8 }}>
+                  <div style={{ fontSize: 15, color: G.textDim }}>
+                    Revenue: {" "}
+                    <span style={{ color: G.green, fontWeight: 700 }}>
+                      {fmt$(headerRevenue)}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 15, color: G.textDim }}>
+                    Balance: {" "}
+                    <span style={{ color: headerBalance > 0 ? G.amber : G.green, fontWeight: 700 }}>
+                      {fmt$(headerBalance)}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 13 }}>
-                <span>
-                  Revenue: <span style={{ color: G.green, fontWeight: 600 }}>{fmt$(lead.revenue)}</span>
-                </span>
-                <span>
-                  Balance: <span style={{ color: G.amber, fontWeight: 600 }}>{fmt$(lead.balance)}</span>
-                </span>
-              </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -8628,13 +9287,6 @@ export default function NSPBusinessSuite() {
               <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
                 Global CRM view
               </div>
-              <div style={{ fontSize: 12, color: workspaceSaveState === "error" ? G.red : G.textMuted, marginTop: 8 }}>
-                {workspaceSaveState === "saving"
-                  ? "Saving to Supabase..."
-                  : workspaceSaveState === "error"
-                    ? workspaceError || "Save failed"
-                    : "Synced with Supabase"}
-              </div>
             </>
           ) : (
             <>
@@ -8643,15 +9295,37 @@ export default function NSPBusinessSuite() {
                 Inquired on{" "}
                 <span style={{ fontWeight: 700, color: G.text }}>{fmtShort(lead.inquiredOn)}</span>
               </div>
-              <div style={{ fontSize: 12, color: workspaceSaveState === "error" ? G.red : G.textMuted, marginTop: 8 }}>
-                {workspaceSaveState === "saving"
-                  ? "Saving to Supabase..."
-                  : workspaceSaveState === "error"
-                    ? workspaceError || "Save failed"
-                    : "Synced with Supabase"}
-              </div>
             </>
           )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+            <div style={{ fontSize: 12, color: workspaceSaveState === "error" ? G.red : G.textMuted }}>
+              {workspaceSaveState === "saving"
+                ? "Saving..."
+                : workspaceSaveState === "error"
+                  ? workspaceError || "Save failed"
+                  : "Synced ✓"}
+            </div>
+            {userEmail && (
+              <div style={{ fontSize: 12, color: G.textMuted }}>{userEmail}</div>
+            )}
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: "5px 12px",
+                  borderRadius: 8,
+                  border: `1px solid ${G.border}`,
+                  background: G.card,
+                  color: G.text,
+                  cursor: "pointer",
+                }}
+              >
+                Sign out
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -8699,7 +9373,7 @@ export default function NSPBusinessSuite() {
           minHeight: "calc(100vh - 126px)",
         }}
       >
-        <div style={{ padding: "24px 28px", overflowY: "auto" }}>
+        <div style={{ padding: "24px 28px" }}>
           {workspaceLoading ? (
             <Card>
               <SectionLabel>Workspace</SectionLabel>
@@ -8745,181 +9419,15 @@ export default function NSPBusinessSuite() {
       </div>
 
       {newClientOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.45)",
-            zIndex: 5100,
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: "min(960px, 96vw)",
-              background: G.card,
-              border: `1px solid ${G.borderLight}`,
-              borderRadius: 12,
-              padding: 16,
-            }}
-          >
-            <SectionLabel
-              actions={
-                <Btn variant="ghost" small onClick={() => setNewClientOpen(false)}>
-                  Cancel
-                </Btn>
-              }
-            >
-              New Client Intake
-            </SectionLabel>
-
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-              <div>
-                <Card style={{ padding: 14, marginBottom: 12 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Job Profile</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <InputField
-                      label="Client Name"
-                      value={newClientForm.name}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, name: e.target.value }))}
-                      required
-                    />
-                    <InputField
-                      label="Email"
-                      value={newClientForm.email}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, email: e.target.value }))}
-                    />
-                    <InputField
-                      label="Phone"
-                      value={newClientForm.phone}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, phone: e.target.value }))}
-                    />
-                    <InputField
-                      label="Job Type"
-                      value={newClientForm.type}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, type: e.target.value }))}
-                    />
-                    <InputField
-                      label="Job Date"
-                      type="date"
-                      value={newClientForm.eventDate}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, eventDate: e.target.value }))}
-                    />
-                    <InputField
-                      label="Lead Inquired On"
-                      type="date"
-                      value={newClientForm.inquiredOn}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, inquiredOn: e.target.value }))}
-                    />
-                    <InputField
-                      label="Source"
-                      value={newClientForm.referralSource}
-                      onChange={(e) =>
-                        setNewClientForm((p) => ({ ...p, referralSource: e.target.value }))
-                      }
-                    />
-                    <InputField
-                      label="Location"
-                      value={newClientForm.location}
-                      onChange={(e) => setNewClientForm((p) => ({ ...p, location: e.target.value }))}
-                    />
-                  </div>
-                  <InputField
-                    label="Lead Notes"
-                    value={newClientForm.notes}
-                    onChange={(e) => setNewClientForm((p) => ({ ...p, notes: e.target.value }))}
-                    multiline
-                  />
-                </Card>
-
-                <Card style={{ padding: 14 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Schedule</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 10 }}>
-                    <InputField
-                      label="Event Title"
-                      value={newClientForm.scheduleTitle}
-                      onChange={(e) =>
-                        setNewClientForm((p) => ({ ...p, scheduleTitle: e.target.value }))
-                      }
-                    />
-                    <InputField
-                      label="Date"
-                      type="date"
-                      value={newClientForm.scheduleDate}
-                      onChange={(e) =>
-                        setNewClientForm((p) => ({ ...p, scheduleDate: e.target.value }))
-                      }
-                    />
-                    <InputField
-                      label="Time"
-                      value={newClientForm.scheduleTime}
-                      onChange={(e) =>
-                        setNewClientForm((p) => ({ ...p, scheduleTime: e.target.value }))
-                      }
-                    />
-                    <div style={{ marginBottom: 14 }}>
-                      <label
-                        style={{
-                          display: "block",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: G.text,
-                          marginBottom: 5,
-                        }}
-                      >
-                        Status
-                      </label>
-                      <select
-                        value={newClientForm.scheduleStatus}
-                        onChange={(e) =>
-                          setNewClientForm((p) => ({ ...p, scheduleStatus: e.target.value }))
-                        }
-                        style={{
-                          width: "100%",
-                          background: G.surface,
-                          color: G.text,
-                          border: `1px solid ${G.border}`,
-                          borderRadius: 6,
-                          padding: "9px 12px",
-                          fontSize: 13,
-                        }}
-                      >
-                        <option value="Tentative">Tentative</option>
-                        <option value="Booked">Booked</option>
-                        <option value="Confirmed">Confirmed</option>
-                      </select>
-                    </div>
-                  </div>
-                  <InputField
-                    label="Event Location (optional)"
-                    value={newClientForm.scheduleLocation}
-                    onChange={(e) =>
-                      setNewClientForm((p) => ({ ...p, scheduleLocation: e.target.value }))
-                    }
-                  />
-                </Card>
-              </div>
-
-              <Card style={{ padding: 14, height: "fit-content" }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Workflow</div>
-                <div style={{ fontSize: 12, color: G.textDim, lineHeight: 1.6, marginBottom: 12 }}>
-                  Fill client details and schedule first, then continue directly into Quotes &
-                  Orders to build and send approval.
-                </div>
-                <div style={{ display: "grid", gap: 8 }}>
-                  <Btn variant="ghost" small onClick={() => setNewClientOpen(false)} full>
-                    Cancel
-                  </Btn>
-                  <Btn small onClick={handleCreateClientAndContinue} full>
-                    Save & Continue to Quotes
-                  </Btn>
-                </div>
-              </Card>
-            </div>
-          </div>
-        </div>
+        <NewClientModal
+          form={newClientForm}
+          onChange={(field, value) => setNewClientForm((prev) => ({ ...prev, [field]: value }))}
+          onClose={() => setNewClientOpen(false)}
+          onSubmit={handleCreateClientAndContinue}
+          suggestions={newClientSuggestions}
+          onSelectSuggestion={applyNewClientSuggestion}
+          errors={newClientErrors}
+        />
       )}
 
       {emailComposerOpen && (
