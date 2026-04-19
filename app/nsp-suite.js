@@ -799,26 +799,26 @@ function importedRowToWorkspace(row, templates, settings) {
     },
     schedule: sessionTitle || eventDate
       ? [
-          {
-            id: genId("schedule"),
-            title: sessionTitle || type || "Session",
-            date: eventDate,
-            time: "",
-            endTime: "",
-            location,
-            status: sessionStatus,
-            notes: "",
-          },
-        ]
+        {
+          id: genId("schedule"),
+          title: sessionTitle || type || "Session",
+          date: eventDate,
+          time: "",
+          endTime: "",
+          location,
+          status: sessionStatus,
+          notes: "",
+        },
+      ]
       : [],
     notes: notes
       ? [
-          {
-            id: genId("note"),
-            text: notes,
-            date: new Date().toISOString(),
-          },
-        ]
+        {
+          id: genId("note"),
+          text: notes,
+          date: new Date().toISOString(),
+        },
+      ]
       : [],
     emailActivity: [],
     payments: [],
@@ -905,9 +905,9 @@ const fmtTime = (d) => {
   return Number.isNaN(parsed.getTime())
     ? ""
     : parsed.toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      hour: "numeric",
+      minute: "2-digit",
+    });
 };
 
 function cleanIncludes(arr) {
@@ -977,25 +977,22 @@ function quoteToPrintableHtml(quote, settings) {
       ? `
         <div style="margin-top:28px;padding:18px 20px;border:1px solid #e5e5e5;border-radius:12px;background:#faf7f2;">
           <div style="font-size:15px;font-weight:700;margin-bottom:10px;">Booking Process</div>
-          ${
-            quote.paymentSchedule
-              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
-                  quote.paymentSchedule
-                )}</div>`
-              : ""
-          }
-          ${
-            quote.questionnaire
-              ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
-                  quote.questionnaire
-                )}</div>`
-              : ""
-          }
-          ${
-            contractsList.length
-              ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(contractsList.join(", "))}</div>`
-              : ""
-          }
+          ${quote.paymentSchedule
+        ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Payment Schedule:</strong> ${escapeHtml(
+          quote.paymentSchedule
+        )}</div>`
+        : ""
+      }
+          ${quote.questionnaire
+        ? `<div style="font-size:13px;color:#444;margin-bottom:6px;"><strong>Questionnaire:</strong> ${escapeHtml(
+          quote.questionnaire
+        )}</div>`
+        : ""
+      }
+          ${contractsList.length
+        ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(contractsList.join(", "))}</div>`
+        : ""
+      }
         </div>
       `
       : "";
@@ -1016,18 +1013,18 @@ function quoteToPrintableHtml(quote, settings) {
           const qtyText =
             toQty(li.qty) > 1
               ? `<div style="font-size:11px;color:#888;">(${escapeHtml(
-                  fmt$(li.price)
-                )} × ${toQty(li.qty)})</div>`
+                fmt$(li.price)
+              )} × ${toQty(li.qty)})</div>`
               : "";
           return `
             <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #eee;padding-top:10px;margin-top:10px;gap:12px;">
               <div style="font-size:14px;font-weight:700;">${escapeHtml(
-                li.name || "Untitled item"
-              )}</div>
+            li.name || "Untitled item"
+          )}</div>
               <div style="text-align:right;white-space:nowrap;">
                 <div style="font-size:14px;font-weight:700;font-family:monospace;">${escapeHtml(
-                  fmt$(lineTotal)
-                )}</div>
+            fmt$(lineTotal)
+          )}</div>
                 ${qtyText}
               </div>
             </div>
@@ -1037,28 +1034,25 @@ function quoteToPrintableHtml(quote, settings) {
 
       return `
         <div style="margin-bottom:28px;">
-          ${
+          ${section.packageName
+          ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
             section.packageName
-              ? `<div style="font-size:16px;font-weight:700;color:${G.teal};margin-bottom:8px;">${escapeHtml(
-                  section.packageName
-                )}</div>`
-              : ""
-          }
-          ${
+          )}</div>`
+          : ""
+        }
+          ${section.description
+          ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
             section.description
-              ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:10px;white-space:pre-wrap;">${escapeHtml(
-                  section.description
-                )}</div>`
-              : ""
-          }
+          )}</div>`
+          : ""
+        }
           ${includesHtml}
-          ${
+          ${section.notes
+          ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
             section.notes
-              ? `<div style="font-size:12px;color:#888;font-style:italic;margin-top:8px;white-space:pre-wrap;">${escapeHtml(
-                  section.notes
-                )}</div>`
-              : ""
-          }
+          )}</div>`
+          : ""
+        }
           ${itemsHtml}
         </div>
       `;
@@ -1080,16 +1074,15 @@ function quoteToPrintableHtml(quote, settings) {
         <div style="max-width:800px;margin:0 auto;">
           <div style="display:flex;justify-content:space-between;margin-bottom:32px;gap:24px;">
             <div>
-              ${
-                logoUrl
-                  ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
-                      settings.businessName || "Business"
-                    )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
-                  : ""
-              }
+              ${logoUrl
+      ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(
+        settings.businessName || "Business"
+      )}" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />`
+      : ""
+    }
               <div style="font-size:22px;font-weight:800;color:${G.teal};letter-spacing:-.02em;">${escapeHtml(
-    settings.businessName || "Business"
-  )}</div>
+      settings.businessName || "Business"
+    )}</div>
               <div style="font-size:12px;color:#666;line-height:1.7;margin-top:4px;">
                 ${settings.address1 ? `${escapeHtml(settings.address1)}<br />` : ""}
                 ${settings.address2 ? `${escapeHtml(settings.address2)}<br />` : ""}
@@ -1100,91 +1093,83 @@ function quoteToPrintableHtml(quote, settings) {
             </div>
             <div style="text-align:right;">
               <div style="font-size:18px;font-weight:700;">${escapeHtml(
-                quote.quoteNumberLabel || "Quote Summary"
-              )}</div>
+      quote.quoteNumberLabel || "Quote Summary"
+    )}</div>
               <div style="font-size:13px;color:#666;margin-top:4px;">Quote Total: <strong>${escapeHtml(
-                fmt$(total)
-              )}</strong></div>
+      fmt$(total)
+    )}</strong></div>
               <div style="margin-top:12px;">
                 <div style="font-size:14px;font-weight:700;">Recipient</div>
                 <div style="font-size:13px;color:#666;">${escapeHtml(
-                  quote.clientName || "—"
-                )}</div>
-                ${
-                  quote.clientEmail
-                    ? `<div style="font-size:13px;color:#666;">${escapeHtml(
-                        quote.clientEmail
-                      )}</div>`
-                    : ""
-                }
+      quote.clientName || "—"
+    )}</div>
+                ${quote.clientEmail
+      ? `<div style="font-size:13px;color:#666;">${escapeHtml(
+        quote.clientEmail
+      )}</div>`
+      : ""
+    }
               </div>
             </div>
           </div>
 
-          ${
-            quote.eventName || quote.eventDate
-              ? `
+          ${quote.eventName || quote.eventDate
+      ? `
             <div style="text-align:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid #e0e0e0;">
               <div style="font-size:18px;font-weight:700;color:${G.teal};">
-                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${
-                  quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
-                }
+                ${escapeHtml(quote.eventName || quote.clientName || "Quote")}${quote.eventDate ? ` on ${escapeHtml(fmtLong(quote.eventDate))}` : ""
+      }
               </div>
             </div>
           `
-              : ""
-          }
+      : ""
+    }
 
-          ${
-            quote.introduction
-              ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
-                  quote.introduction
-                )}</div>`
-              : ""
-          }
+          ${quote.introduction
+      ? `<div style="font-size:13px;color:#444;margin-bottom:24px;font-style:italic;">${escapeHtml(
+        quote.introduction
+      )}</div>`
+      : ""
+    }
           ${sectionsHtml}
-          ${
-            quote.notes
-              ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
-                  quote.notes
-                )}</div>`
-              : ""
-          }
-          ${
-            quote.expiration
-              ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
-                  fmtShort(quote.expiration)
-                )}</div>`
-              : ""
-          }
+          ${quote.notes
+      ? `<div style="font-size:12px;color:#666;margin-top:16px;padding-top:12px;border-top:1px solid #eee;white-space:pre-wrap;">${escapeHtml(
+        quote.notes
+      )}</div>`
+      : ""
+    }
+          ${quote.expiration
+      ? `<div style="font-size:12px;color:#888;margin-top:8px;">This quote expires on ${escapeHtml(
+        fmtShort(quote.expiration)
+      )}</div>`
+      : ""
+    }
           ${bookingHtml}
 
           <div style="border-top:2px solid #1a1a1a;padding-top:16px;margin-top:20px;">
             <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
               <div style="font-size:14px;color:#666;">Subtotal:</div>
               <div style="font-size:16px;font-weight:700;font-family:monospace;">${escapeHtml(
-                fmt$(subtotal)
-              )}</div>
+      fmt$(subtotal)
+    )}</div>
             </div>
-            ${
-              discountAmount > 0
-                ? `
+            ${discountAmount > 0
+      ? `
               <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:6px;">
-                <div style="font-size:14px;color:#666;">Discount${
-                  quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
-                }:</div>
+                <div style="font-size:14px;color:#666;">Discount${quote.promoCode ? ` (${escapeHtml(quote.promoCode)})` : ""
+      }:</div>
                 <div style="font-size:16px;font-weight:700;font-family:monospace;color:#b42318;">-${escapeHtml(
-                  fmt$(discountAmount)
-                )}</div>
+        fmt$(discountAmount)
+      )}</div>
               </div>
             `
-                : ""
-            }
+      : ""
+    }
             <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:16px;">
               <div style="font-size:14px;color:#666;">Total:</div>
               <div style="font-size:18px;font-weight:800;font-family:monospace;">${escapeHtml(
-                fmt$(total)
-              )}</div>
+      fmt$(total)
+    )}</div>
             </div>
           </div>
         </div>
@@ -2878,8 +2863,8 @@ function QuotesTab({
             contractTemplates: Array.isArray(quote.contractTemplates)
               ? quote.contractTemplates
               : quote.contractTemplate
-              ? [quote.contractTemplate]
-              : [],
+                ? [quote.contractTemplate]
+                : [],
           },
           sections: (quote.sections || []).map((s) => ({
             packageName: s.packageName || "",
@@ -2929,28 +2914,27 @@ function QuotesTab({
 <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto;">
   <div style="background:#0e0f11;padding:24px 28px;border-radius:12px 12px 0 0;">
     <div style="font-size:18px;font-weight:800;color:#d4a853;">${escapeHtml(
-      settings.businessName || "Nico Salgado Photography"
-    )}</div>
+        settings.businessName || "Nico Salgado Photography"
+      )}</div>
   </div>
   <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
     <h2 style="margin:0 0 8px;font-size:18px;">Quote Approval Request</h2>
     <p style="margin:0 0 16px;font-size:13px;color:#555;">Quote ${escapeHtml(
-      quote.quoteNumberLabel || ""
-    )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
+        quote.quoteNumberLabel || ""
+      )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
     <ul style="padding-left:18px;margin:0 0 14px;">${sectionSummary}</ul>
-    ${
-      (() => {
-        const cl = Array.isArray(quote.contractTemplates) ? quote.contractTemplates : quote.contractTemplate ? [quote.contractTemplate] : [];
-        return (quote.paymentSchedule || quote.questionnaire || cl.length)
-          ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
+    ${(() => {
+          const cl = Array.isArray(quote.contractTemplates) ? quote.contractTemplates : quote.contractTemplate ? [quote.contractTemplate] : [];
+          return (quote.paymentSchedule || quote.questionnaire || cl.length)
+            ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
       <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Booking Process Included</div>
       ${quote.paymentSchedule ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Payment Schedule:</strong> ${escapeHtml(quote.paymentSchedule)}</div>` : ""}
       ${quote.questionnaire ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Questionnaire:</strong> ${escapeHtml(quote.questionnaire)}</div>` : ""}
       ${cl.length ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(cl.join(", "))}</div>` : ""}
     </div>`
-          : "";
-      })()
-    }
+            : "";
+        })()
+        }
     <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;font-size:14px;">
       <strong>Total:</strong> ${escapeHtml(fmt$(totals.total))}
     </div>
@@ -2975,9 +2959,8 @@ function QuotesTab({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: recipient,
-          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${
-            settings.businessName || "Nico Salgado Photography"
-          }`.trim(),
+          subject: `Approval Needed: Quote ${quote.quoteNumberLabel || ""} - ${settings.businessName || "Nico Salgado Photography"
+            }`.trim(),
           htmlBody,
         }),
       });
@@ -3163,9 +3146,8 @@ function QuotesTab({
           <div
             style={{
               background: quoteNotice.type === "success" ? G.greenBg : G.redBg,
-              border: `1px solid ${
-                quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
-              }`,
+              border: `1px solid ${quoteNotice.type === "success" ? `${G.green}33` : `${G.red}33`
+                }`,
               color: quoteNotice.type === "success" ? G.green : G.red,
               borderRadius: 8,
               padding: "10px 14px",
@@ -3304,7 +3286,7 @@ function QuotesTab({
                 label="Quote Number"
                 value={building.quoteNumberLabel}
                 readOnly
-                onChange={() => {}}
+                onChange={() => { }}
               />
             </div>
           </Card>
@@ -3958,115 +3940,115 @@ function QuotesTab({
             />
           ) : (
             visibleQuotes.map((q) => {
-            const statusColorMap = {
-              Draft: { color: G.textDim, bg: G.surface },
-              Sent: { color: G.amber, bg: G.amberBg },
-              Accepted: { color: G.green, bg: G.greenBg },
-              Declined: { color: G.red, bg: G.redBg },
-            };
-            const colors = statusColorMap[q.status] || {
-              color: G.textDim,
-              bg: G.surface,
-            };
-            const total = calcQuoteTotals(q).total;
+              const statusColorMap = {
+                Draft: { color: G.textDim, bg: G.surface },
+                Sent: { color: G.amber, bg: G.amberBg },
+                Accepted: { color: G.green, bg: G.greenBg },
+                Declined: { color: G.red, bg: G.redBg },
+              };
+              const colors = statusColorMap[q.status] || {
+                color: G.textDim,
+                bg: G.surface,
+              };
+              const total = calcQuoteTotals(q).total;
 
-            return (
-              <div
-                key={q.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto auto auto",
-                  gap: 14,
-                  alignItems: "center",
-                  padding: "16px 18px",
-                  background: G.card,
-                  border: `1px solid ${G.border}`,
-                  borderRadius: 10,
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600 }}>
-                    {q.clientName || "Untitled"}
-                  </div>
-                  <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
-                    {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
-                    {fmtShort(q.createdAt)}
-                  </div>
-                  <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
-                    {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
-                  </div>
-                </div>
-
-                <Pill color={colors.color} bg={colors.bg}>
-                  {q.status}
-                </Pill>
-
+              return (
                 <div
+                  key={q.id}
                   style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: G.gold,
-                    minWidth: 90,
-                    textAlign: "right",
+                    display: "grid",
+                    gridTemplateColumns: "1fr auto auto auto",
+                    gap: 14,
+                    alignItems: "center",
+                    padding: "16px 18px",
+                    background: G.card,
+                    border: `1px solid ${G.border}`,
+                    borderRadius: 10,
                   }}
                 >
-                  {fmt$(total)}
-                </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>
+                      {q.clientName || "Untitled"}
+                    </div>
+                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 2 }}>
+                      {q.quoteNumberLabel || "No number"} · {q.eventName || "No event"} ·{" "}
+                      {fmtShort(q.createdAt)}
+                    </div>
+                    <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>
+                      {recipients.filter((r) => r.quoteId === q.id).length} recipient(s)
+                    </div>
+                  </div>
 
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  <Btn
-                    variant="ghost"
-                    small
-                    onClick={() => {
-                      setErrors([]);
-                      setBuilding(JSON.parse(JSON.stringify(q)));
+                  <Pill color={colors.color} bg={colors.bg}>
+                    {q.status}
+                  </Pill>
+
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: G.gold,
+                      minWidth: 90,
+                      textAlign: "right",
                     }}
                   >
-                    Edit
-                  </Btn>
-                  <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
-                    Preview
-                  </Btn>
-                  <Btn
-                    variant="secondary"
-                    small
-                    onClick={async () => {
-                      await emailQuoteForApproval(q);
-                    }}
-                  >
-                    Email Approval
-                  </Btn>
-                  {q.status === "Accepted" ? (
+                    {fmt$(total)}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <Btn
+                      variant="ghost"
+                      small
+                      onClick={() => {
+                        setErrors([]);
+                        setBuilding(JSON.parse(JSON.stringify(q)));
+                      }}
+                    >
+                      Edit
+                    </Btn>
+                    <Btn variant="ghost" small onClick={() => setPreviewQuote(q)}>
+                      Preview
+                    </Btn>
                     <Btn
                       variant="secondary"
                       small
-                      onClick={() => {
-                        if (onCreateInvoiceFromQuote) {
-                          onCreateInvoiceFromQuote(q);
-                          return;
-                        }
-                        onNavigateToFinancials?.("financials");
+                      onClick={async () => {
+                        await emailQuoteForApproval(q);
                       }}
                     >
-                      Create Invoice
+                      Email Approval
                     </Btn>
-                  ) : (
-                    <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
-                      Mark Accepted
+                    {q.status === "Accepted" ? (
+                      <Btn
+                        variant="secondary"
+                        small
+                        onClick={() => {
+                          if (onCreateInvoiceFromQuote) {
+                            onCreateInvoiceFromQuote(q);
+                            return;
+                          }
+                          onNavigateToFinancials?.("financials");
+                        }}
+                      >
+                        Create Invoice
+                      </Btn>
+                    ) : (
+                      <Btn variant="secondary" small onClick={() => markQuoteAccepted(q.id)}>
+                        Mark Accepted
+                      </Btn>
+                    )}
+                    <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
+                      PDF
                     </Btn>
-                  )}
-                  <Btn variant="secondary" small onClick={() => handleDownloadPdf(q)}>
-                    PDF
-                  </Btn>
-                  <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
-                    Duplicate
-                  </Btn>
-                  <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
-                    ×
-                  </Btn>
+                    <Btn variant="secondary" small onClick={() => duplicateQuote(q)}>
+                      Duplicate
+                    </Btn>
+                    <Btn variant="danger" small onClick={() => deleteQuote(q.id)}>
+                      ×
+                    </Btn>
+                  </div>
                 </div>
-              </div>
-            );
+              );
             })
           )}
         </div>
@@ -4116,11 +4098,11 @@ function FinancialsTab({
       const byEmail =
         lead?.email &&
         String(invoice.clientEmail || "").trim().toLowerCase() ===
-          String(lead.email || "").trim().toLowerCase();
+        String(lead.email || "").trim().toLowerCase();
       const byName =
         lead?.name &&
         String(invoice.clientName || "").trim().toLowerCase() ===
-          String(lead.name || "").trim().toLowerCase();
+        String(lead.name || "").trim().toLowerCase();
       return Boolean(byClientId || byLeadId || byEmail || byName);
     },
     [clientRecordId, lead?.id, lead?.email, lead?.name]
@@ -4422,9 +4404,9 @@ function FinancialsTab({
     const total = Number(sourceTotals.total || 0);
     const packageName = sourceQuote
       ? (sourceQuote.sections || [])
-          .map((section) => String(section.packageName || "").trim())
-          .filter(Boolean)
-          .join(" / ")
+        .map((section) => String(section.packageName || "").trim())
+        .filter(Boolean)
+        .join(" / ")
       : "";
     const isRetainer = type === "retainer";
     const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
@@ -4560,48 +4542,48 @@ function FinancialsTab({
         if (data) savedPaymentRow = data;
       }
       setPaymentRecords(prev => [savedPaymentRow, ...prev]);
-const newPaid =
-  Number(activeInvoice.amountPaid || 0) + (Number(payForm.amount) || 0);
+      const newPaid =
+        Number(activeInvoice.amountPaid || 0) + (Number(payForm.amount) || 0);
 
-const newBalance = Math.max(
-  0,
-  Number(activeInvoice.totalAmount || 0) - newPaid
-);
+      const newBalance = Math.max(
+        0,
+        Number(activeInvoice.totalAmount || 0) - newPaid
+      );
 
-const newStatus = newBalance <= 0 ? "Paid" : "Partial";
+      const newStatus = newBalance <= 0 ? "Paid" : "Partial";
 
-if (hasDbInvoiceId(activeInvoice.id)) {
-  const { error: invoiceUpdateError } = await supabase
-    .from("invoices")
-    .update({
-      amount_paid: newPaid,
-      balance_due: newBalance,
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", activeInvoice.id);
+      if (hasDbInvoiceId(activeInvoice.id)) {
+        const { error: invoiceUpdateError } = await supabase
+          .from("invoices")
+          .update({
+            amount_paid: newPaid,
+            balance_due: newBalance,
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", activeInvoice.id);
 
-  if (invoiceUpdateError) throw invoiceUpdateError;
-}
+        if (invoiceUpdateError) throw invoiceUpdateError;
+      }
 
-setInvoices(prev => {
-  const next = prev.map(i =>
-    i.id === activeInvoice.id
-      ? {
-          ...i,
-          amountPaid: newPaid,
-          balanceDue: newBalance,
-          status: newStatus,
-        }
-      : i
-  );
-  syncLeadBalance(next);
-  return next;
-});
+      setInvoices(prev => {
+        const next = prev.map(i =>
+          i.id === activeInvoice.id
+            ? {
+              ...i,
+              amountPaid: newPaid,
+              balanceDue: newBalance,
+              status: newStatus,
+            }
+            : i
+        );
+        syncLeadBalance(next);
+        return next;
+      });
 
-setView("list");
-setPayForm({});
-setActiveInvoice(null);
+      setView("list");
+      setPayForm({});
+      setActiveInvoice(null);
     } catch (err) {
       setToast({ type: "error", message: err.message || "Failed to record payment." });
     }
@@ -4619,8 +4601,8 @@ setActiveInvoice(null);
     const paymentsHtml = payments.length ? payments.map(p =>
       `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:13px;">
         <span>${escapeHtml(fmtShort(p.paid_on))} — ${escapeHtml(
-          p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
-        )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
+        p.method === "zelle" ? "Zelle" : p.method === "cash" ? "Cash" : p.method === "check" ? "Check" : "Square"
+      )}${p.reference ? ` (${escapeHtml(p.reference)})` : ""}</span>
         <span style="color:#16a34a;font-weight:700;">+ ${escapeHtml(fmt$(p.amount))}</span>
       </div>`
     ).join("") : '<div style="font-size:13px;color:#999;padding:8px 0;">No payments recorded yet.</div>';
@@ -4691,9 +4673,11 @@ setActiveInvoice(null);
             color: subTab === t.key ? "#0e0f11" : G.textDim, transition: "all .15s",
           }}>
           {t.label}
-          <span style={{ marginLeft: 5, fontSize: 10, padding: "1px 6px", borderRadius: 10,
+          <span style={{
+            marginLeft: 5, fontSize: 10, padding: "1px 6px", borderRadius: 10,
             background: subTab === t.key ? "rgba(0,0,0,.15)" : G.border,
-            color: subTab === t.key ? "#0e0f11" : G.textMuted }}>{t.count}</span>
+            color: subTab === t.key ? "#0e0f11" : G.textMuted
+          }}>{t.count}</span>
         </button>
       ))}
     </div>
@@ -4956,13 +4940,13 @@ setActiveInvoice(null);
                     if (t.k === "balance") amt = Math.max(0, baseTotal - (form.amountPaid || 0));
                     setForm(p => ({ ...p, invoiceType: t.k, totalAmount: amt, balanceDue: Math.max(0, amt - (p.amountPaid || 0)), title: t.k === "retainer" ? "Retainer (50%)" : t.k === "balance" ? "Balance Due" : "Full Payment" }));
                   }}
-                  style={{
-                    flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                    background: form.invoiceType === t.k ? G.gold : G.surface,
-                    color: form.invoiceType === t.k ? "#0e0f11" : G.textDim,
-                    border: `1px solid ${form.invoiceType === t.k ? G.gold : G.border}`,
-                    borderRadius: i === 0 ? "6px 0 0 6px" : i === 2 ? "0 6px 6px 0" : 0,
-                  }}>{t.l}</button>
+                    style={{
+                      flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      background: form.invoiceType === t.k ? G.gold : G.surface,
+                      color: form.invoiceType === t.k ? "#0e0f11" : G.textDim,
+                      border: `1px solid ${form.invoiceType === t.k ? G.gold : G.border}`,
+                      borderRadius: i === 0 ? "6px 0 0 6px" : i === 2 ? "0 6px 6px 0" : 0,
+                    }}>{t.l}</button>
                 ))}
               </div>
             </div>
@@ -5716,7 +5700,7 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
   <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
     <h2 style="margin:0 0 4px;font-size:18px;">${label}: ${item.title || ""}</h2>
     <p style="color:#666;font-size:13px;margin:0 0 20px;">${item.clientName || ""} · ${item.sessionType || ""}</p>
-    <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#333;padding:20px;background:#f9f9f9;border-radius:8px;max-height:400px;overflow:hidden;">${merged.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>
+    <div style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:#333;padding:20px;background:#f9f9f9;border-radius:8px;max-height:400px;overflow:hidden;">${merged.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
     <p style="text-align:center;margin:24px 0;"><a href="${signLink}" style="display:inline-block;padding:14px 36px;background:#d4a853;color:#0e0f11;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Review & Sign ${label}</a></p>
     <p style="font-size:12px;color:#999;text-align:center;">Click the button above to review the full ${label.toLowerCase()} and sign digitally.<br/>Questions? Reply to this email or text Nico directly.</p>
   </div>
@@ -5912,67 +5896,67 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
             <button onClick={() => setCToast(null)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: 14 }}>✕</button>
           </div>
         )}
-      <Card>
-        <SubTabs />
-        <SectionLabel actions={<TemplatePicker onSelect={startCreate} onCreateNew={() => startCreate(templates[0]?.id)} />}>
-          {isReleases ? "Model Releases" : "Contracts"}
-        </SectionLabel>
+        <Card>
+          <SubTabs />
+          <SectionLabel actions={<TemplatePicker onSelect={startCreate} onCreateNew={() => startCreate(templates[0]?.id)} />}>
+            {isReleases ? "Model Releases" : "Contracts"}
+          </SectionLabel>
 
-        {/* Summary row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-          {[
-            { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
-            { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
-            { label: "Signed", count: items.filter(i => i.status === "Signed").length, ...statusColor("Signed") },
-          ].map((c, i) => (
-            <div key={i} style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>{c.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{c.count}</div>
-            </div>
-          ))}
-        </div>
-
-        {items.length === 0 ? (
-          <EmptyState icon={isReleases ? "📝" : "📄"} text={`No ${itemLabel.toLowerCase()}s yet`} />
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {items.map(c => {
-              const sc = statusColor(c.status);
-              return (
-                <div key={c.id} style={{
-                  display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
-                  padding: "14px 16px", background: G.surface, borderRadius: 8, border: `1px solid ${G.border}`,
-                }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
-                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
-                      {c.signer || c.clientName || "—"}
-                      {c.sessionType ? ` · ${c.sessionType}` : ""}
-                      {c.totalAmount ? ` · ${fmt$(c.totalAmount)}` : ""}
-                      {" · "}{c.version || "v1"}
-                    </div>
-                    <div style={{ fontSize: 11, color: G.textMuted, marginTop: 2 }}>
-                      {c.sentOn ? `Sent ${fmtShort(c.sentOn)}` : "Not sent"}
-                      {c.signedOn ? ` · Signed ${fmtShort(c.signedOn)}` : ""}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Pill color={sc.color} bg={sc.bg}>{c.status}</Pill>
-                    <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
-                    <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
-                    <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
-                    <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
-                      {emailSending === c.id ? "..." : "✉ Email"}
-                    </Btn>
-                    <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
-                    <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Summary row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+            {[
+              { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
+              { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
+              { label: "Signed", count: items.filter(i => i.status === "Signed").length, ...statusColor("Signed") },
+            ].map((c, i) => (
+              <div key={i} style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>{c.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{c.count}</div>
+              </div>
+            ))}
           </div>
-        )}
-      </Card>
+
+          {items.length === 0 ? (
+            <EmptyState icon={isReleases ? "📝" : "📄"} text={`No ${itemLabel.toLowerCase()}s yet`} />
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {items.map(c => {
+                const sc = statusColor(c.status);
+                return (
+                  <div key={c.id} style={{
+                    display: "grid", gridTemplateColumns: "1fr auto", gap: 12, alignItems: "center",
+                    padding: "14px 16px", background: G.surface, borderRadius: 8, border: `1px solid ${G.border}`,
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{c.title}</div>
+                      <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>
+                        {c.signer || c.clientName || "—"}
+                        {c.sessionType ? ` · ${c.sessionType}` : ""}
+                        {c.totalAmount ? ` · ${fmt$(c.totalAmount)}` : ""}
+                        {" · "}{c.version || "v1"}
+                      </div>
+                      <div style={{ fontSize: 11, color: G.textMuted, marginTop: 2 }}>
+                        {c.sentOn ? `Sent ${fmtShort(c.sentOn)}` : "Not sent"}
+                        {c.signedOn ? ` · Signed ${fmtShort(c.signedOn)}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Pill color={sc.color} bg={sc.bg}>{c.status}</Pill>
+                      <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
+                      <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
+                      <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
+                      <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
+                        {emailSending === c.id ? "..." : "✉ Email"}
+                      </Btn>
+                      <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
+                      <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       </div>
     );
   }
@@ -6535,7 +6519,9 @@ function DashboardView({
 
     // Pull from all saved workspace rows
     (workspaceRows || []).forEach((row) => {
+      if (!row?.workspace && !row?.client_name) return; // skip empty rows
       const snapshot = workspaceRowToSnapshot(row);
+      if (!snapshot) return;
       const clientName = row.client_name || snapshot.lead?.name || "Client";
       const stage = row.stage || snapshot.lead?.stage || "Lead";
       // Only show Booked or Fulfillment clients in upcoming sessions
@@ -7391,542 +7377,432 @@ function ReportsTab({
   emailActivity,
   workspaceSummaries,
   workspaceInvoices,
+  workspaceRows,
   onNavigate,
 }) {
-  const [search, setSearch] = useState("");
-  const [group, setGroup] = useState("favorites");
-  const [selectedReportId, setSelectedReportId] = useState("profit-loss");
+  const [filterYear, setFilterYear] = useState("all");
+  const [filterMonth, setFilterMonth] = useState("all");
+  const [drill, setDrill] = useState(null); // { center, year, label }
 
-  const reportStats = useMemo(() => {
-    // Accepted revenue = sum of all client workspace accepted quote values
-    const acceptedRevenue = (workspaceSummaries || []).reduce(
-      (sum, w) => sum + Number(w.revenue || 0), 0
-    );
-    // Cash collected = sum of payments recorded on invoices
-    const totalCollected = (workspaceInvoices || []).reduce(
-      (sum, inv) => sum + Number(inv.amount_paid || inv.amountPaid || 0), 0
-    );
-    const outstanding = (workspaceInvoices || []).reduce(
-      (sum, inv) => sum + Number(inv.balance_due || inv.balanceDue || 0), 0
-    );
-    const totalInvoiced = (workspaceInvoices || []).reduce(
-      (sum, inv) => sum + Number(inv.total_amount || inv.totalAmount || 0), 0
-    );
-    const expenseTotal = (workspaceExpenses || []).reduce(
-      (sum, e) => sum + Number(e.amount || 0), 0
-    );
-    // Open pipeline = Lead-stage clients only
-    const openPipeline = (workspaceSummaries || [])
-      .filter(w => w.stage === "Lead")
-      .reduce((sum, w) => sum + Number(w.balance || 0), 0);
+  const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-    const bookedCount = (workspaceSummaries || []).filter(w => w.stage === "Booked" || w.stage === "Fulfillment").length;
-    const completedCount = (workspaceSummaries || []).filter(w => w.stage === "Completed").length;
-    const leadCount = (workspaceSummaries || []).filter(w => w.stage === "Lead").length;
-    const acceptedQuotesCount = (quotes || []).filter(q => q.status === "Accepted").length;
-    const bookedSessions = (schedule || []).filter(s => s.status === "Booked" || s.status === "Confirmed").length;
-
-    return {
-      totalRevenue: acceptedRevenue,
-      totalCollected,
-      outstanding,
-      totalInvoiced,
-      openPipeline,
-      expenseTotal,
-      netIncome: acceptedRevenue - expenseTotal,
-      totalPipeline: openPipeline,
-      openQuoteValue: openPipeline,
-      acceptedCount: acceptedQuotesCount,
-      bookedSessions,
-      bookedCount,
-      completedCount,
-      leadCount,
-      emailTouches: (emailActivity || []).length,
-      notesCount: (notes || []).length,
-      paymentPlans: (payments || []).length,
-    };
-  }, [invoicePayments, workspaceExpenses, workspaceInvoices, workspaceSummaries, quotes, schedule, emailActivity, notes, payments]);
-
-  const [drillFilter, setDrillFilter] = useState("revenue");
-
-  const metricKeyFromLabel = (label) => {
-    if (/revenue/i.test(label)) return "revenue";
-    if (/outstanding|receivables/i.test(label)) return "outstanding";
-    if (/open pipeline/i.test(label)) return "openPipeline";
-    if (/open quote/i.test(label)) return "openPipeline";
-    if (/expenses?/i.test(label)) return "expenses";
-    if (/net income/i.test(label)) return "netIncome";
-    return null;
+  const PC_COLORS = {
+    "Events": "#e54b4b",
+    "Headshots": "#2563eb",
+    "Portraits": "#10b981",
+    "Personal Branding": "#06b6d4",
+    "Family": "#84cc16",
+    "Senior Session": "#f59e0b",
+    "Weddings": "#9f1239",
+    "Other": "#6b7280",
   };
 
-  const drillData = useMemo(() => {
-    if (drillFilter === "expenses") {
-      return (workspaceExpenses || [])
-        .map((expense) => ({
-          id: expense.id,
-          description: expense.description || expense.category || "Expense",
-          vendor: expense.vendor || "",
-          amount: Number(expense.amount || 0),
-          date: expense.incurred_on || "",
-        }))
-        .sort((a, b) => b.amount - a.amount);
-    }
-
-    if (drillFilter === "openPipeline") {
-      return (quotes || [])
-        .filter((quote) => !["Accepted", "Declined"].includes(quote.status))
-        .map((quote) => ({
-          id: quote.id,
-          label: quote.quoteNumberLabel || quote.quoteNumber || "Untitled Quote",
-          client: quote.clientName || quote.clientEmail || "Unknown",
-          amount: Number(calcQuoteTotals(quote).total || 0),
-          status: quote.status || "Draft",
-        }))
-        .sort((a, b) => b.amount - a.amount);
-    }
-
-    const invoiceRows = (workspaceInvoices || []).map((invoice) => ({
-      id: invoice.id,
-      invoiceNumber: invoice.invoice_number || invoice.invoiceNumber || "",
-      client: invoice.client_name || invoice.clientName || invoice.client_email || invoice.clientEmail || "",
-      totalAmount: Number(invoice.total_amount || invoice.totalAmount || 0),
-      paidAmount: Number(invoice.amount_paid || invoice.amountPaid || 0),
-      balanceDue: Number(invoice.balance_due || invoice.balanceDue || 0),
-      status: invoice.status || "",
-      date: invoice.session_date || invoice.sessionDate || "",
-    }));
-
-    if (drillFilter === "outstanding") {
-      return invoiceRows.filter((inv) => inv.balanceDue > 0).sort((a, b) => b.balanceDue - a.balanceDue);
-    }
-
-    if (drillFilter === "totalInvoiced") {
-      return invoiceRows.sort((a, b) => b.totalAmount - a.totalAmount);
-    }
-
-    if (drillFilter === "revenue") {
-      return invoiceRows.filter((inv) => inv.paidAmount > 0).sort((a, b) => b.paidAmount - a.paidAmount);
-    }
-
-    return invoiceRows;
-  }, [drillFilter, workspaceExpenses, workspaceInvoices, quotes]);
-
-  const drillTitle = drillFilter === "revenue"
-    ? "Paid invoices"
-    : drillFilter === "outstanding"
-    ? "Outstanding invoices"
-    : drillFilter === "totalInvoiced"
-    ? "Invoiced amounts"
-    : drillFilter === "openPipeline"
-    ? "Open pipeline quotes"
-    : drillFilter === "expenses"
-    ? "Expenses"
-    : "Details";
-
-  const exportDrillData = async () => {
-    if (!drillData || drillData.length === 0) return;
-    const XLSX = await import("xlsx");
-    const workbook = XLSX.utils.book_new();
-    const sheetName = drillTitle.replace(/[^a-zA-Z0-9]+/g, "_");
-    const sheetData = [
-      Object.keys(drillData[0]).map((key) => key.replace(/([A-Z])/g, " $1").trim()),
-      ...drillData.map((row) => Object.values(row)),
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31));
-    const arrayBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    downloadBlob(`${sheetName.toLowerCase()}.xlsx`, new Blob([arrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const normalizeCenter = (type) => {
+    const t = String(type || "").toLowerCase().trim();
+    if (!t || t === "unspecified") return "Other";
+    if (t.includes("event") || t === "app") return "Events";
+    if (t.includes("headshot")) return "Headshots";
+    if (t.includes("portrait")) return "Portraits";
+    if (t.includes("brand")) return "Personal Branding";
+    if (t.includes("family")) return "Family";
+    if (t.includes("senior")) return "Senior Session";
+    if (t.includes("wedding")) return "Weddings";
+    return String(type).trim() || "Other";
   };
 
-  const metricClickProps = (label) => {
-    const key = metricKeyFromLabel(label);
-    return key
-      ? {
-          onClick: () => setDrillFilter(key),
-          style: { cursor: "pointer" },
-        }
-      : {};
-  };
-
-  const reportGroups = useMemo(
-    () => [
-      { key: "favorites", label: "Favorites" },
-      { key: "business", label: "Business Overview" },
-      { key: "sales", label: "Sales Performance" },
-      { key: "operations", label: "Operations" },
-    ],
-    []
-  );
-
-  const reportLibrary = useMemo(
-    () => [
-      {
-        id: "profit-loss",
-        group: "favorites",
-        title: "Profit and Loss",
-        summary: "Accepted revenue, cash collected, outstanding invoices, and net income.",
-        value: fmt$(reportStats.totalRevenue),
-        accent: G.green,
-        rows: [
-          ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
-          ["Cash Collected", fmt$(reportStats.totalCollected)],
-          ["Outstanding Invoices", fmt$(reportStats.outstanding)],
-          ["Expenses", fmt$(reportStats.expenseTotal)],
-          ["Net Income", fmt$(reportStats.netIncome)],
-          ["Lead Pipeline", fmt$(reportStats.openPipeline)],
-        ],
-      },
-      {
-        id: "accounts-receivable",
-        group: "favorites",
-        title: "Accounts Receivable",
-        summary: "Outstanding invoice balances that still need to be collected.",
-        value: fmt$(reportStats.outstanding),
-        accent: G.amber,
-        rows: [
-          ["Outstanding Balance", fmt$(reportStats.outstanding)],
-          ["Total Invoiced", fmt$(reportStats.totalInvoiced)],
-          ["Cash Collected", fmt$(reportStats.totalCollected)],
-          ["Active Bookings", String(reportStats.bookedCount)],
-          ["Completed Jobs", String(reportStats.completedCount)],
-        ],
-      },
-      {
-        id: "balance-sheet",
-        group: "favorites",
-        title: "Balance Sheet",
-        summary: "Total accepted revenue vs outstanding balances across all clients.",
-        value: fmt$(reportStats.totalRevenue),
-        accent: G.gold,
-        rows: [
-          ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
-          ["Outstanding", fmt$(reportStats.outstanding)],
-          ["Lead Pipeline", fmt$(reportStats.openPipeline)],
-          ["Active Bookings", String(reportStats.bookedCount)],
-          ["Completed Jobs", String(reportStats.completedCount)],
-          ["Total Clients", String((workspaceSummaries || []).length)],
-        ],
-      },
-      {
-        id: "cash-flow",
-        group: "business",
-        title: "Cash Flow Overview",
-        summary: "Cash collected versus accepted revenue and open balances.",
-        value: fmt$(reportStats.totalCollected),
-        accent: G.teal,
-        rows: [
-          ["Cash Collected", fmt$(reportStats.totalCollected)],
-          ["Accepted Revenue", fmt$(reportStats.totalRevenue)],
-          ["Still Outstanding", fmt$(reportStats.outstanding)],
-          ["Expenses", fmt$(reportStats.expenseTotal)],
-          ["Net Income", fmt$(reportStats.netIncome)],
-          ["Lead Pipeline", fmt$(reportStats.openPipeline)],
-        ],
-      },
-      {
-        id: "lead-funnel",
-        group: "sales",
-        title: "Lead Funnel",
-        summary: "Breakdown of all clients by stage — leads, booked, fulfillment, completed.",
-        value: String((workspaceSummaries || []).length),
-        accent: G.blue,
-        rows: [
-          ["Total Clients", String((workspaceSummaries || []).length)],
-          ["Leads", String(reportStats.leadCount)],
-          ["Active Bookings", String(reportStats.bookedCount)],
-          ["Completed Jobs", String(reportStats.completedCount)],
-          ["Accepted Quotes", String(reportStats.acceptedCount)],
-          ["Open Quotes", String((quotes || []).filter(q => q.status === "Draft" || q.status === "Sent").length)],
-        ],
-      },
-      {
-        id: "booking-readiness",
-        group: "operations",
-        title: "Booking Readiness",
-        summary: "Active bookings, sessions scheduled, notes, and payment plans in place.",
-        value: `${reportStats.bookedCount} active`,
-        accent: G.gold,
-        rows: [
-          ["Active Bookings", String(reportStats.bookedCount)],
-          ["Sessions Booked", String(reportStats.bookedSessions)],
-          ["Active Notes", String(reportStats.notesCount)],
-          ["Payment Plans", String(reportStats.paymentPlans)],
-          ["Email Activity", String(reportStats.emailTouches)],
-        ],
-      },
-    ],
-    [reportStats, workspaceSummaries, quotes]
-  );
-
-  const visibleReports = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return reportLibrary.filter((report) => {
-      if (group !== "all" && report.group !== group) return false;
-      if (!term) return true;
-      return [report.title, report.summary].join(" ").toLowerCase().includes(term);
+  // Enrich summaries with full snapshot data
+  const enriched = useMemo(() => {
+    return (workspaceSummaries || []).map(summary => {
+      const row = (workspaceRows || []).find(r => r.id === summary.id);
+      const snap = row ? workspaceRowToSnapshot(row) : null;
+      const inquiredOn = snap?.lead?.inquiredOn || summary.updatedAt || "";
+      const eventDate = summary.eventDate || snap?.lead?.eventDate || inquiredOn;
+      const eventYear = eventDate ? new Date(eventDate).getFullYear() : null;
+      const eventMonth = eventDate ? new Date(eventDate).getMonth() : null; // 0-indexed
+      const inquiredDate = inquiredOn ? new Date(inquiredOn) : null;
+      const bookedDate = snap?.schedule?.find(s => s.status === "Booked")?.date;
+      const timeToBook = (inquiredDate && bookedDate)
+        ? Math.max(0, Math.round((new Date(bookedDate) - inquiredDate) / 86400000))
+        : null;
+      return {
+        ...summary,
+        center: normalizeCenter(summary.type || snap?.lead?.type),
+        eventYear,
+        eventMonth,
+        timeToBook,
+        inquiredYear: inquiredDate ? inquiredDate.getFullYear() : null,
+        inquiredMonth: inquiredDate ? inquiredDate.getMonth() : null,
+      };
     });
-  }, [group, reportLibrary, search]);
+  }, [workspaceSummaries, workspaceRows]);
 
-  const selectedReport =
-    reportLibrary.find((report) => report.id === selectedReportId) || visibleReports[0] || reportLibrary[0];
+  // Apply year/month filter
+  const filtered = useMemo(() => {
+    return enriched.filter(w => {
+      const yr = filterYear === "all" ? true : (w.eventYear === Number(filterYear) || w.inquiredYear === Number(filterYear));
+      const mo = filterMonth === "all" ? true : (w.eventMonth === Number(filterMonth) || w.inquiredMonth === Number(filterMonth));
+      return yr && mo;
+    });
+  }, [enriched, filterYear, filterMonth]);
 
-  const exportSelectedReport = () => {
-    const report = selectedReport;
-    if (!report) return;
-    const rows = [["Metric", "Value"], ...(report.rows || [])]
-      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
-      .join("\n");
-    downloadBlob(
-      `${report.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`,
-      new Blob([rows], { type: "text/csv;charset=utf-8" })
+  // All unique profit centers
+  const allCenters = useMemo(() => {
+    const seen = new Set();
+    enriched.forEach(w => seen.add(w.center));
+    const order = ["Events", "Headshots", "Portraits", "Personal Branding", "Family", "Senior Session", "Weddings", "Other"];
+    return [...order.filter(c => seen.has(c)), ...[...seen].filter(c => !order.includes(c))];
+  }, [enriched]);
+
+  // Expenses by profit center (approx by category matching)
+  const expenseByCenter = useMemo(() => {
+    const map = {};
+    (workspaceExpenses || []).forEach(e => {
+      const c = normalizeCenter(e.category || e.description || "Other");
+      map[c] = (map[c] || 0) + Number(e.amount || 0);
+    });
+    return map;
+  }, [workspaceExpenses]);
+
+  // Total expenses for overhead %
+  const totalExpenses = useMemo(() =>
+    (workspaceExpenses || []).reduce((s, e) => s + Number(e.amount || 0), 0),
+    [workspaceExpenses]);
+
+  // Revenue & costs by profit center (filtered)
+  const centerStats = useMemo(() => {
+    return allCenters.map(center => {
+      const rows = filtered.filter(w => w.center === center);
+      const revenue = rows.reduce((s, w) => s + Number(w.revenue || 0), 0);
+      const expenses = expenseByCenter[center] || 0;
+      const profit = revenue - expenses;
+      const overhead = revenue > 0 ? (expenses / revenue) * 100 : 0;
+      const leads = rows.length;
+      const jobs = rows.filter(w => w.stage === "Booked" || w.stage === "Fulfillment" || w.stage === "Completed").length;
+      const convRate = leads > 0 ? (jobs / leads) * 100 : 0;
+      const ttbVals = rows.map(w => w.timeToBook).filter(v => v !== null && v >= 0);
+      const avgTtb = ttbVals.length > 0 ? ttbVals.reduce((a, b) => a + b, 0) / ttbVals.length : 0;
+      return { center, revenue, expenses, profit, overhead, leads, jobs, convRate, avgTtb, rows };
+    });
+  }, [allCenters, filtered, expenseByCenter]);
+
+  const totalRevenue = centerStats.reduce((s, c) => s + c.revenue, 0);
+  const totalProfit = centerStats.reduce((s, c) => s + c.profit, 0);
+  const totalJobs = centerStats.reduce((s, c) => s + c.jobs, 0);
+  const totalLeads = centerStats.reduce((s, c) => s + c.leads, 0);
+
+  // Year-by-year breakdown
+  const yearBreakdown = useMemo(() => {
+    return YEARS.map(yr => {
+      const byCenter = {};
+      allCenters.forEach(c => {
+        byCenter[c] = enriched.filter(w =>
+          w.center === c && (w.eventYear === yr || w.inquiredYear === yr)
+        ).length;
+      });
+      const total = Object.values(byCenter).reduce((a, b) => a + b, 0);
+      return { yr, byCenter, total };
+    });
+  }, [enriched, allCenters]);
+
+  // Drill data
+  const drillData = useMemo(() => {
+    if (!drill) return [];
+    return enriched.filter(w => {
+      const centerMatch = !drill.center || w.center === drill.center;
+      const yearMatch = !drill.year || w.eventYear === drill.year || w.inquiredYear === drill.year;
+      return centerMatch && yearMatch;
+    });
+  }, [drill, enriched]);
+
+  // SVG Donut chart
+  const DonutChart = ({ data, size = 90 }) => {
+    const total = data.reduce((s, d) => s + d.value, 0);
+    if (total === 0) return <div style={{ width: size, height: size, borderRadius: "50%", background: G.border }} />;
+    let offset = 0;
+    const r = 34, cx = 45, cy = 45, circ = 2 * Math.PI * r;
+    const slices = data.map(d => {
+      const pct = d.value / total;
+      const dash = pct * circ;
+      const slice = { ...d, dash, gap: circ - dash, offset: offset * circ };
+      offset += pct;
+      return slice;
+    });
+    return (
+      <svg width={size} height={size} viewBox="0 0 90 90">
+        {slices.map((s, i) => (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+            stroke={s.color} strokeWidth="14"
+            strokeDasharray={`${s.dash} ${s.gap}`}
+            strokeDashoffset={-s.offset + circ / 4}
+            style={{ transform: `rotate(-90deg)`, transformOrigin: "45px 45px" }}
+          />
+        ))}
+        <circle cx={cx} cy={cy} r={26} fill={G.card} />
+      </svg>
     );
   };
+
+  const revenueDonut = centerStats.filter(c => c.revenue > 0).map(c => ({ value: c.revenue, color: PC_COLORS[c.center] || G.textMuted }));
+  const jobsDonut = centerStats.filter(c => c.jobs > 0).map(c => ({ value: c.jobs, color: PC_COLORS[c.center] || G.textMuted }));
+  const profitDonut = centerStats.filter(c => c.profit > 0).map(c => ({ value: c.profit, color: PC_COLORS[c.center] || G.textMuted }));
+
+  const cellStyle = { padding: "9px 10px", fontSize: 13, borderBottom: `1px solid ${G.border}` };
+  const hdrStyle = { ...cellStyle, fontSize: 11, fontWeight: 700, color: G.textMuted, letterSpacing: ".04em", textTransform: "uppercase", background: G.surface };
+  const numStyle = { ...cellStyle, textAlign: "right" };
+  const clickNum = (center, year, label) => () => setDrill({ center, year, label });
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 20 }}>
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: "18px 18px 10px", borderBottom: `1px solid ${G.border}` }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: G.textMuted, letterSpacing: ".08em" }}>
-            REPORTS & ANALYTICS
-          </div>
-        </div>
-        <div style={{ padding: 12, display: "grid", gap: 6 }}>
-          <button
-            onClick={() => setGroup("favorites")}
-            style={{
-              textAlign: "left",
-              border: "none",
-              borderRadius: 10,
-              padding: "10px 12px",
-              background: group === "favorites" ? G.border : "transparent",
-              color: G.text,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Standard reports
+    <div style={{ display: "grid", gap: 20 }}>
+
+      {/* ── Filter bar ── */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: G.textMuted }}>Filter:</div>
+        <select value={filterYear} onChange={e => { setFilterYear(e.target.value); setDrill(null); }}
+          style={{ background: G.surface, color: G.text, border: `1px solid ${G.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 13 }}>
+          <option value="all">All Years</option>
+          {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+        <select value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setDrill(null); }}
+          style={{ background: G.surface, color: G.text, border: `1px solid ${G.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 13 }}>
+          <option value="all">All Months</option>
+          {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+        </select>
+        {(filterYear !== "all" || filterMonth !== "all") && (
+          <button onClick={() => { setFilterYear("all"); setFilterMonth("all"); setDrill(null); }}
+            style={{ fontSize: 12, color: G.red, background: "none", border: "none", cursor: "pointer" }}>
+            ✕ Clear
           </button>
-          <button
-            onClick={() => setGroup("all")}
-            style={{
-              textAlign: "left",
-              border: "none",
-              borderRadius: 10,
-              padding: "10px 12px",
-              background: group === "all" ? G.border : "transparent",
-              color: G.textDim,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Custom reports
-          </button>
-          {reportGroups
-            .filter((item) => item.key !== "favorites")
-            .map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setGroup(item.key)}
-                style={{
-                  textAlign: "left",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  background: group === item.key ? G.border : "transparent",
-                  color: G.textDim,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
+        )}
+        <div style={{ marginLeft: "auto", fontSize: 13, color: G.textMuted }}>
+          {filtered.length} clients · {filterYear !== "all" ? filterYear : "2020–2026"}
         </div>
-      </Card>
-
-      <div style={{ display: "grid", gap: 18 }}>
-        <Card>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Type report name here"
-                style={{
-                  width: "100%",
-                  background: G.surface,
-                  color: G.text,
-                  border: `1px solid ${G.border}`,
-                  borderRadius: 8,
-                  padding: "12px 14px",
-                  fontSize: 14,
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <Btn variant="secondary" small onClick={() => onNavigate?.("financials")}>
-              Ask a question
-            </Btn>
-            <Btn small onClick={exportSelectedReport}>Create custom reports</Btn>
-          </div>
-        </Card>
-
-        <Card
-          style={{
-            background: "linear-gradient(135deg, rgba(180,138,58,.12), rgba(43,127,135,.08))",
-            border: `1px solid ${G.border}`,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 20, alignItems: "flex-start" }}>
-            <div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                <Pill color="#fff" bg={G.gold}>FOR YOU</Pill>
-                <span style={{ fontSize: 13, color: G.textDim }}>CRM Reports</span>
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-.02em", marginBottom: 8 }}>
-                {selectedReport?.title || "Reports"}
-              </div>
-              <div style={{ fontSize: 14, color: G.textDim, lineHeight: 1.6, maxWidth: 680 }}>
-                {selectedReport?.summary}
-              </div>
-            </div>
-            <div style={{ textAlign: "right", minWidth: 120 }}>
-              <div style={{ fontSize: 12, color: G.textMuted }}>Current focus</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: selectedReport?.accent || G.gold }}>
-                {selectedReport?.value}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <SectionLabel>Favorites</SectionLabel>
-          <div style={{ display: "grid", gap: 8 }}>
-            {visibleReports.length === 0 ? (
-              <EmptyState icon="📊" text="No reports match that search." />
-            ) : (
-              visibleReports.map((report) => (
-                <button
-                  key={report.id}
-                  onClick={() => setSelectedReportId(report.id)}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto auto",
-                    gap: 12,
-                    alignItems: "center",
-                    width: "100%",
-                    textAlign: "left",
-                    background: selectedReport?.id === report.id ? G.surface : "transparent",
-                    border: `1px solid ${selectedReport?.id === report.id ? G.border : "transparent"}`,
-                    borderRadius: 10,
-                    padding: "12px 14px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: G.text }}>{report.title}</div>
-                    <div style={{ fontSize: 12, color: G.textDim, marginTop: 3 }}>{report.summary}</div>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: report.accent }}>{report.value}</div>
-                  <span style={{ fontSize: 18, color: selectedReport?.id === report.id ? G.gold : G.textMuted }}>
-                    {selectedReport?.id === report.id ? "★" : "☆"}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <SectionLabel>Business Overview</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {(selectedReport?.rows || []).map(([label, value]) => {
-              const clickProps = metricClickProps(label);
-              return (
-                <div
-                  key={label}
-                  {...clickProps}
-                  style={{
-                    border: `1px solid ${G.border}`,
-                    borderRadius: 10,
-                    padding: "14px 16px",
-                    background: G.surface,
-                    transition: "transform .15s, box-shadow .15s",
-                    ...(clickProps.onClick ? { cursor: "pointer" } : {}),
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: G.textMuted }}>{label}</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: G.text, marginTop: 6 }}>{value}</div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
       </div>
 
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: "18px 20px", borderBottom: `1px solid ${G.border}` }}>
-          <div style={{ fontSize: 14, fontWeight: 800 }}>Intuit Intelligence</div>
-          <div style={{ fontSize: 12, color: G.textMuted, marginTop: 4 }}>BETA</div>
+      {/* ── Profit Centers Summary ── */}
+      <Card>
+        <SectionLabel>
+          {filterYear !== "all" ? `${filterYear} Profit Centers` : "Profit Centers Overview"}
+        </SectionLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20, marginBottom: 20 }}>
+          {[
+            { label: "Revenue", chart: revenueDonut, value: fmt$(totalRevenue) },
+            { label: "Profit", chart: profitDonut, value: fmt$(totalProfit) },
+            { label: "Overhead", chart: [], value: totalRevenue > 0 ? `${((totalExpenses / totalRevenue) * 100).toFixed(1)}%` : "0%" },
+            { label: "# of Jobs", chart: jobsDonut, value: String(totalJobs) },
+          ].map(({ label, chart, value }) => (
+            <div key={label} style={{ textAlign: "center" }}>
+              {chart.length > 0
+                ? <DonutChart data={chart} size={88} />
+                : <div style={{ width: 88, height: 88, borderRadius: "50%", background: G.border, margin: "0 auto", display: "grid", placeItems: "center", fontSize: 18, fontWeight: 800, color: G.textMuted }}>{value}</div>
+              }
+              <div style={{ fontSize: 20, fontWeight: 800, marginTop: 6 }}>{chart.length > 0 ? value : ""}</div>
+              <div style={{ fontSize: 12, color: G.textMuted }}>{label}</div>
+            </div>
+          ))}
         </div>
-        <div style={{ padding: 20, display: "grid", gap: 18 }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.4 }}>
-              The power of AI and trusted human experts, working for you
+        {/* Legend */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", borderTop: `1px solid ${G.border}`, paddingTop: 12 }}>
+          {allCenters.map(c => (
+            <div key={c} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: G.textDim }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: PC_COLORS[c] || G.textMuted, flexShrink: 0 }} />
+              {c}
             </div>
-          </div>
-          <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 18 }}>
-            <div style={{ fontSize: 13, color: G.textDim, lineHeight: 1.6 }}>
-              Your revenue is trending from accepted quotes, booked sessions, and client balances already saved in your CRM.
-            </div>
-            <button
-              onClick={() => setSelectedReportId("profit-loss")}
-              style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 13 }}
-            >
-              Summarize my profit and loss
-            </button>
-          </div>
-          <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 18 }}>
-            <div style={{ fontSize: 13, color: G.textDim, lineHeight: 1.6 }}>
-              Outstanding invoice balances and quote pipeline can be reviewed together to tighten follow-up timing.
-            </div>
-            <button
-              onClick={() => setSelectedReportId("accounts-receivable")}
-              style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 13 }}
-            >
-              Analyze my trailing receivables
-            </button>
-          </div>
-          <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 18 }}>
-            <div style={{ fontSize: 13, color: G.textDim, lineHeight: 1.6 }}>
-              Booking readiness combines notes, schedules, and payment plans so you can see who is ready to move next.
-            </div>
-            <button
-              onClick={() => setSelectedReportId("booking-readiness")}
-              style={{ marginTop: 10, background: "none", border: "none", padding: 0, color: G.blue, cursor: "pointer", fontSize: 13 }}
-            >
-              Show booking readiness
-            </button>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <button
-              onClick={exportSelectedReport}
-              style={{
-                width: "100%",
-                borderRadius: 999,
-                padding: "14px 18px",
-                border: `2px solid ${G.teal}`,
-                background: "#fff",
-                color: G.text,
-                fontSize: 14,
-                cursor: "pointer",
-              }}
-            >
-              Ask anything
-            </button>
-          </div>
+          ))}
         </div>
       </Card>
+
+      {/* ── Revenue & Costs by Profit Center ── */}
+      <Card>
+        <SectionLabel>Revenue & Costs by Profit Center</SectionLabel>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr>
+                {["Profit Center", "Revenue", "Expenses", "Overhead", "Profit"].map(h => (
+                  <th key={h} style={{ ...hdrStyle, textAlign: h === "Profit Center" ? "left" : "right" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {centerStats.map(c => (
+                <tr key={c.center} style={{ cursor: "pointer" }}
+                  onClick={clickNum(c.center, null, c.center)}>
+                  <td style={{ ...cellStyle }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: PC_COLORS[c.center] || G.textMuted, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600 }}>{c.center}</span>
+                    </div>
+                  </td>
+                  <td style={{ ...numStyle, color: G.green, fontWeight: 700 }}>{fmt$(c.revenue)}</td>
+                  <td style={{ ...numStyle }}>{fmt$(c.expenses)}</td>
+                  <td style={{ ...numStyle, color: c.overhead > 20 ? G.red : G.textDim }}>{c.overhead.toFixed(1)}%</td>
+                  <td style={{ ...numStyle, color: c.profit >= 0 ? G.green : G.red, fontWeight: 700 }}>{fmt$(c.profit)}</td>
+                </tr>
+              ))}
+              <tr style={{ background: G.surface }}>
+                <td style={{ ...cellStyle, fontWeight: 800 }}>Total</td>
+                <td style={{ ...numStyle, fontWeight: 800, color: G.green }}>{fmt$(totalRevenue)}</td>
+                <td style={{ ...numStyle, fontWeight: 800 }}>{fmt$(totalExpenses)}</td>
+                <td style={{ ...numStyle, fontWeight: 800 }}>{totalRevenue > 0 ? `${((totalExpenses / totalRevenue) * 100).toFixed(1)}%` : "0%"}</td>
+                <td style={{ ...numStyle, fontWeight: 800, color: G.green }}>{fmt$(totalProfit)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* ── Conversions by Profit Center ── */}
+      <Card>
+        <SectionLabel>Conversions by Profit Center</SectionLabel>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr>
+                {["Profit Center", "Leads", "Jobs", "Conversion Rate", "Avg Time to Book"].map(h => (
+                  <th key={h} style={{ ...hdrStyle, textAlign: h === "Profit Center" ? "left" : "right" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {centerStats.map(c => (
+                <tr key={c.center}>
+                  <td style={{ ...cellStyle }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: PC_COLORS[c.center] || G.textMuted, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600 }}>{c.center}</span>
+                    </div>
+                  </td>
+                  <td style={{ ...numStyle }}>
+                    <button onClick={clickNum(c.center, null, `${c.center} leads`)}
+                      style={{ color: G.blue, fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: 13 }}>
+                      {c.leads}
+                    </button>
+                  </td>
+                  <td style={{ ...numStyle }}>
+                    <button onClick={clickNum(c.center, null, `${c.center} jobs`)}
+                      style={{ color: G.blue, fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: 13 }}>
+                      {c.jobs}
+                    </button>
+                  </td>
+                  <td style={{ ...numStyle, color: c.convRate >= 80 ? G.green : c.convRate >= 50 ? G.amber : G.red, fontWeight: 700 }}>
+                    {c.convRate.toFixed(1)}%
+                  </td>
+                  <td style={{ ...numStyle, color: G.textDim }}>
+                    {c.avgTtb > 0 ? `${c.avgTtb.toFixed(1)} days` : "—"}
+                  </td>
+                </tr>
+              ))}
+              <tr style={{ background: G.surface }}>
+                <td style={{ ...cellStyle, fontWeight: 800 }}>Total</td>
+                <td style={{ ...numStyle, fontWeight: 800 }}>{totalLeads}</td>
+                <td style={{ ...numStyle, fontWeight: 800 }}>{totalJobs}</td>
+                <td style={{ ...numStyle, fontWeight: 800 }}>{totalLeads > 0 ? `${((totalJobs / totalLeads) * 100).toFixed(1)}%` : "0%"}</td>
+                <td style={{ ...numStyle }}></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* ── Year-by-Year Breakdown ── */}
+      <Card>
+        <SectionLabel>Jobs by Profit Center — 2020 to 2026</SectionLabel>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr>
+                <th style={{ ...hdrStyle, textAlign: "left" }}>Profit Center</th>
+                {YEARS.map(yr => (
+                  <th key={yr} style={{ ...hdrStyle, textAlign: "right" }}>{yr}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allCenters.map(center => (
+                <tr key={center}>
+                  <td style={{ ...cellStyle }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: PC_COLORS[center] || G.textMuted, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600 }}>{center}</span>
+                    </div>
+                  </td>
+                  {YEARS.map(yr => {
+                    const count = yearBreakdown.find(y => y.yr === yr)?.byCenter[center] || 0;
+                    return (
+                      <td key={yr} style={{ ...numStyle }}>
+                        {count > 0
+                          ? <button onClick={clickNum(center, yr, `${center} ${yr}`)}
+                            style={{ color: G.blue, fontWeight: 600, background: "none", border: "none", cursor: "pointer", fontSize: 13 }}>
+                            {count}
+                          </button>
+                          : <span style={{ color: G.textMuted }}>0</span>
+                        }
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              <tr style={{ background: G.surface }}>
+                <td style={{ ...cellStyle, fontWeight: 800 }}>Total</td>
+                {YEARS.map(yr => (
+                  <td key={yr} style={{ ...numStyle, fontWeight: 800 }}>
+                    {yearBreakdown.find(y => y.yr === yr)?.total || 0}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* ── Drill-Down Panel ── */}
+      {drill && (
+        <Card>
+          <SectionLabel actions={
+            <button onClick={() => setDrill(null)}
+              style={{ fontSize: 12, color: G.textMuted, background: "none", border: "none", cursor: "pointer" }}>
+              ✕ Close
+            </button>
+          }>
+            {drill.label} — {drillData.length} client{drillData.length !== 1 ? "s" : ""}
+          </SectionLabel>
+          {drillData.length === 0
+            ? <EmptyState icon="🔍" text="No clients match this filter." />
+            : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      {["Client", "Type", "Stage", "Event Date", "Revenue"].map(h => (
+                        <th key={h} style={{ ...hdrStyle, textAlign: h === "Revenue" ? "right" : "left" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {drillData.map(w => (
+                      <tr key={w.id}>
+                        <td style={{ ...cellStyle, fontWeight: 600 }}>{w.name}</td>
+                        <td style={{ ...cellStyle, color: G.textDim }}>{w.type || "—"}</td>
+                        <td style={{ ...cellStyle }}>
+                          <Pill
+                            color={w.stage === "Completed" ? G.green : w.stage === "Booked" ? G.gold : G.textMuted}
+                            bg={w.stage === "Completed" ? G.greenBg : w.stage === "Booked" ? G.goldBg : G.surface}>
+                            {w.stage || "Lead"}
+                          </Pill>
+                        </td>
+                        <td style={{ ...cellStyle, color: G.textDim }}>{w.eventDate ? fmtShort(w.eventDate) : "—"}</td>
+                        <td style={{ ...numStyle, color: G.green, fontWeight: 700 }}>{fmt$(w.revenue || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </Card>
+      )}
+
     </div>
   );
 }
@@ -8762,12 +8638,11 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             .join("");
           return `<div style="margin-bottom:16px;">
             <div style="font-weight:700;font-size:14px;margin-bottom:6px;">${escapeHtml(
-              s.packageName || "Package"
-            )}</div>
-            ${
-              includesHtml
-                ? `<ul style="margin:6px 0 10px 18px;padding:0;font-size:12px;color:#555;">${includesHtml}</ul>`
-                : ""
+            s.packageName || "Package"
+          )}</div>
+            ${includesHtml
+              ? `<ul style="margin:6px 0 10px 18px;padding:0;font-size:12px;color:#555;">${includesHtml}</ul>`
+              : ""
             }
             <table style="width:100%;border-collapse:collapse;">${itemsHtml}</table>
           </div>`;
@@ -8912,17 +8787,17 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
 
     const initialSchedule = newClientForm.scheduleTitle.trim()
       ? [
-          {
-            id: Date.now() + 1,
-            title: newClientForm.scheduleTitle.trim(),
-            date: newClientForm.scheduleDate || newClientForm.eventDate || "",
-            time: newClientForm.scheduleTime || "",
-            endTime: "",
-            location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
-            status: newClientForm.scheduleStatus || "Tentative",
-            notes: "",
-          },
-        ]
+        {
+          id: Date.now() + 1,
+          title: newClientForm.scheduleTitle.trim(),
+          date: newClientForm.scheduleDate || newClientForm.eventDate || "",
+          time: newClientForm.scheduleTime || "",
+          endTime: "",
+          location: newClientForm.scheduleLocation.trim() || newClientForm.location.trim(),
+          status: newClientForm.scheduleStatus || "Tentative",
+          notes: "",
+        },
+      ]
       : [];
 
     const nextSnapshot = normalizeWorkspaceSnapshot({
@@ -9122,7 +8997,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
       }
 
       const rowsToInsert = snapshots.map((snapshot) => buildWorkspaceRow(snapshot));
-          const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
+      const { data, error } = await supabase.from(WORKSPACE_TABLE).insert(rowsToInsert).select("*");
       if (error) throw error;
 
       const insertedRows = Array.isArray(data) ? data : [];
@@ -9275,6 +9150,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             emailActivity={emailActivity}
             workspaceSummaries={workspaceSummaries}
             workspaceInvoices={workspaceInvoices}
+            workspaceRows={workspaceRows}
             onNavigate={goToTab}
           />
         );
@@ -9471,7 +9347,6 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 220px",
-          minHeight: "calc(100vh - 126px)",
         }}
       >
         <div style={{ padding: "24px 28px" }}>
