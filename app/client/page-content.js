@@ -376,7 +376,9 @@ export default function ClientPageContent() {
 
             {/* Sections */}
             {Array.isArray(quote.sections) && quote.sections.map((section, idx) => {
-              const lineTotal = (section.lineItems || []).reduce((s, li) => s + Number(li.price || 0) * Number(li.qty || 1), 0);
+              const cleanInc = (section.includes || []).filter(Boolean);
+              // If description exists, skip includes (they're already in description text)
+              const showIncludes = cleanInc.length > 0 && !section.description;
               return (
                 <div key={idx} style={{ marginBottom: 28 }}>
                   {!!section.packageName && (
@@ -385,8 +387,8 @@ export default function ClientPageContent() {
                   {!!section.description && (
                     <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7, marginBottom: 10, whiteSpace: "pre-wrap" }}>{section.description}</div>
                   )}
-                  {Array.isArray(section.includes) && section.includes.filter(Boolean).map((inc, i) => (
-                    <div key={i} style={{ fontSize: 13, color: "#444", padding: "3px 0" }}>{inc}</div>
+                  {showIncludes && cleanInc.map((inc, i) => (
+                    <div key={i} style={{ fontSize: 13, color: "#444", padding: "2px 0" }}>{inc}</div>
                   ))}
                   {(section.lineItems || []).map((li, liIdx) => {
                     const qty = Number(li.qty || 1);
@@ -401,11 +403,6 @@ export default function ClientPageContent() {
                       </div>
                     );
                   })}
-                  {/* Section subtotal line */}
-                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #ccc", paddingTop: 10, marginTop: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{section.packageName || "Package"}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }}>{money(lineTotal)}</div>
-                  </div>
                 </div>
               );
             })}
@@ -449,19 +446,18 @@ export default function ClientPageContent() {
             <div style={{ textAlign: "center", marginTop: 32 }}>
               <button
                 onClick={token ? approveByToken : undefined}
-                disabled={approveBusy || quoteStatus === "approved" || !token}
+                disabled={approveBusy || quoteStatus === "approved"}
                 style={{
                   display: "inline-block", padding: "14px 36px",
                   background: quoteStatus === "approved" ? "#10b981" : "#d4a853",
                   color: "#0e0f11", border: "none", borderRadius: 8,
                   fontWeight: 800, fontSize: 15,
-                  cursor: (approveBusy || quoteStatus === "approved" || !token) ? "default" : "pointer",
+                  cursor: (approveBusy || quoteStatus === "approved") ? "default" : "pointer",
                   opacity: approveBusy ? 0.7 : 1,
                 }}
               >
                 {quoteStatus === "approved" ? "✓ Approved" : approveBusy ? "Approving..." : "Approve Quote"}
               </button>
-              {!token && <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Use the link from your email to approve.</div>}
             </div>
 
             {approveNotice && (
