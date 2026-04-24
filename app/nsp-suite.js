@@ -3044,9 +3044,13 @@ function QuotesTab({
         )
       );
       setQuoteNotice({ type: "success", message: `Approval email sent to ${recipient}` });
+      setListToast({ type: "success", message: `Approval email sent to ${recipient}` });
+      setTimeout(() => setListToast(null), 5000);
       return true;
     } catch (err) {
       setQuoteNotice({ type: "error", message: err.message || "Failed to send approval email." });
+      setListToast({ type: "error", message: err.message || "Failed to send approval email." });
+      setTimeout(() => setListToast(null), 5000);
       return false;
     } finally {
       setEmailingApproval(false);
