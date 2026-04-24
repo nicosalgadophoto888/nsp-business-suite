@@ -327,6 +327,35 @@ export default function ClientPageContent() {
       : quote.contractTemplate ? [quote.contractTemplate] : [];
     const logoUrl = quote.logoUrl || "/nsp-logo.jpg";
 
+    // Show confirmation screen after approval
+    if (quoteStatus === "approved") {
+      return (
+        <div style={{ background: "#f0f0f0", minHeight: "100vh", padding: "32px 20px", fontFamily: "Arial, Helvetica, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ maxWidth: 520, width: "100%", background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.10)", textAlign: "center" }}>
+            <div style={{ background: "#0e0f11", padding: "24px 28px" }}>
+              <img src="/nsp-logo.jpg" alt="NSP" style={{ maxHeight: 44, width: "auto", display: "block", margin: "0 auto" }} onError={e => { e.target.style.display = "none"; }} />
+            </div>
+            <div style={{ padding: "48px 36px" }}>
+              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#ecfdf5", border: "3px solid #10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 32 }}>✓</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", marginBottom: 12 }}>You're all set!</div>
+              <div style={{ fontSize: 15, color: "#4b5563", lineHeight: 1.7, marginBottom: 8 }}>
+                Your quote has been approved, {quote.clientName ? quote.clientName.split(" ")[0] : ""}.<br />
+                Nico has been notified and will be in touch shortly with your payment link and next steps.
+              </div>
+              {quote.quoteNumberLabel && (
+                <div style={{ display: "inline-block", marginTop: 16, padding: "6px 14px", background: "#f3f4f6", borderRadius: 20, fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+                  Quote {quote.quoteNumberLabel} — Approved
+                </div>
+              )}
+              <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid #f0f0f0", fontSize: 13, color: "#9ca3af" }}>
+                Questions? Reply to Nico's email or text directly.
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ background: "#f0f0f0", minHeight: "100vh", padding: "32px 20px", fontFamily: "Arial, Helvetica, sans-serif" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.08)", color: "#1a1a1a" }}>
