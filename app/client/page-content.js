@@ -473,20 +473,27 @@ export default function ClientPageContent() {
 
             {/* Approve button */}
             <div style={{ textAlign: "center", marginTop: 32 }}>
-              <button
-                onClick={token ? approveByToken : undefined}
-                disabled={approveBusy || quoteStatus === "approved"}
-                style={{
-                  display: "inline-block", padding: "14px 36px",
-                  background: quoteStatus === "approved" ? "#10b981" : "#d4a853",
-                  color: "#0e0f11", border: "none", borderRadius: 8,
-                  fontWeight: 800, fontSize: 15,
-                  cursor: (approveBusy || quoteStatus === "approved") ? "default" : "pointer",
-                  opacity: approveBusy ? 0.7 : 1,
-                }}
-              >
-                {quoteStatus === "approved" ? "✓ Approved" : approveBusy ? "Approving..." : "Approve Quote"}
-              </button>
+              {!token ? (
+                <div style={{ padding: "18px 24px", background: "#fefce8", border: "1px solid #fde68a", borderRadius: 10, fontSize: 14, color: "#92400e", lineHeight: 1.6 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>To approve this quote:</div>
+                  Open the <strong>email from Nico</strong> and click the "Review &amp; Approve Quote" button — that link is required to submit your approval.
+                </div>
+              ) : (
+                <button
+                  onClick={approveByToken}
+                  disabled={approveBusy || quoteStatus === "approved"}
+                  style={{
+                    display: "inline-block", padding: "14px 36px",
+                    background: quoteStatus === "approved" ? "#10b981" : "#d4a853",
+                    color: "#0e0f11", border: "none", borderRadius: 8,
+                    fontWeight: 800, fontSize: 15,
+                    cursor: (approveBusy || quoteStatus === "approved") ? "default" : "pointer",
+                    opacity: approveBusy ? 0.7 : 1,
+                  }}
+                >
+                  {quoteStatus === "approved" ? "✓ Approved" : approveBusy ? "Approving..." : "Approve Quote"}
+                </button>
+              )}
             </div>
 
             {approveNotice && (

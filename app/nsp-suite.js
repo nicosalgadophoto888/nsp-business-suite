@@ -2537,6 +2537,7 @@ function QuotesTab({
   const [previewQuote, setPreviewQuote] = useState(null);
   const [errors, setErrors] = useState([]);
   const [quoteNotice, setQuoteNotice] = useState(null);
+  const [listToast, setListToast] = useState(null);
   const [emailingApproval, setEmailingApproval] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -3099,6 +3100,8 @@ function QuotesTab({
     }
 
     setQuoteNotice({ type: "success", message: "Quote accepted — session added to Schedule." });
+    setListToast({ type: "success", message: "Quote marked as Accepted. Lead moved to Booked." });
+    setTimeout(() => setListToast(null), 4000);
   };
 
   const deleteQuote = (id) => {
@@ -3875,6 +3878,17 @@ function QuotesTab({
         </Btn>
       </div>
 
+      {listToast && (
+        <div style={{
+          background: listToast.type === "success" ? G.greenBg : G.redBg,
+          border: `1px solid ${listToast.type === "success" ? G.green + "44" : G.red + "44"}`,
+          color: listToast.type === "success" ? G.green : G.red,
+          borderRadius: 8, padding: "10px 14px", marginBottom: 14,
+          fontSize: 13, fontWeight: 600,
+        }}>
+          {listToast.message}
+        </div>
+      )}
       {quotes.length === 0 ? (
         <EmptyState
           icon="📋"
