@@ -1204,6 +1204,14 @@ function openPrintWindow(html) {
   return true;
 }
 
+const btnSpinnerStyle = `
+@keyframes nsp-spin { to { transform: rotate(360deg); } }
+.nsp-spin { display:inline-block; width:10px; height:10px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:nsp-spin .6s linear infinite; margin-right:5px; vertical-align:middle; }
+`;
+if (typeof document !== "undefined" && !document.getElementById("nsp-btn-spin")) {
+  const s = document.createElement("style"); s.id = "nsp-btn-spin"; s.textContent = btnSpinnerStyle; document.head.appendChild(s);
+}
+
 function Btn({
   children,
   onClick,
@@ -1211,6 +1219,7 @@ function Btn({
   small,
   full,
   disabled,
+  loading,
   style,
 }) {
   const base = {
@@ -1224,10 +1233,11 @@ function Btn({
     danger: { bg: G.redBg, color: G.red, border: `1px solid ${G.red}33` },
   };
   const s = base[variant];
+  const isDisabled = disabled || loading;
   return (
     <button
-      onClick={onClick}
-      disabled={disabled}
+      onClick={isDisabled ? undefined : onClick}
+      disabled={isDisabled}
       style={{
         background: s.bg,
         color: s.color,
@@ -1236,15 +1246,20 @@ function Btn({
         borderRadius: 6,
         fontWeight: 600,
         fontSize: small ? 11 : 12,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.4 : 1,
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        opacity: isDisabled ? 0.55 : 1,
         width: full ? "100%" : "auto",
         textAlign: "center",
         letterSpacing: ".02em",
-        transition: "all .15s",
+        transition: "opacity .15s",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
         ...style,
       }}
     >
+      {loading && <span className="nsp-spin" />}
       {children}
     </button>
   );
@@ -3189,7 +3204,8 @@ function QuotesTab({
               variant="secondary"
               small
               onClick={saveAndEmailQuote}
-              disabled={emailingApproval || quoteValidationErrors.length > 0}
+              loading={emailingApproval}
+              disabled={quoteValidationErrors.length > 0}
             >
               {emailingApproval ? "Sending..." : "Save & Email Approval"}
             </Btn>
@@ -5053,8 +5069,8 @@ setActiveInvoice(null);
                     setToast({ type: "error", message: err.message });
                   }
                   setSquareLoading(null);
-                }} disabled={squareLoading === "form"} style={{ marginBottom: 14 }}>
-                  {squareLoading === "form" ? "..." : "◼ Generate"}
+                }} loading={squareLoading === "form"} style={{ marginBottom: 14 }}>
+                  {squareLoading === "form" ? "Generating..." : "◼ Generate"}
                 </Btn>
               )}
             </div>
@@ -5175,8 +5191,8 @@ setActiveInvoice(null);
                     </div>
                     <div style={{ display: "flex", gap: 4, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
                       {inv.paymentMethod === "square" && inv.balanceDue > 0 && !inv.squareLink && (
-                        <Btn small variant="secondary" onClick={() => generateSquareLink(inv)} disabled={squareLoading === inv.id}>
-                          {squareLoading === inv.id ? "..." : "◼ Pay Link"}
+                        <Btn small variant="secondary" onClick={() => generateSquareLink(inv)} loading={squareLoading === inv.id}>
+                          {squareLoading === inv.id ? "Generating..." : "◼ Pay Link"}
                         </Btn>
                       )}
                       {inv.squareLink && (
@@ -5185,8 +5201,8 @@ setActiveInvoice(null);
                         </Btn>
                       )}
                       {inv.clientEmail && (
-                        <Btn small variant="secondary" onClick={() => emailInvoice(inv)} disabled={emailLoading === inv.id}>
-                          {emailLoading === inv.id ? "..." : "✉ Email"}
+                        <Btn small variant="secondary" onClick={() => emailInvoice(inv)} loading={emailLoading === inv.id}>
+                          {emailLoading === inv.id ? "Sending..." : "✉ Email"}
                         </Btn>
                       )}
                       {inv.status === "Draft" && <Btn variant="ghost" small onClick={() => markSent(inv.id)}>Send</Btn>}
@@ -6001,8 +6017,8 @@ function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
                     <Btn variant="ghost" small onClick={() => startPreview(c)}>Preview</Btn>
                     <Btn variant="ghost" small onClick={() => startEdit(c)}>Edit</Btn>
                     <Btn variant="ghost" small onClick={() => handlePrint(c)}>PDF</Btn>
-                    <Btn variant="secondary" small onClick={() => handleEmail(c)} disabled={emailSending === c.id}>
-                      {emailSending === c.id ? "..." : "✉ Email"}
+                    <Btn variant="secondary" small onClick={() => handleEmail(c)} loading={emailSending === c.id}>
+                      {emailSending === c.id ? "Sending..." : "✉ Email"}
                     </Btn>
                     <Btn variant="ghost" small onClick={() => duplicateItem(c)}>⊕</Btn>
                     <Btn variant="danger" small onClick={() => deleteItem(c.id)}>✕</Btn>
