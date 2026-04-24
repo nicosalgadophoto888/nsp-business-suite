@@ -2947,14 +2947,12 @@ function QuotesTab({
           payload: quotePayload.document,
           approved_at: null,
         };
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("quote_approvals")
-          .upsert(approvalRecord, { onConflict: "quote_id" })
-          .select("token")
-          .single();
+          .upsert(approvalRecord, { onConflict: "quote_id" });
         if (error) throw error;
-        if (!data?.token) throw new Error("Token not returned");
-        reviewLink = `${window.location.origin}/client?token=${encodeURIComponent(data.token)}`;
+        // Use the locally generated token directly — don't depend on select response
+        reviewLink = `${window.location.origin}/client?token=${encodeURIComponent(token)}`;
       } catch {
         const encoded = encodeClientPayload(quotePayload);
         reviewLink = encoded
