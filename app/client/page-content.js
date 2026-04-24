@@ -300,14 +300,6 @@ export default function ClientPageContent() {
   }
 
   if (isQuote) {
-    const emailTo = quote.businessEmail || "nicosalgadophoto@gmail.com";
-    const subject = `Quote ${quote.quoteNumberLabel || ""} Approved - ${quote.clientName || "Client"}`.trim();
-    const bodyText = `Hi Nico,\n\nI approve quote ${
-      quote.quoteNumberLabel || ""
-    }. Please send the payment link and next steps.\n\nThank you,\n${quote.clientName || ""}`;
-    const approveMailto = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(bodyText)}`;
     const approveByToken = async () => {
       if (!token) return;
       setApproveBusy(true);
@@ -329,235 +321,161 @@ export default function ClientPageContent() {
         message: "Quote approved. Nico has been notified and will send payment next steps.",
       });
     };
+    const teal = "#0891b2";
+    const contractsList = Array.isArray(quote.contractTemplates)
+      ? quote.contractTemplates
+      : quote.contractTemplate ? [quote.contractTemplate] : [];
+    const logoUrl = quote.logoUrl || "/nsp-logo.jpg";
 
     return (
-      <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "0 auto",
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            color: "#111827",
-          }}
-        >
+      <div style={{ background: "#f0f0f0", minHeight: "100vh", padding: "32px 20px", fontFamily: "Arial, Helvetica, sans-serif" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.08)", color: "#1a1a1a" }}>
           {showAdminNav && (
-            <div style={{ textAlign: "right", padding: "14px 18px 0" }}>
-              <a
-                href="/"
-                style={{
-                  display: "inline-block",
-                  textDecoration: "none",
-                  background: "#111827",
-                  color: "#f3f4f6",
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
-                Back to Dashboard
-              </a>
+            <div style={{ textAlign: "right", padding: "10px 18px 0" }}>
+              <a href="/" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>← Back to Dashboard</a>
             </div>
           )}
-          <div
-            style={{
-              background: "#0e0f11",
-              color: "#d4a853",
-              padding: "22px 28px",
-              fontSize: 34,
-              fontWeight: 800,
-            }}
-          >
-            {quote.businessName || "Nico Salgado Photography"}
+
+          {/* Header: logo+info left, quote#+recipient right */}
+          <div style={{ padding: "28px 32px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, borderBottom: "1px solid #e5e5e5" }}>
+            <div>
+              <img src={logoUrl} alt="NSP Logo" style={{ maxHeight: 52, width: "auto", display: "block", marginBottom: 8 }} onError={e => { e.target.style.display = "none"; }} />
+              <div style={{ fontSize: 22, fontWeight: 800, color: teal, letterSpacing: "-0.02em" }}>{quote.businessName || "Nico Salgado Photography"}</div>
+              <div style={{ fontSize: 12, color: "#666", lineHeight: 1.8, marginTop: 4 }}>
+                30317 Glenmuer<br />
+                Farmington Hills, MI 48334<br />
+                https://www.nicosalgadophotography.com<br />
+                nicosalgadophoto@gmail.com
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{quote.quoteNumberLabel || "Quote"}</div>
+              <div style={{ fontSize: 13, color: "#666", marginTop: 4 }}>Quote Total: <strong>{money(quote.totalAmount)}</strong></div>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>Recipient</div>
+                <div style={{ fontSize: 13, color: "#666" }}>{quote.clientName || ""}</div>
+                {!!quote.clientEmail && <div style={{ fontSize: 13, color: "#666" }}>{quote.clientEmail}</div>}
+              </div>
+            </div>
           </div>
 
-          <div style={{ padding: "28px" }}>
-            <div style={{ fontSize: 34, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
-              Quote {quote.quoteNumberLabel || ""}
-            </div>
-            <div style={{ color: "#6b7280", fontSize: 16, marginBottom: 18 }}>
-              {quote.eventName || "Photography Services"}
-            </div>
+          <div style={{ padding: "24px 32px" }}>
+            {/* Event heading */}
+            {(quote.eventName || quote.eventDate) && (
+              <div style={{ textAlign: "center", marginBottom: 28, paddingBottom: 20, borderBottom: "1px solid #e0e0e0" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: teal }}>
+                  {quote.clientName || quote.eventName || "Quote"}
+                  {quote.eventDate ? ` on ${new Date(quote.eventDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}` : ""}
+                </div>
+              </div>
+            )}
 
             {!!quote.introduction && (
-              <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: 16 }}>
-                {quote.introduction}
+              <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7, marginBottom: 20, fontStyle: "italic" }}>{quote.introduction}</div>
+            )}
+
+            {/* Sections */}
+            {Array.isArray(quote.sections) && quote.sections.map((section, idx) => {
+              const lineTotal = (section.lineItems || []).reduce((s, li) => s + Number(li.price || 0) * Number(li.qty || 1), 0);
+              return (
+                <div key={idx} style={{ marginBottom: 28 }}>
+                  {!!section.packageName && (
+                    <div style={{ fontSize: 16, fontWeight: 700, color: teal, marginBottom: 8 }}>{section.packageName}</div>
+                  )}
+                  {!!section.description && (
+                    <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7, marginBottom: 10, whiteSpace: "pre-wrap" }}>{section.description}</div>
+                  )}
+                  {Array.isArray(section.includes) && section.includes.filter(Boolean).map((inc, i) => (
+                    <div key={i} style={{ fontSize: 13, color: "#444", padding: "3px 0" }}>{inc}</div>
+                  ))}
+                  {(section.lineItems || []).map((li, liIdx) => {
+                    const qty = Number(li.qty || 1);
+                    const price = Number(li.price || 0);
+                    return (
+                      <div key={liIdx} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid #eee", paddingTop: 10, marginTop: 10, gap: 12 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700 }}>{li.name || "Item"}</div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace" }}>{money(price * qty)}</div>
+                          {qty > 1 && <div style={{ fontSize: 11, color: "#888" }}>({money(price)} × {qty})</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Section subtotal line */}
+                  <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #ccc", paddingTop: 10, marginTop: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{section.packageName || "Package"}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "monospace" }}>{money(lineTotal)}</div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Booking Process */}
+            {(quote.paymentSchedule || quote.questionnaire || contractsList.length > 0) && (
+              <div style={{ marginTop: 24, padding: "16px 18px", border: "1px solid #e5e5e5", borderRadius: 10, background: "#faf7f2" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Booking Process</div>
+                {!!quote.paymentSchedule && <div style={{ fontSize: 13, color: "#444", marginBottom: 4 }}><strong>Payment Schedule:</strong> {quote.paymentSchedule}</div>}
+                {!!quote.questionnaire && <div style={{ fontSize: 13, color: "#444", marginBottom: 4 }}><strong>Questionnaire:</strong> {quote.questionnaire}</div>}
+                {contractsList.length > 0 && <div style={{ fontSize: 13, color: "#444" }}><strong>Attached Documents:</strong> {contractsList.join(", ")}</div>}
               </div>
             )}
 
-            {Array.isArray(quote.sections) &&
-              quote.sections.map((section, idx) => (
-                <div
-                  key={`${section.packageName || "section"}-${idx}`}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    padding: "14px 16px",
-                    marginBottom: 12,
-                  }}
-                >
-                  <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
-                    {section.packageName || "Package"}
-                  </div>
-                  {!!section.description && (
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "#4b5563",
-                        lineHeight: 1.6,
-                        marginBottom: 8,
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {section.description}
-                    </div>
-                  )}
-                  {Array.isArray(section.includes) && section.includes.length > 0 && (
-                    <ul style={{ margin: "0 0 10px 18px", padding: 0, color: "#374151", fontSize: 13 }}>
-                      {section.includes.map((inc, incIdx) => (
-                        <li key={`${inc}-${incIdx}`} style={{ marginBottom: 4 }}>
-                          {inc}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {Array.isArray(section.lineItems) &&
-                    section.lineItems.map((li, liIdx) => {
-                      const qty = Number(li.qty || 1);
-                      const price = Number(li.price || 0);
-                      return (
-                        <div
-                          key={`${li.name || "line"}-${liIdx}`}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "baseline",
-                            padding: "6px 0",
-                            borderTop: "1px solid #f0f1f3",
-                          }}
-                        >
-                          <div style={{ fontSize: 13, color: "#111827" }}>{li.name || "Item"}</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
-                            {money(price * qty)}
-                          </div>
-                        </div>
-                      );
-                    })}
+            {/* Totals */}
+            <div style={{ borderTop: "2px solid #1a1a1a", paddingTop: 16, marginTop: 24 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 16, marginBottom: 6 }}>
+                <div style={{ fontSize: 14, color: "#666" }}>Subtotal:</div>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "monospace", minWidth: 90, textAlign: "right" }}>{money(quote.subtotal)}</div>
+              </div>
+              {Number(quote.discountAmount || 0) > 0 && (
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 16, marginBottom: 6 }}>
+                  <div style={{ fontSize: 14, color: "#666" }}>Discount{quote.promoCode ? ` (${quote.promoCode})` : ""}:</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "monospace", minWidth: 90, textAlign: "right", color: "#b42318" }}>-{money(quote.discountAmount)}</div>
                 </div>
-              ))}
-
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
-              <tbody>
-                <tr style={{ borderTop: "2px solid #111827" }}>
-                  <td style={{ padding: "12px 0", fontWeight: 700 }}>Subtotal</td>
-                  <td style={{ padding: "12px 0", textAlign: "right", fontWeight: 700 }}>
-                    {money(quote.subtotal)}
-                  </td>
-                </tr>
-                {Number(quote.discountAmount || 0) > 0 && (
-                  <tr>
-                    <td style={{ padding: "8px 0", color: "#dc2626", fontWeight: 700 }}>Discount</td>
-                    <td
-                      style={{
-                        padding: "8px 0",
-                        textAlign: "right",
-                        color: "#dc2626",
-                        fontWeight: 700,
-                      }}
-                    >
-                      -{money(quote.discountAmount)}
-                    </td>
-                  </tr>
-                )}
-                <tr>
-                  <td style={{ padding: "8px 0", fontWeight: 800, fontSize: 20 }}>Total</td>
-                  <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 800, fontSize: 20 }}>
-                    {money(quote.totalAmount)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "baseline", gap: 16 }}>
+                <div style={{ fontSize: 14, color: "#666" }}>Total:</div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "monospace", minWidth: 90, textAlign: "right" }}>{money(quote.totalAmount)}</div>
+              </div>
+            </div>
 
             {!!quote.notes && (
-              <div
-                style={{
-                  marginTop: 16,
-                  paddingTop: 12,
-                  borderTop: "1px solid #e5e7eb",
-                  fontSize: 14,
-                  color: "#4b5563",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {quote.notes}
-              </div>
+              <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #eee", fontSize: 12, color: "#666", whiteSpace: "pre-wrap" }}>{quote.notes}</div>
+            )}
+            {!!quote.expiration && (
+              <div style={{ fontSize: 12, color: "#888", marginTop: 8 }}>This quote expires on {quote.expiration}</div>
             )}
 
-            <div style={{ textAlign: "center", marginTop: 24 }}>
-              {token ? (
-                <button
-                  onClick={approveByToken}
-                  disabled={approveBusy || quoteStatus === "approved"}
-                  style={{
-                    display: "inline-block",
-                    padding: "12px 28px",
-                    background: quoteStatus === "approved" ? "#10b981" : "#d4a853",
-                    color: "#0e0f11",
-                    textDecoration: "none",
-                    borderRadius: 8,
-                    border: "none",
-                    fontWeight: 800,
-                    cursor: approveBusy || quoteStatus === "approved" ? "default" : "pointer",
-                    opacity: approveBusy ? 0.7 : 1,
-                  }}
-                >
-                  {quoteStatus === "approved"
-                    ? "Approved"
-                    : approveBusy
-                      ? "Approving..."
-                      : "Approve Quote"}
-                </button>
-              ) : (
-                <a
-                  href={approveMailto}
-                  style={{
-                    display: "inline-block",
-                    padding: "12px 28px",
-                    background: "#d4a853",
-                    color: "#0e0f11",
-                    textDecoration: "none",
-                    borderRadius: 8,
-                    fontWeight: 800,
-                  }}
-                >
-                  Approve Quote
-                </a>
-              )}
+            {/* Approve button */}
+            <div style={{ textAlign: "center", marginTop: 32 }}>
+              <button
+                onClick={token ? approveByToken : undefined}
+                disabled={approveBusy || quoteStatus === "approved" || !token}
+                style={{
+                  display: "inline-block", padding: "14px 36px",
+                  background: quoteStatus === "approved" ? "#10b981" : "#d4a853",
+                  color: "#0e0f11", border: "none", borderRadius: 8,
+                  fontWeight: 800, fontSize: 15,
+                  cursor: (approveBusy || quoteStatus === "approved" || !token) ? "default" : "pointer",
+                  opacity: approveBusy ? 0.7 : 1,
+                }}
+              >
+                {quoteStatus === "approved" ? "✓ Approved" : approveBusy ? "Approving..." : "Approve Quote"}
+              </button>
+              {!token && <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>Use the link from your email to approve.</div>}
             </div>
 
             {approveNotice && (
-              <div
-                style={{
-                  marginTop: 14,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  background: approveNotice.type === "success" ? "#ecfdf5" : "#fef2f2",
-                  color: approveNotice.type === "success" ? "#047857" : "#b91c1c",
-                  border:
-                    approveNotice.type === "success"
-                      ? "1px solid #a7f3d0"
-                      : "1px solid #fecaca",
-                }}
-              >
+              <div style={{
+                marginTop: 14, padding: "10px 12px", borderRadius: 8, fontSize: 13, textAlign: "center",
+                background: approveNotice.type === "success" ? "#ecfdf5" : "#fef2f2",
+                color: approveNotice.type === "success" ? "#047857" : "#b91c1c",
+                border: approveNotice.type === "success" ? "1px solid #a7f3d0" : "1px solid #fecaca",
+              }}>
                 {approveNotice.message}
               </div>
             )}
 
-            <div style={{ marginTop: 18, fontSize: 12, color: "#6b7280", textAlign: "center" }}>
+            <div style={{ marginTop: 16, fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
               After approval, we'll send your payment link and next booking steps.
             </div>
           </div>

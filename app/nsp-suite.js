@@ -2946,48 +2946,68 @@ function QuotesTab({
           : `${window.location.origin}/client`;
       }
 
-      const htmlBody = `
-<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:620px;margin:0 auto;">
-  <div style="background:#0e0f11;padding:24px 28px;border-radius:12px 12px 0 0;">
-    <div style="font-size:18px;font-weight:800;color:#d4a853;">${escapeHtml(
-      settings.businessName || "Nico Salgado Photography"
-    )}</div>
-  </div>
-  <div style="background:#ffffff;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-    <h2 style="margin:0 0 8px;font-size:18px;">Quote Approval Request</h2>
-    <p style="margin:0 0 16px;font-size:13px;color:#555;">Quote ${escapeHtml(
-      quote.quoteNumberLabel || ""
-    )} for ${escapeHtml(quote.clientName || lead.name || "Client")}</p>
-    <ul style="padding-left:18px;margin:0 0 14px;">${sectionSummary}</ul>
-    ${
-      (() => {
+      // Build email HTML to match PDF design
+      const emailSectionsHtml = (quote.sections || []).map(s => {
+        const lineTotal = (s.lineItems || []).reduce((sum, li) => sum + toMoney(li.price) * toQty(li.qty), 0);
+        const includesHtml = cleanIncludes(s.includes || []).map(inc => `<div style="font-size:13px;color:#444;padding:2px 0;">${escapeHtml(inc)}</div>`).join("");
+        const itemsHtml = (s.lineItems || []).map(li => {
+          const lt = toMoney(li.price) * toQty(li.qty);
+          return `<div style="display:flex;justify-content:space-between;border-top:1px solid #eee;padding-top:8px;margin-top:8px;"><span style="font-size:13px;font-weight:700;">${escapeHtml(li.name||"")}</span><span style="font-size:13px;font-weight:700;font-family:monospace;">${escapeHtml(fmt$(lt))}</span></div>`;
+        }).join("");
+        return `<div style="margin-bottom:24px;">
+          ${s.packageName ? `<div style="font-size:15px;font-weight:700;color:#0891b2;margin-bottom:8px;">${escapeHtml(s.packageName)}</div>` : ""}
+          ${s.description ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:8px;white-space:pre-wrap;">${escapeHtml(s.description)}</div>` : ""}
+          ${includesHtml}
+          ${itemsHtml}
+          <div style="display:flex;justify-content:space-between;border-top:1px solid #ccc;padding-top:8px;margin-top:8px;">
+            <span style="font-size:13px;font-weight:700;">${escapeHtml(s.packageName||"Package")}</span>
+            <span style="font-size:13px;font-weight:700;font-family:monospace;">${escapeHtml(fmt$(lineTotal))}</span>
+          </div>
+        </div>`;
+      }).join("");
+      const emailBookingHtml = (() => {
         const cl = Array.isArray(quote.contractTemplates) ? quote.contractTemplates : quote.contractTemplate ? [quote.contractTemplate] : [];
-        return (quote.paymentSchedule || quote.questionnaire || cl.length)
-          ? `<div style="margin:16px 0;padding:14px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Booking Process Included</div>
-      ${quote.paymentSchedule ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Payment Schedule:</strong> ${escapeHtml(quote.paymentSchedule)}</div>` : ""}
-      ${quote.questionnaire ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Questionnaire:</strong> ${escapeHtml(quote.questionnaire)}</div>` : ""}
-      ${cl.length ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(cl.join(", "))}</div>` : ""}
-    </div>`
-          : "";
-      })()
-    }
-    <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;font-size:14px;">
-      <strong>Total:</strong> ${escapeHtml(fmt$(totals.total))}
+        if (!quote.paymentSchedule && !quote.questionnaire && !cl.length) return "";
+        return `<div style="margin:20px 0;padding:14px 16px;border:1px solid #e5e5e5;border-radius:10px;background:#faf7f2;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Booking Process</div>
+          ${quote.paymentSchedule ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Payment Schedule:</strong> ${escapeHtml(quote.paymentSchedule)}</div>` : ""}
+          ${quote.questionnaire ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Questionnaire:</strong> ${escapeHtml(quote.questionnaire)}</div>` : ""}
+          ${cl.length ? `<div style="font-size:13px;color:#444;"><strong>Attached Documents:</strong> ${escapeHtml(cl.join(", "))}</div>` : ""}
+        </div>`;
+      })();
+      const htmlBody = `
+<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:800px;margin:0 auto;background:#fff;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden;">
+  <!-- Header -->
+  <div style="padding:24px 32px 20px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e5e5e5;">
+    <div>
+      <img src="https://nsp-business-suite-wheat.vercel.app/nsp-logo.jpg" alt="NSP" style="max-height:52px;width:auto;display:block;margin-bottom:8px;" />
+      <div style="font-size:20px;font-weight:800;color:#0891b2;">${escapeHtml(settings.businessName||"Nico Salgado Photography")}</div>
+      <div style="font-size:12px;color:#666;line-height:1.8;margin-top:4px;">30317 Glenmuer<br/>Farmington Hills, MI 48334<br/>https://www.nicosalgadophotography.com<br/>${escapeHtml(settings.email||"nicosalgadophoto@gmail.com")}</div>
     </div>
-    <div style="text-align:center;margin-top:16px;">
-      <a href="${reviewLink}" style="display:inline-block;padding:11px 24px;background:#d4a853;color:#0e0f11;text-decoration:none;border-radius:8px;font-weight:800;">
-        Review & Approve Quote
-      </a>
+    <div style="text-align:right;flex-shrink:0;">
+      <div style="font-size:18px;font-weight:700;">${escapeHtml(quote.quoteNumberLabel||"Quote")}</div>
+      <div style="font-size:13px;color:#666;margin-top:4px;">Quote Total: <strong>${escapeHtml(fmt$(totals.total))}</strong></div>
+      <div style="margin-top:10px;">
+        <div style="font-size:13px;font-weight:700;">Recipient</div>
+        <div style="font-size:13px;color:#666;">${escapeHtml(quote.clientName||lead.name||"")}</div>
+        <div style="font-size:13px;color:#666;">${escapeHtml(recipient)}</div>
+      </div>
     </div>
-    <p style="margin-top:16px;font-size:13px;color:#444;line-height:1.6;">
-      Please review and approve this quote using the secure button above.
-      Once approved, your status updates in our system and we can send your payment link immediately.
-    </p>
-    <p style="margin-top:10px;font-size:12px;color:#666;line-height:1.5;">
-      Trouble with the button? Copy this link into your browser:<br />
-      <a href="${reviewLink}" style="color:#b48a3a;">${reviewLink}</a>
-    </p>
+  </div>
+  <div style="padding:24px 32px;">
+    ${(quote.eventName||quote.eventDate) ? `<div style="text-align:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e0e0e0;"><div style="font-size:17px;font-weight:700;color:#0891b2;">${escapeHtml(quote.clientName||quote.eventName||"")}${quote.eventDate?` on ${escapeHtml(fmtLong(quote.eventDate))}`:"" }</div></div>` : ""}
+    ${quote.introduction ? `<div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:20px;font-style:italic;">${escapeHtml(quote.introduction)}</div>` : ""}
+    ${emailSectionsHtml}
+    ${emailBookingHtml}
+    <div style="border-top:2px solid #1a1a1a;padding-top:14px;margin-top:20px;">
+      <div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:4px;"><span style="font-size:13px;color:#666;">Subtotal:</span><span style="font-size:14px;font-weight:700;font-family:monospace;min-width:90px;text-align:right;">${escapeHtml(fmt$(totals.subtotal))}</span></div>
+      ${totals.discountAmount>0?`<div style="display:flex;justify-content:flex-end;gap:16px;margin-bottom:4px;"><span style="font-size:13px;color:#666;">Discount${quote.promoCode?` (${escapeHtml(quote.promoCode)})` : ""}:</span><span style="font-size:14px;font-weight:700;font-family:monospace;min-width:90px;text-align:right;color:#b42318;">-${escapeHtml(fmt$(totals.discountAmount))}</span></div>`:""}
+      <div style="display:flex;justify-content:flex-end;gap:16px;"><span style="font-size:14px;color:#666;">Total:</span><span style="font-size:18px;font-weight:800;font-family:monospace;min-width:90px;text-align:right;">${escapeHtml(fmt$(totals.total))}</span></div>
+    </div>
+    <div style="text-align:center;margin-top:28px;">
+      <a href="${reviewLink}" style="display:inline-block;padding:14px 36px;background:#d4a853;color:#0e0f11;text-decoration:none;border-radius:8px;font-weight:800;font-size:15px;">Review &amp; Approve Quote</a>
+    </div>
+    <p style="margin-top:14px;font-size:12px;color:#9ca3af;text-align:center;">After approval, we'll send your payment link and next booking steps.<br/>Trouble? Copy this link: <a href="${reviewLink}" style="color:#b48a3a;">${reviewLink}</a></p>
   </div>
 </div>`;
 
