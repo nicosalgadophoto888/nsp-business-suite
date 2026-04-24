@@ -4501,7 +4501,7 @@ function FinancialsTab({
           .join(" / ")
       : "";
     const isRetainer = type === "retainer";
-    const invoiceAmt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
+    const amt = isRetainer ? Math.round(total * 0.5 * 100) / 100 : total;
 
     setForm({
       id: null, invoiceNumber: nextInvNum,
@@ -4510,7 +4510,7 @@ function FinancialsTab({
       sessionType: sourceQuote?.eventName || lead?.type || "",
       sessionDate: sourceQuote?.eventDate || lead?.eventDate || "",
       packageName, subtotal, discountAmount,
-      totalAmount: total, amountPaid: 0, balanceDue: invoiceAmt,
+      totalAmount: amt, amountPaid: 0, balanceDue: amt,
       status: "Draft", dueDate: "",
       invoiceType: isRetainer ? "retainer" : "full",
       paymentMethod: "square", squareLink: "", notes: "",
@@ -5025,10 +5025,10 @@ setActiveInvoice(null);
                 {[{ k: "retainer", l: "50% Retainer" }, { k: "balance", l: "Balance Due" }, { k: "full", l: "Full Amount" }].map((t, i) => (
                   <button key={t.k} onClick={() => {
                     const baseTotal = Math.max(0, (Number(form.subtotal) || 0) - (Number(form.discountAmount) || 0));
-                    let dueNow = baseTotal;
-                    if (t.k === "retainer") dueNow = Math.round(baseTotal * 0.5 * 100) / 100;
-                    if (t.k === "balance") dueNow = Math.max(0, baseTotal - (form.amountPaid || 0));
-                    setForm(p => ({ ...p, invoiceType: t.k, totalAmount: baseTotal, balanceDue: Math.max(0, dueNow - (p.amountPaid || 0)), title: t.k === "retainer" ? "Retainer (50%)" : t.k === "balance" ? "Balance Due" : "Full Payment" }));
+                    let amt = baseTotal;
+                    if (t.k === "retainer") amt = Math.round(amt * 0.5 * 100) / 100;
+                    if (t.k === "balance") amt = Math.max(0, baseTotal - (form.amountPaid || 0));
+                    setForm(p => ({ ...p, invoiceType: t.k, totalAmount: amt, balanceDue: Math.max(0, amt - (p.amountPaid || 0)), title: t.k === "retainer" ? "Retainer (50%)" : t.k === "balance" ? "Balance Due" : "Full Payment" }));
                   }}
                   style={{
                     flex: 1, padding: "8px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer",
