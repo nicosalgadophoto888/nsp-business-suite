@@ -2560,14 +2560,12 @@ function QuotesTab({
     return Array.from(all.values());
   }, [templates]);
   const contractOptions = useMemo(() => {
-    return (templates || [])
-      .filter((tpl) => tpl.type === "file" && tpl.name)
-      .map((tpl) => ({
-        id: tpl.id,
-        name: tpl.name,
-        detail: tpl.category || "",
-      }));
-  }, [templates]);
+    return (docTemplates || []).map((tpl) => ({
+      id: tpl.id,
+      name: tpl.name,
+      detail: tpl.kind || tpl.category || "",
+    }));
+  }, [docTemplates]);
 
 
   const emptyQuote = {
@@ -7884,6 +7882,22 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
   const [settings, setSettings] = useState(initial.settings);
   const [counters, setCounters] = useState(initial.counters);
   const [invoiceSeedQuote, setInvoiceSeedQuote] = useState(null);
+  const [docTemplates, setDocTemplates] = useState([]);
+
+  useEffect(() => {
+    async function loadDocTemplates() {
+      const [cRes, rRes] = await Promise.all([
+        supabase.from("contract_templates").select("id,name,category").order("name"),
+        supabase.from("release_templates").select("id,name,category").order("name"),
+      ]);
+      const combined = [
+        ...(cRes.data || []).map(t => ({ ...t, kind: "Contract" })),
+        ...(rRes.data || []).map(t => ({ ...t, kind: "Release" })),
+      ];
+      setDocTemplates(combined);
+    }
+    loadDocTemplates();
+  }, []);
 
   const applyWorkspaceSnapshot = (snapshot, nextWorkspaceId = null) => {
     const normalized = normalizeWorkspaceSnapshot(snapshot);
