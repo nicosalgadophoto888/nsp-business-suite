@@ -5721,18 +5721,10 @@ function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
       const isRel = subTab === "releases";
       const label = isRel ? "Model Release" : "Contract";
 
-      const encoded = encodeClientPayload({
-        type: isRel ? "release" : "contract",
-        document: {
-          title: item.title || "",
-          clientName: item.clientName || "",
-          sessionType: item.sessionType || "",
-          version: item.version || "v1",
-          body: merged || "",
-        },
-      });
-      const signLink = encoded
-        ? `${window.location.origin}/client?payload=${encodeURIComponent(encoded)}`
+      // Use ID-based link so the client page loads from Supabase (avoids URL length limits)
+      const docType = isRel ? "release" : "contract";
+      const signLink = item.id
+        ? `${window.location.origin}/client?type=${docType}&id=${item.id}`
         : `${window.location.origin}`;
 
       const htmlBody = `
