@@ -2952,7 +2952,8 @@ function QuotesTab({
           .upsert(approvalRecord, { onConflict: "quote_id" });
         if (error) throw error;
         // Use the locally generated token directly — don't depend on select response
-        reviewLink = `${window.location.origin}/client?token=${encodeURIComponent(token)}`;
+        const baseUrl = "https://nsp-business-suite-wheat.vercel.app";
+        reviewLink = `${baseUrl}/client?token=${encodeURIComponent(token)}`;
       } catch {
         const encoded = encodeClientPayload(quotePayload);
         reviewLink = encoded
