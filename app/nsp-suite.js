@@ -1874,7 +1874,7 @@ function OverviewTab({ lead, setLead, quotes }) {
   );
 }
 
-function ScheduleTab({ schedule, setSchedule, lead }) {
+function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
   const [adding, setAdding] = useState(false);
   const [showPastEvents, setShowPastEvents] = useState(true);
   const [showEventNotes, setShowEventNotes] = useState(true);
@@ -2181,7 +2181,29 @@ function ScheduleTab({ schedule, setSchedule, lead }) {
                   {selectedEvent.time || "TBD"} {selectedEvent.endTime ? `- ${selectedEvent.endTime}` : ""}
                 </div>
                 <div style={{ fontSize: 12, color: G.textDim }}>{selectedEvent.location || "Location TBD"}</div>
-                <div style={{ marginTop: 10 }}>
+                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                  {selectedEvent.status !== "Completed" && (
+                    <Btn
+                      small
+                      full
+                      style={{ background: G.green }}
+                      onClick={() => {
+                        setSchedule(prev => prev.map(ev =>
+                          String(ev.id) === String(selectedEvent.id)
+                            ? { ...ev, status: "Completed" }
+                            : ev
+                        ));
+                        if (setLead) {
+                          setLead(prev => ({
+                            ...prev,
+                            stage: prev.stage === "Fulfillment" ? "Completed" : prev.stage,
+                          }));
+                        }
+                      }}
+                    >
+                      ✓ Mark Completed
+                    </Btn>
+                  )}
                   <Btn
                     variant="danger"
                     small
@@ -5446,7 +5468,7 @@ pre{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:1
 /* ═══════════════════════════════════════════════════════
    CONTRACTS TAB — FULL VERSION
    ═══════════════════════════════════════════════════════ */
-function ContractsTab({ contracts, setContracts, lead, settings }) {
+function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
   const [subTab, setSubTab] = useState("contracts"); // contracts | releases | templates
   const [view, setView] = useState("list"); // list | create | edit | preview | templateEdit
   const [form, setForm] = useState({});
@@ -5614,6 +5636,13 @@ function ContractsTab({ contracts, setContracts, lead, settings }) {
     if (status === "Sent") uiUpdates.sentOn = updates.sent_on;
     if (status === "Signed") uiUpdates.signedOn = updates.signed_on;
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...uiUpdates } : i));
+    // Auto-advance lead stage: contract signed -> Fulfillment
+    if (status === "Signed" && !isReleases && setLead) {
+      setLead(prev => ({
+        ...prev,
+        stage: prev.stage === "Booked" ? "Fulfillment" : prev.stage,
+      }));
+    }
   };
 
   const duplicateItem = async (item) => {
@@ -9101,7 +9130,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
           />
         );
       case "schedule":
-        return <ScheduleTab schedule={schedule} setSchedule={setSchedule} lead={lead} />;
+        return <ScheduleTab schedule={schedule} setSchedule={setSchedule} lead={lead} setLead={setLead} />;
       case "quotes":
         return (
           <QuotesTab
@@ -9145,6 +9174,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             contracts={contracts}
             setContracts={setContracts}
             lead={lead}
+            setLead={setLead}
             settings={settings}
           />
         );
