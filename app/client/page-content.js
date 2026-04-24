@@ -525,178 +525,111 @@ export default function ClientPageContent() {
     );
   }
 
+  const teal = "#0891b2";
+  const isPaid = Number(inv.balanceDue || 0) <= 0;
+
   return (
-    <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          borderRadius: 12,
-          overflow: "hidden",
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          color: "#111827",
-        }}
-      >
+    <div style={{ background: "#f0f0f0", minHeight: "100vh", padding: "32px 20px", fontFamily: "Arial, Helvetica, sans-serif" }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.08)", color: "#1a1a1a" }}>
         {showAdminNav && (
-          <div style={{ textAlign: "right", padding: "14px 18px 0" }}>
-            <a
-              href="/"
-              style={{
-                display: "inline-block",
-                textDecoration: "none",
-                background: "#111827",
-                color: "#f3f4f6",
-                padding: "8px 14px",
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              Back to Dashboard
-            </a>
+          <div style={{ textAlign: "right", padding: "10px 18px 0" }}>
+            <a href="/" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>← Back to Dashboard</a>
           </div>
         )}
-        <div
-          style={{
-            background: "#0e0f11",
-            color: "#d4a853",
-            padding: "22px 28px",
-            fontSize: 34,
-            fontWeight: 800,
-          }}
-        >
-          Nico Salgado Photography
-        </div>
-        <div style={{ padding: "28px" }}>
-          <div style={{ fontSize: 34, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
-            Invoice {inv.invoiceNumber || ""}
+
+        {/* Header */}
+        <div style={{ padding: "28px 32px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, borderBottom: "1px solid #e5e5e5" }}>
+          <div>
+            <img src="/nsp-logo.jpg" alt="NSP" style={{ maxHeight: 52, width: "auto", display: "block", marginBottom: 8 }} onError={e => { e.target.style.display = "none"; }} />
+            <div style={{ fontSize: 20, fontWeight: 800, color: teal }}>{inv.businessName || "Nico Salgado Photography"}</div>
+            <div style={{ fontSize: 12, color: "#666", lineHeight: 1.8, marginTop: 4 }}>
+              30317 Glenmuer<br />
+              Farmington Hills, MI 48334<br />
+              nicosalgadophoto@gmail.com<br />
+              https://www.nicosalgadophotography.com
+            </div>
           </div>
-          <div style={{ color: "#6b7280", fontSize: 16, marginBottom: 18 }}>
-            {inv.title || "Photography Services"}
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 22, fontWeight: 800 }}>{inv.invoiceNumber || "Invoice"}</div>
+            <div style={{ fontSize: 13, color: "#666", marginTop: 4 }}>Status: <strong>{inv.status || "Sent"}</strong></div>
+            {inv.issuedOn && <div style={{ fontSize: 13, color: "#666" }}>Issued: {inv.issuedOn}</div>}
+            {inv.dueDate && <div style={{ fontSize: 13, color: "#666" }}>Due: {inv.dueDate}</div>}
+          </div>
+        </div>
+
+        <div style={{ padding: "24px 32px" }}>
+          {/* Bill To */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#666", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bill To</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{inv.clientName || ""}</div>
+            {inv.clientEmail && <div style={{ fontSize: 13, color: "#666" }}>{inv.clientEmail}</div>}
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 16 }}>
+          {/* Service */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{inv.title || "Photography Services"}</div>
+            {inv.sessionDate && <div style={{ fontSize: 13, color: "#666", marginTop: 2 }}>Session Date: {inv.sessionDate}</div>}
+            {inv.packageName && <div style={{ fontSize: 13, color: "#666" }}>{inv.packageName}</div>}
+          </div>
+
+          {/* Line items */}
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <tbody>
+              <tr style={{ borderTop: "2px solid #1a1a1a" }}>
+                <td style={{ padding: "10px 0", color: "#666" }}>Subtotal</td>
+                <td style={{ padding: "10px 0", textAlign: "right", fontFamily: "monospace" }}>{money(inv.subtotal || inv.totalAmount)}</td>
+              </tr>
+              {Number(inv.discountAmount || 0) > 0 && (
+                <tr>
+                  <td style={{ padding: "6px 0", color: "#666" }}>Discount</td>
+                  <td style={{ padding: "6px 0", textAlign: "right", color: "#b42318", fontFamily: "monospace" }}>-{money(inv.discountAmount)}</td>
+                </tr>
+              )}
+              <tr style={{ borderTop: "1px solid #ddd" }}>
+                <td style={{ padding: "10px 0", fontWeight: 700, fontSize: 15 }}>Total</td>
+                <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 700, fontSize: 15, fontFamily: "monospace" }}>{money(inv.totalAmount)}</td>
+              </tr>
               <tr>
-                <td style={{ padding: "8px 0", color: "#6b7280" }}>Client</td>
-                <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 700 }}>
-                  {inv.clientName || "—"}
+                <td style={{ padding: "6px 0", color: "#059669" }}>Amount Paid</td>
+                <td style={{ padding: "6px 0", textAlign: "right", color: "#059669", fontFamily: "monospace" }}>{money(inv.amountPaid || 0)}</td>
+              </tr>
+              <tr style={{ borderTop: "1px solid #ddd" }}>
+                <td style={{ padding: "10px 0", fontWeight: 700, fontSize: 15, color: isPaid ? "#059669" : "#dc2626" }}>
+                  {isPaid ? "Paid in Full" : "Balance Due"}
+                </td>
+                <td style={{ padding: "10px 0", textAlign: "right", fontWeight: 800, fontSize: 15, color: isPaid ? "#059669" : "#dc2626", fontFamily: "monospace" }}>
+                  {isPaid ? money(inv.totalAmount) : money(inv.balanceDue)}
                 </td>
               </tr>
-              {!!inv.sessionType && (
-                <tr>
-                  <td style={{ padding: "8px 0", color: "#6b7280" }}>Service</td>
-                  <td style={{ padding: "8px 0", textAlign: "right" }}>
-                    {inv.sessionType}
-                    {inv.packageName ? ` — ${inv.packageName}` : ""}
-                  </td>
-                </tr>
-              )}
-              {!!inv.sessionDate && (
-                <tr>
-                  <td style={{ padding: "8px 0", color: "#6b7280" }}>Date</td>
-                  <td style={{ padding: "8px 0", textAlign: "right" }}>{inv.sessionDate}</td>
-                </tr>
-              )}
-              <tr style={{ borderTop: "2px solid #111827" }}>
-                <td style={{ padding: "12px 0", fontWeight: 700 }}>Total</td>
-                <td style={{ padding: "12px 0", textAlign: "right", fontWeight: 700 }}>
-                  {money(inv.totalAmount)}
-                </td>
-              </tr>
-              {Number(inv.amountPaid || 0) > 0 && (
-                <tr>
-                  <td style={{ padding: "6px 0", color: "#059669", fontWeight: 700 }}>Paid</td>
-                  <td
-                    style={{
-                      padding: "6px 0",
-                      textAlign: "right",
-                      color: "#059669",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {money(inv.amountPaid)}
-                  </td>
-                </tr>
-              )}
-              {Number(inv.balanceDue || 0) > 0 && (
-                <tr>
-                  <td style={{ padding: "6px 0", color: "#dc2626", fontWeight: 700 }}>
-                    Balance Due
-                  </td>
-                  <td
-                    style={{
-                      padding: "6px 0",
-                      textAlign: "right",
-                      color: "#dc2626",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {money(inv.balanceDue)}
-                  </td>
-                </tr>
-              )}
-              {Number(inv.balanceDue || 0) <= 0 && (
-                <tr>
-                  <td style={{ padding: "6px 0", color: "#059669", fontWeight: 700 }}>
-                    Status
-                  </td>
-                  <td
-                    style={{
-                      padding: "6px 0",
-                      textAlign: "right",
-                      color: "#059669",
-                      fontWeight: 800,
-                    }}
-                  >
-                    Paid in full
-                  </td>
-                </tr>
-              )}
-              {!!inv.dueDate && (
-                <tr>
-                  <td style={{ padding: "6px 0", color: "#6b7280" }}>Due Date</td>
-                  <td style={{ padding: "6px 0", textAlign: "right" }}>{inv.dueDate}</td>
-                </tr>
-              )}
             </tbody>
           </table>
 
-          {!!inv.squareLink && (
-            <div style={{ textAlign: "center", marginTop: 24 }}>
-              <a
-                href={inv.squareLink}
-                style={{
-                  display: "inline-block",
-                  padding: "12px 28px",
-                  background: "#d4a853",
-                  color: "#0e0f11",
-                  textDecoration: "none",
-                  borderRadius: 8,
-                  fontWeight: 800,
-                }}
-              >
+          {/* Payment History */}
+          <div style={{ marginTop: 24 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Payment History</div>
+            <div style={{ fontSize: 13, color: "#9ca3af" }}>
+              {Number(inv.amountPaid || 0) > 0
+                ? `${money(inv.amountPaid)} received`
+                : "No payments recorded yet."}
+            </div>
+          </div>
+
+          {/* Pay button */}
+          <div style={{ textAlign: "center", marginTop: 32 }}>
+            {inv.squareLink ? (
+              <a href={inv.squareLink} style={{ display: "inline-block", padding: "14px 48px", background: "#d4a853", color: "#0e0f11", textDecoration: "none", borderRadius: 8, fontWeight: 800, fontSize: 16, boxShadow: "0 2px 8px rgba(212,168,83,0.3)" }}>
                 Pay Now
               </a>
-            </div>
-          )}
+            ) : (
+              <div style={{ fontSize: 13, color: "#9ca3af" }}>Pay with Square</div>
+            )}
+          </div>
 
           {!!inv.notes && (
-            <div
-              style={{
-                marginTop: 20,
-                paddingTop: 12,
-                borderTop: "1px solid #e5e7eb",
-                fontSize: 14,
-                color: "#4b5563",
-              }}
-            >
-              {inv.notes}
-            </div>
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e5e5e5", fontSize: 13, color: "#4b5563" }}>{inv.notes}</div>
           )}
 
-          <div style={{ marginTop: 18, fontSize: 12, color: "#6b7280", textAlign: "center" }}>
+          <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #f0f0f0", fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
             Questions? Reply to Nico Salgado Photography for assistance.
           </div>
         </div>
