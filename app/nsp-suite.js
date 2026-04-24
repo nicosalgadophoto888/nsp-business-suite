@@ -2516,6 +2516,7 @@ function QuotesTab({
   setCounters,
   onNavigateToFinancials,
   onCreateInvoiceFromQuote,
+  docTemplates,
 }) {
   const [building, setBuilding] = useState(null);
   const [previewQuote, setPreviewQuote] = useState(null);
@@ -9164,6 +9165,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             setCounters={setCounters}
             onNavigateToFinancials={goToTab}
             onCreateInvoiceFromQuote={handleCreateInvoiceFromQuote}
+            docTemplates={docTemplates}
           />
         );
       case "financials":
