@@ -3,6 +3,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 
+// ── Mobile context ────────────────────────────────────────────────────────────
+const MobileCtx = React.createContext(false);
+function useIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const check = () => setM(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return m;
+}
+
 const G = {
   bg: "#f7f5f0",
   surface: "#fcfaf6",
@@ -1488,6 +1501,7 @@ function NewClientModal({
   onSelectSuggestion,
   errors,
 }) {
+  const isMobile = React.useContext(MobileCtx);
   return (
     <div
       style={{
@@ -1521,11 +1535,11 @@ function NewClientModal({
 
         <ErrorList errors={errors} />
 
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr", gap: 16 }}>
           <div>
             <Card style={{ padding: 14, marginBottom: 12 }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Job Profile</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
                 <div style={{ position: "relative" }}>
                   <InputField
                     label="Client Name"
@@ -1624,7 +1638,7 @@ function NewClientModal({
 
             <Card style={{ padding: 14 }}>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Schedule</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr 1fr 1fr", gap: 10 }}>
                 <InputField
                   label="Event Title"
                   value={form.scheduleTitle}
@@ -1730,6 +1744,7 @@ function InfoRow({ label, value, accent }) {
 }
 
 function OverviewTab({ lead, setLead, quotes }) {
+  const isMobile = React.useContext(MobileCtx);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...lead });
 
@@ -1746,7 +1761,7 @@ function OverviewTab({ lead, setLead, quotes }) {
     return (
       <Card>
         <SectionLabel>Edit Lead Details</SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
           <InputField
             label="Name"
             value={form.name}
@@ -1844,7 +1859,7 @@ function OverviewTab({ lead, setLead, quotes }) {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
       <Card>
         <SectionLabel
           actions={
@@ -1890,6 +1905,7 @@ function OverviewTab({ lead, setLead, quotes }) {
 }
 
 function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
+  const isMobile = React.useContext(MobileCtx);
   const [adding, setAdding] = useState(false);
   const [showPastEvents, setShowPastEvents] = useState(true);
   const [showEventNotes, setShowEventNotes] = useState(true);
@@ -1960,7 +1976,7 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
             marginBottom: 16,
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             <InputField
               label="Title"
               value={form.title}
@@ -2066,7 +2082,7 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
           action={<Btn small onClick={() => setAdding(true)}>+ New Event</Btn>}
         />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 250px", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 250px", gap: 14 }}>
           <div>
             <div
               style={{
@@ -2098,7 +2114,7 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
                     onClick={() => setSelectedEventId(ev.id)}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "120px 1fr auto",
+                      gridTemplateColumns: isMobile ? "1fr" : "120px 1fr auto",
                       gap: 12,
                       alignItems: "center",
                       padding: "12px 14px",
@@ -2533,6 +2549,7 @@ function QuotesTab({
   onCreateInvoiceFromQuote,
   docTemplates,
 }) {
+  const isMobile = React.useContext(MobileCtx);
   const [building, setBuilding] = useState(null);
   const [previewQuote, setPreviewQuote] = useState(null);
   const [errors, setErrors] = useState([]);
@@ -3244,7 +3261,7 @@ function QuotesTab({
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
           <Card>
             <SectionLabel>Client & Event Info</SectionLabel>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <div style={{ position: "relative" }}>
                 <InputField
                   label="Client Name"
@@ -3315,7 +3332,7 @@ function QuotesTab({
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <InputField
                 label="Introduction"
                 value={building.introduction}
@@ -3330,7 +3347,7 @@ function QuotesTab({
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
               <div style={{ marginBottom: 14 }}>
                 <label
                   style={{
@@ -3374,7 +3391,7 @@ function QuotesTab({
 
           <Card>
             <SectionLabel>Booking Process</SectionLabel>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
               <div style={{ marginBottom: 14 }}>
                 <label
                   style={{
@@ -3649,6 +3666,7 @@ function QuotesTab({
                       multiline
                     />
 
+                    <div style={isMobile ? { overflowX: "auto", WebkitOverflowScrolling: "touch", margin: "0 -4px" } : {}}>
                     <div
                       style={{
                         display: "grid",
@@ -3660,6 +3678,7 @@ function QuotesTab({
                         marginBottom: 4,
                         textTransform: "uppercase",
                         letterSpacing: ".06em",
+                        minWidth: isMobile ? 360 : undefined,
                       }}
                     >
                       <div>Item</div>
@@ -3751,6 +3770,7 @@ function QuotesTab({
                         </button>
                       </div>
                     ))}
+                    </div>{/* end mobile scroll wrapper */}
                   </div>
                 ))}
               </div>
@@ -3791,7 +3811,7 @@ function QuotesTab({
 
           <Card>
             <SectionLabel>Promotion / Discount</SectionLabel>
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr 1fr", gap: 14 }}>
               <InputField
                 label="Promo Code / Label"
                 value={building.promoCode}
@@ -3908,7 +3928,7 @@ function QuotesTab({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.5fr 1fr 1fr auto",
+                gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr 1fr auto",
                 gap: 10,
                 alignItems: "end",
               }}
@@ -4049,8 +4069,8 @@ function QuotesTab({
                 key={q.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr auto auto auto",
-                  gap: 14,
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr auto auto auto",
+                  gap: isMobile ? 8 : 14,
                   alignItems: "center",
                   padding: "16px 18px",
                   background: G.card,
@@ -4163,7 +4183,7 @@ function FinancialsTab({
   workspaceInvoices,
 }) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
-  const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
+  const isMobile = React.useContext(MobileCtx); // list | create | edit | preview | recordPayment
   const [invoices, setInvoices] = useState([]);
   const [paymentRecords, setPaymentRecords] = useState([]);
   const [form, setForm] = useState({});
@@ -4812,7 +4832,7 @@ setActiveInvoice(null);
           </div>
           <InputField label="Name" value={scheduleForm.name} onChange={(e) => setS("name", e.target.value)} required />
           <InputField label="Description" value={scheduleForm.description} onChange={(e) => setS("description", e.target.value)} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Initial Payment</label>
               <div style={{ display: "flex", gap: 8 }}>
@@ -4831,7 +4851,7 @@ setActiveInvoice(null);
           <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${G.border}` }}>
             <SectionLabel actions={<Btn small variant="secondary" onClick={() => setS("remaining", [...scheduleForm.remaining, { amount: 0, type: "Percent of Order", due: "on delivery" }])}>New Payment</Btn>}>Remaining Payments</SectionLabel>
             {scheduleForm.remaining.map((r, idx) => (
-              <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 2fr auto", gap: 10, padding: "10px 0", borderBottom: `1px solid ${G.border}33`, alignItems: "center" }}>
+              <div key={idx} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 2fr auto", gap: 10, padding: "10px 0", borderBottom: `1px solid ${G.border}33`, alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 6 }}>
                   <input type="number" value={r.amount} onChange={(e) => { const rem = [...scheduleForm.remaining]; rem[idx] = { ...rem[idx], amount: Number(e.target.value) }; setS("remaining", rem); }}
                     style={{ width: 70, background: G.surface, color: G.text, border: `1px solid ${G.border}`, borderRadius: 6, padding: "7px 10px", fontSize: 13 }} />
@@ -4918,7 +4938,7 @@ setActiveInvoice(null);
           <InfoRow label="Balance Due" value={fmt$(activeInvoice.balanceDue)} accent={G.red} />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
           <InputField label="Amount" type="number" value={payForm.amount || ""} onChange={(e) => setPayForm(p => ({ ...p, amount: e.target.value }))} />
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Payment Method</label>
@@ -4984,14 +5004,14 @@ setActiveInvoice(null);
         <div style={{ marginBottom: 16 }}><Btn variant="ghost" small onClick={() => { setView("list"); setForm({}); setActiveInvoice(null); }}>← Back</Btn></div>
         <SectionLabel>{view === "create" ? "New Invoice" : "Edit Invoice"}</SectionLabel>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
           <InputField label="Invoice Number" value={form.invoiceNumber || ""} onChange={(e) => setForm(p => ({ ...p, invoiceNumber: e.target.value }))} />
           <InputField label="Title" value={form.title || ""} onChange={(e) => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Retainer (50%)" />
         </div>
 
         <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: G.gold, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".04em" }}>Client Details</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             <InputField label="Client Name" value={form.clientName || ""} onChange={(e) => setForm(p => ({ ...p, clientName: e.target.value }))} />
             <InputField label="Client Email" value={form.clientEmail || ""} onChange={(e) => setForm(p => ({ ...p, clientEmail: e.target.value }))} />
             <InputField label="Session Type" value={form.sessionType || ""} onChange={(e) => setForm(p => ({ ...p, sessionType: e.target.value }))} />
@@ -5002,7 +5022,7 @@ setActiveInvoice(null);
 
         <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: G.gold, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".04em" }}>Billing</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12 }}>
             <InputField label="Subtotal" type="number" value={form.subtotal || ""} onChange={(e) => {
               const sub = Number(e.target.value) || 0;
               const total = Math.max(0, sub - (form.discountAmount || 0));
@@ -5018,7 +5038,7 @@ setActiveInvoice(null);
               setForm(p => ({ ...p, totalAmount: total, balanceDue: Math.max(0, total - (p.amountPaid || 0)) }));
             }} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Invoice Type</label>
               <div style={{ display: "flex", gap: 0 }}>
@@ -5109,7 +5129,7 @@ setActiveInvoice(null);
           )}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
           <InputField label="Issued Date" type="date" value={form.issuedOn || ""} onChange={(e) => setForm(p => ({ ...p, issuedOn: e.target.value }))} />
           <InputField label="Due Date" type="date" value={form.dueDate || ""} onChange={(e) => setForm(p => ({ ...p, dueDate: e.target.value }))} />
         </div>
@@ -5144,7 +5164,7 @@ setActiveInvoice(null);
       <Card>
         <SubTabs />
         {/* Summary cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
           <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "12px 16px", textAlign: "center" }}>
             <div style={{ fontSize: 11, color: G.textMuted, marginBottom: 4 }}>Total Invoiced</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: G.gold }}>{fmt$(totalInvoiced)}</div>
@@ -5521,6 +5541,7 @@ pre{white-space:pre-wrap;font-family:Georgia,'Times New Roman',serif;font-size:1
    CONTRACTS TAB — FULL VERSION
    ═══════════════════════════════════════════════════════ */
 function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
+  const isMobile = React.useContext(MobileCtx);
   const [subTab, setSubTab] = useState("contracts"); // contracts | releases | templates
   const [view, setView] = useState("list"); // list | create | edit | preview | templateEdit
   const [form, setForm] = useState({});
@@ -5992,7 +6013,7 @@ function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
         </SectionLabel>
 
         {/* Summary row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
           {[
             { label: "Draft", count: items.filter(i => i.status === "Draft").length, ...statusColor("Draft") },
             { label: "Sent", count: items.filter(i => i.status === "Sent").length, ...statusColor("Sent") },
@@ -6061,7 +6082,7 @@ function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
         </div>
         <SectionLabel>{view === "create" ? `New ${itemLabel}` : `Edit ${itemLabel}`}</SectionLabel>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
           <InputField label={`${itemLabel} Title`} value={form.title || ""} onChange={(e) => setForm(p => ({ ...p, title: e.target.value }))} />
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Status</label>
@@ -6075,7 +6096,7 @@ function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
         {/* Client details */}
         <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: G.gold, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".04em" }}>Client Details</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             <InputField label="Client / Signer Name" value={form.clientName || form.signer || ""} onChange={(e) => setForm(p => ({ ...p, clientName: e.target.value, signer: e.target.value }))} />
             <InputField label="Client Email" value={form.clientEmail || ""} onChange={(e) => setForm(p => ({ ...p, clientEmail: e.target.value }))} />
             <div style={{ marginBottom: 14 }}>
@@ -6185,7 +6206,7 @@ function ContractsTab({ contracts, setContracts, lead, setLead, settings }) {
         </div>
         <SectionLabel>{templateForm.id && templates.find(t => t.id === templateForm.id) ? "Edit Template" : "New Template"}</SectionLabel>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
           <InputField label="Template Name" value={templateForm.name || ""} onChange={(e) => setTemplateForm(p => ({ ...p, name: e.target.value }))} />
           <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 5 }}>Category</label>
@@ -6351,7 +6372,7 @@ function TemplatesTab({ templates, setTemplates }) {
         </Btn>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "220px 1fr", gap: 14 }}>
         <div
           style={{
             background: LT.card,
@@ -6474,7 +6495,7 @@ function TemplatesTab({ templates, setTemplates }) {
                   key={tpl.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1.3fr 1fr 1fr auto",
+                    gridTemplateColumns: isMobile ? "1fr 1fr" : "1.3fr 1fr 1fr auto",
                     alignItems: "center",
                     gap: 10,
                     background: LT.card,
@@ -6516,7 +6537,7 @@ function TemplatesTab({ templates, setTemplates }) {
             padding: 14,
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 10 }}>
             <InputField
               label="Template Name"
               value={editing.name || ""}
@@ -6601,6 +6622,7 @@ function DashboardView({
   onNavigate,
   onOpenWorkspace,
 }) {
+  const isMobile = React.useContext(MobileCtx);
   // Build a global upcoming sessions list from all workspaces
   const globalSchedule = useMemo(() => {
     const sessions = [];
@@ -6729,7 +6751,7 @@ function DashboardView({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <Card>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
           {[
             { label: "Open Quotes", value: String(openQuotes), accent: G.blue, tab: "quotes" },
             { label: "Accepted Quotes", value: String(acceptedCount), accent: G.green, tab: "quotes" },
@@ -6784,7 +6806,7 @@ function DashboardView({
         </div>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
         <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("financials")}>
           <SectionLabel>Accounting</SectionLabel>
           <div style={{ display: "grid", gap: 7 }}>
@@ -6817,7 +6839,7 @@ function DashboardView({
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
         <Card style={{ cursor: "pointer" }} onClick={() => onNavigate?.("quotes")}>
           <SectionLabel>Booking Trends</SectionLabel>
           <div style={{ display: "grid", gap: 7 }}>
@@ -6852,7 +6874,7 @@ function DashboardView({
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
         <Card>
           <SectionLabel>Open Jobs</SectionLabel>
           {workspaceSummaries.filter(w => w.stage === "Booked" || w.stage === "Fulfillment").length === 0 ? (
@@ -6985,6 +7007,7 @@ function ClientsTab({
   onImportClients,
   importState,
 }) {
+  const isMobile = React.useContext(MobileCtx);
   const fileInputRef = React.useRef(null);
   const [search, setSearch] = useState("");
   const [selectedRowId, setSelectedRowId] = useState(null);
@@ -7181,7 +7204,7 @@ function ClientsTab({
             {selectedClient.lead.name} Revenue Detail
           </SectionLabel>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
             <div style={{ padding: 12, border: `1px solid ${G.border}`, borderRadius: 8, background: G.surface }}>
               <div style={{ fontSize: 11, color: G.textMuted }}>Total Revenue</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: G.green }}>{fmt$(selectedClient.totalRevenue)}</div>
@@ -7196,7 +7219,7 @@ function ClientsTab({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Sessions</div>
               {selectedClient.snapshot.schedule?.length ? (
@@ -7249,6 +7272,7 @@ function ClientsTab({
 }
 
 function NotesTab({ notes, setNotes, emailActivity }) {
+  const isMobile = React.useContext(MobileCtx);
   const [text, setText] = useState("");
 
   const add = () => {
@@ -7388,7 +7412,7 @@ function FilesTab({ files, setFiles }) {
             marginBottom: 16,
           }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12 }}>
             <InputField
               label="File Name"
               value={form.name}
@@ -7469,6 +7493,7 @@ function ReportsTab({
   workspaceRows,
   onNavigate,
 }) {
+  const isMobile = React.useContext(MobileCtx);
   const [filterYear, setFilterYear] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
   const [drill, setDrill] = useState(null); // { center, year, label }
@@ -7673,7 +7698,7 @@ function ReportsTab({
         <SectionLabel>
           {filterYear !== "all" ? `${filterYear} Profit Centers` : "Profit Centers Overview"}
         </SectionLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 20, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", gap: 20, marginBottom: 20 }}>
           {[
             { label: "Revenue", chart: revenueDonut, value: fmt$(totalRevenue) },
             { label: "Profit", chart: profitDonut, value: fmt$(totalProfit) },
@@ -7897,6 +7922,7 @@ function ReportsTab({
 }
 
 export default function NSPBusinessSuite({ onSignOut, userEmail }) {
+  const isMobile = useIsMobile();
   const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
 
   const [workspaceId, setWorkspaceId] = useState(null);
@@ -9268,6 +9294,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
   };
 
   return (
+    <MobileCtx.Provider value={isMobile}>
     <div
       style={{
         fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
@@ -9278,7 +9305,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
     >
       <div
         style={{
-          padding: "20px 28px",
+          padding: isMobile ? "12px 14px" : "20px 28px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
@@ -9309,24 +9336,24 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
                   Leads Dashboard
                 </h1>
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
-                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 120 }}>
+              <div style={isMobile ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 } : { display: "flex", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: isMobile ? 0 : 120 }}>
                   <div style={{ fontSize: 11, color: G.textMuted }}>Total Clients</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: G.text }}>{dashboardTotals.totalLeads}</div>
                 </div>
-                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 120 }}>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: isMobile ? 0 : 120 }}>
                   <div style={{ fontSize: 11, color: G.textMuted }}>Active Bookings</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: G.gold }}>{dashboardTotals.bookedCount}</div>
                 </div>
-                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 160 }}>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: isMobile ? 0 : 160 }}>
                   <div style={{ fontSize: 11, color: G.textMuted }}>Accepted Revenue</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: G.green }}>{fmt$(dashboardTotals.acceptedRevenue)}</div>
                 </div>
-                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 150 }}>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: isMobile ? 0 : 150 }}>
                   <div style={{ fontSize: 11, color: G.textMuted }}>Outstanding</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: dashboardTotals.outstanding > 0 ? G.amber : G.green }}>{fmt$(dashboardTotals.outstanding)}</div>
                 </div>
-                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: 140 }}>
+                <div style={{ border: `1px solid ${G.border}`, borderRadius: 8, padding: "8px 10px", background: G.card, minWidth: isMobile ? 0 : 140, gridColumn: isMobile ? "1 / -1" : undefined }}>
                   <div style={{ fontSize: 11, color: G.textMuted }}>Lead Pipeline</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: G.blue }}>{fmt$(dashboardTotals.pipelineValue)}</div>
                 </div>
@@ -9339,19 +9366,19 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
                   {isGlobalReportsView ? "Business Overview" : "Client Workspace"}
                 </div>
 
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: G.text, margin: 0 }}>
+                <h1 style={{ fontSize: isMobile ? 20 : 28, fontWeight: 800, color: G.text, margin: 0 }}>
                   {headerTitle}
                 </h1>
 
-                <div style={{ display: "flex", gap: 24, marginTop: 8 }}>
-                  <div style={{ fontSize: 15, color: G.textDim }}>
+                <div style={{ display: "flex", gap: isMobile ? 12 : 24, marginTop: 8 }}>
+                  <div style={{ fontSize: isMobile ? 13 : 15, color: G.textDim }}>
                     Revenue: {" "}
                     <span style={{ color: G.green, fontWeight: 700 }}>
                       {fmt$(headerRevenue)}
                     </span>
                   </div>
 
-                  <div style={{ fontSize: 15, color: G.textDim }}>
+                  <div style={{ fontSize: isMobile ? 13 : 15, color: G.textDim }}>
                     Balance: {" "}
                     <span style={{ color: headerBalance > 0 ? G.amber : G.green, fontWeight: 700 }}>
                       {fmt$(headerBalance)}
@@ -9375,11 +9402,11 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             </>
           ) : (
             <>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtLong(lead.eventDate)}</div>
-              <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
+              <div style={{ fontSize: isMobile ? 13 : 20, fontWeight: 700 }}>{fmtLong(lead.eventDate)}</div>
+              {!isMobile && <div style={{ fontSize: 13, color: G.textDim, marginTop: 4 }}>
                 Inquired on{" "}
                 <span style={{ fontWeight: 700, color: G.text }}>{fmtShort(lead.inquiredOn)}</span>
-              </div>
+              </div>}
             </>
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
@@ -9390,7 +9417,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
                   ? workspaceError || "Save failed"
                   : "Synced ✓"}
             </div>
-            {userEmail && (
+            {userEmail && !isMobile && (
               <div style={{ fontSize: 12, color: G.textMuted }}>{userEmail}</div>
             )}
             {onSignOut && (
@@ -9420,7 +9447,8 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
           borderBottom: `1px solid ${G.border}`,
           background: G.surface,
           overflowX: "auto",
-          padding: "0 28px",
+          padding: isMobile ? "0 8px" : "0 28px",
+          WebkitOverflowScrolling: "touch",
         }}
       >
         {TABS.map((t) => {
@@ -9430,8 +9458,8 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
               key={t.key}
               onClick={() => goToTab(t.key)}
               style={{
-                padding: "12px 18px",
-                fontSize: 12,
+                padding: isMobile ? "10px 10px" : "12px 18px",
+                fontSize: isMobile ? 11 : 12,
                 fontWeight: 600,
                 color: activeTab === t.key ? G.gold : G.textDim,
                 background: "none",
@@ -9454,10 +9482,11 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 220px",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 220px",
+          paddingBottom: isMobile ? 70 : 0,
         }}
       >
-        <div style={{ padding: "24px 28px" }}>
+        <div style={{ padding: isMobile ? "16px 14px" : "24px 28px" }}>
           {workspaceLoading ? (
             <Card>
               <SectionLabel>Workspace</SectionLabel>
@@ -9486,23 +9515,52 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
           )}
         </div>
 
+        {/* Desktop sidebar */}
+        {!isMobile && (
+          <div
+            style={{
+              borderLeft: `1px solid ${G.border}`,
+              padding: "20px 14px",
+              background: G.surface,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            {SIDEBAR_ACTIONS.map((a, i) => (
+              <Btn key={i} variant={a.variant} full small onClick={a.onClick} disabled={a.disabled}>
+                {a.label}
+              </Btn>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile bottom action bar */}
+      {isMobile && (
         <div
           style={{
-            borderLeft: `1px solid ${G.border}`,
-            padding: "20px 14px",
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
             background: G.surface,
+            borderTop: `1px solid ${G.border}`,
+            padding: "8px 10px",
             display: "flex",
-            flexDirection: "column",
             gap: 6,
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            zIndex: 1000,
           }}
         >
-          {SIDEBAR_ACTIONS.map((a, i) => (
-            <Btn key={i} variant={a.variant} full small onClick={a.onClick} disabled={a.disabled}>
+          {SIDEBAR_ACTIONS.filter((a) => !["Delete", "Revision History", "Reset Client Activity"].includes(a.label)).map((a, i) => (
+            <Btn key={i} variant={a.variant} small onClick={a.onClick} disabled={a.disabled} style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
               {a.label}
             </Btn>
           ))}
         </div>
-      </div>
+      )}
 
       {newClientOpen && (
         <NewClientModal
@@ -9546,7 +9604,7 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
             >
               New Email for {lead.name}
             </SectionLabel>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
               <div style={{ marginBottom: 14 }}>
                 <label
                   style={{
@@ -9622,5 +9680,6 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
         </div>
       )}
     </div>
+    </MobileCtx.Provider>
   );
 }
