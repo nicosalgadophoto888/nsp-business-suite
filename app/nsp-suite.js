@@ -2042,6 +2042,8 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
           {calToast.message}
         </div>
       )}
+
+      {adding && (
         <div
           style={{
             background: G.surface,
