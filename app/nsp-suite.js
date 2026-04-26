@@ -1910,6 +1910,72 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
   const [showPastEvents, setShowPastEvents] = useState(true);
   const [showEventNotes, setShowEventNotes] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState(null);
+  const [calSyncing, setCalSyncing] = useState({}); // { [eventId]: true }
+  const [calToast, setCalToast] = useState(null);   // { type, message }
+
+  const showCalToast = (type, message) => {
+    setCalToast({ type, message });
+    setTimeout(() => setCalToast(null), 4000);
+  };
+
+  const syncToCalendar = async (ev) => {
+    setCalSyncing((p) => ({ ...p, [ev.id]: true }));
+    try {
+      const method = ev.googleEventId ? "PATCH" : "POST";
+      const res = await fetch("/api/calendar", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          googleEventId: ev.googleEventId || undefined,
+          title: ev.title,
+          date: ev.date,
+          time: ev.time,
+          endTime: ev.endTime,
+          location: ev.location,
+          notes: ev.notes,
+          clientName: lead?.name,
+          clientEmail: lead?.email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || "Sync failed");
+      setSchedule((prev) =>
+        prev.map((e) =>
+          String(e.id) === String(ev.id)
+            ? { ...e, googleEventId: data.googleEventId, calendarLink: data.htmlLink }
+            : e
+        )
+      );
+      showCalToast("success", ev.googleEventId ? "Calendar event updated ✓" : "Added to Google Calendar ✓");
+    } catch (err) {
+      showCalToast("error", err.message || "Calendar sync failed");
+    } finally {
+      setCalSyncing((p) => { const n = { ...p }; delete n[ev.id]; return n; });
+    }
+  };
+
+  const unsyncFromCalendar = async (ev) => {
+    if (!ev.googleEventId) return;
+    setCalSyncing((p) => ({ ...p, [ev.id]: true }));
+    try {
+      const res = await fetch(`/api/calendar?id=${ev.googleEventId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok && !data.deleted) throw new Error(data.error || "Failed to remove");
+      setSchedule((prev) =>
+        prev.map((e) =>
+          String(e.id) === String(ev.id)
+            ? { ...e, googleEventId: undefined, calendarLink: undefined }
+            : e
+        )
+      );
+      showCalToast("success", "Removed from Google Calendar");
+    } catch (err) {
+      showCalToast("error", err.message);
+    } finally {
+      setCalSyncing((p) => { const n = { ...p }; delete n[ev.id]; return n; });
+    }
+  };
+
   const [form, setForm] = useState({
     title: lead?.type ? `${lead.type} Session` : "",
     date: lead?.eventDate || "",
@@ -1966,7 +2032,16 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
         Schedule
       </SectionLabel>
 
-      {adding && (
+      {calToast && (
+        <div style={{
+          padding: "10px 14px", borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 600,
+          background: calToast.type === "success" ? "#d1fae5" : "#fee2e2",
+          color: calToast.type === "success" ? "#065f46" : "#991b1b",
+          border: `1px solid ${calToast.type === "success" ? "#6ee7b7" : "#fca5a5"}`,
+        }}>
+          {calToast.message}
+        </div>
+      )}
         <div
           style={{
             background: G.surface,
@@ -2141,6 +2216,11 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
                     <Pill color={pill.color} bg={pill.bg}>
                       {ev.status || "Tentative"}
                     </Pill>
+                    {ev.googleEventId && (
+                      <span style={{ fontSize: 11, color: "#059669", fontWeight: 700, whiteSpace: "nowrap" }}>
+                        📅 Synced
+                      </span>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2182,6 +2262,19 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
               <Btn variant="secondary" small full onClick={() => window.print()}>
                 Print Schedule
               </Btn>
+              {schedule.filter(ev => !ev.googleEventId).length > 0 && (
+                <Btn
+                  variant="secondary" small full
+                  style={{ background: "#e8f0fe", color: "#1a73e8", border: "1px solid #c5d6f7" }}
+                  onClick={async () => {
+                    for (const ev of schedule.filter(e => !e.googleEventId)) {
+                      await syncToCalendar(ev);
+                    }
+                  }}
+                >
+                  📅 Sync All to Calendar
+                </Btn>
+              )}
             </div>
             <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
               <label style={{ fontSize: 12, color: G.text }}>
@@ -2213,6 +2306,44 @@ function ScheduleTab({ schedule, setSchedule, lead, setLead }) {
                 </div>
                 <div style={{ fontSize: 12, color: G.textDim }}>{selectedEvent.location || "Location TBD"}</div>
                 <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                  {/* Calendar sync buttons */}
+                  {!selectedEvent.googleEventId ? (
+                    <Btn
+                      small full
+                      style={{ background: "#1a73e8", color: "#fff" }}
+                      onClick={() => syncToCalendar(selectedEvent)}
+                      disabled={calSyncing[selectedEvent.id]}
+                    >
+                      {calSyncing[selectedEvent.id] ? "Syncing..." : "📅 Add to Google Calendar"}
+                    </Btn>
+                  ) : (
+                    <>
+                      <Btn
+                        small full variant="secondary"
+                        onClick={() => syncToCalendar(selectedEvent)}
+                        disabled={calSyncing[selectedEvent.id]}
+                      >
+                        {calSyncing[selectedEvent.id] ? "Updating..." : "🔄 Update Calendar"}
+                      </Btn>
+                      {selectedEvent.calendarLink && (
+                        <a
+                          href={selectedEvent.calendarLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: 12, color: "#1a73e8", textAlign: "center" }}
+                        >
+                          Open in Google Calendar ↗
+                        </a>
+                      )}
+                      <Btn
+                        small full variant="ghost"
+                        onClick={() => unsyncFromCalendar(selectedEvent)}
+                        disabled={calSyncing[selectedEvent.id]}
+                      >
+                        Remove from Calendar
+                      </Btn>
+                    </>
+                  )}
                   {selectedEvent.status !== "Completed" && (
                     <Btn
                       small
@@ -4183,7 +4314,8 @@ function FinancialsTab({
   workspaceInvoices,
 }) {
   const [subTab, setSubTab] = useState("invoices"); // invoices | schedules
-  const isMobile = React.useContext(MobileCtx); // list | create | edit | preview | recordPayment
+  const isMobile = React.useContext(MobileCtx);
+  const [view, setView] = useState("list"); // list | create | edit | preview | recordPayment
   const [invoices, setInvoices] = useState([]);
   const [paymentRecords, setPaymentRecords] = useState([]);
   const [form, setForm] = useState({});
