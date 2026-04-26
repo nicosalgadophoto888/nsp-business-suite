@@ -55,6 +55,7 @@ const TABS = [
   { key: "templates", label: "Templates" },
   { key: "notes", label: "Notes" },
   { key: "files", label: "Files" },
+  { key: "notifications", label: "🔔 Notify" },
   { key: "reports", label: "Reports" },
 ];
 
@@ -8055,6 +8056,196 @@ function ReportsTab({
   );
 }
 
+// ── Notifications Tab ─────────────────────────────────────────────────────────
+function NotificationsTab({ lead, workspaceId, quotes, schedule, payments }) {
+  const isMobile = React.useContext(MobileCtx);
+  const [loading, setLoading] = React.useState(false);
+  const [preview, setPreview] = React.useState(null);
+  const [result, setResult] = React.useState(null);
+  const [autoStatus, setAutoStatus] = React.useState(null);
+
+  const totalRevenue = (quotes || []).filter(q => q.status === "Accepted").reduce((s, q) => s + (q.total || 0), 0);
+  const totalPaid = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+  const balance = Math.max(0, totalRevenue - totalPaid);
+
+  const upcomingSessions = (schedule || []).filter(ev => {
+    if (ev.status === "Completed" || ev.status === "Cancelled") return false;
+    const d = ev.date ? Math.round((new Date(ev.date + "T00:00:00") - new Date().setHours(0,0,0,0)) / 86400000) : null;
+    return d !== null && d >= 0;
+  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const openQuotes = (quotes || []).filter(q => q.status === "Sent");
+
+  const sendNotification = async (type, dryRun = false) => {
+    if (!workspaceId) { setResult({ error: "No workspace loaded" }); return; }
+    setLoading(true); setResult(null);
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, workspaceId, dryRun }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      setResult(data);
+    } catch (err) {
+      setResult({ error: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runAllCron = async () => {
+    setLoading(true); setAutoStatus(null);
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const data = await res.json();
+      setAutoStatus(data);
+    } catch (err) {
+      setAutoStatus({ error: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ActionCard = ({ icon, title, description, type, disabled, disabledReason }) => (
+    <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 10, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ fontSize: 28 }}>{icon}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: G.text, marginBottom: 4 }}>{title}</div>
+          <div style={{ fontSize: 12, color: G.textDim, lineHeight: 1.5, marginBottom: 12 }}>{description}</div>
+          {disabled ? (
+            <div style={{ fontSize: 12, color: G.textMuted, fontStyle: "italic" }}>{disabledReason}</div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Btn small onClick={() => sendNotification(type, true)} disabled={loading}>
+                👁 Preview
+              </Btn>
+              <Btn small variant="secondary" onClick={() => sendNotification(type, false)} disabled={loading}>
+                {loading ? "Sending..." : "✉ Send Now"}
+              </Btn>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <Card>
+      <SectionLabel>Notifications</SectionLabel>
+
+      {/* Status summary */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px" }}>
+          <div style={{ fontSize: 11, color: G.textMuted }}>Upcoming Sessions</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: upcomingSessions.length > 0 ? G.gold : G.textMuted }}>
+            {upcomingSessions.length}
+          </div>
+          {upcomingSessions[0] && (
+            <div style={{ fontSize: 11, color: G.textDim, marginTop: 2 }}>
+              Next: {new Date(upcomingSessions[0].date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </div>
+          )}
+        </div>
+        <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px" }}>
+          <div style={{ fontSize: 11, color: G.textMuted }}>Open Quotes</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: openQuotes.length > 0 ? G.amber : G.textMuted }}>
+            {openQuotes.length}
+          </div>
+          {openQuotes[0] && <div style={{ fontSize: 11, color: G.textDim, marginTop: 2 }}>Awaiting response</div>}
+        </div>
+        <div style={{ background: G.surface, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", gridColumn: isMobile ? "1 / -1" : undefined }}>
+          <div style={{ fontSize: 11, color: G.textMuted }}>Outstanding Balance</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: balance > 0 ? G.red : G.green }}>
+            {balance > 0 ? `$${balance.toFixed(2)}` : "Paid ✓"}
+          </div>
+        </div>
+      </div>
+
+      {/* Result toast */}
+      {result && (
+        <div style={{
+          padding: "12px 14px", borderRadius: 8, marginBottom: 16, fontSize: 13,
+          background: result.error ? "#fee2e2" : "#d1fae5",
+          color: result.error ? "#991b1b" : "#065f46",
+          border: `1px solid ${result.error ? "#fca5a5" : "#6ee7b7"}`,
+        }}>
+          {result.error ? `Error: ${result.error}` : result.sent === 0
+            ? "Preview ran — no emails would be sent (no matching triggers for this client right now)."
+            : `${result.sent} email${result.sent !== 1 ? "s" : ""} ${result.results?.[0]?.sent === false ? "previewed" : "sent"} successfully ✓`}
+          {result.results?.length > 0 && (
+            <div style={{ marginTop: 8, fontSize: 12 }}>
+              {result.results.map((r, i) => (
+                <div key={i} style={{ marginTop: 4, opacity: 0.85 }}>
+                  {r.type === "session_reminder" && `📅 Session reminder → ${r.email} (${r.daysUntil}d away)`}
+                  {r.type === "quote_followup" && `📋 Quote follow-up → ${r.email} (sent ${r.daysSent}d ago)`}
+                  {r.type === "payment_reminder" && `💳 Payment reminder → ${r.email} ($${r.balance?.toFixed(2)} due)`}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action cards */}
+      <div style={{ display: "grid", gap: 12, marginBottom: 20 }}>
+        <ActionCard
+          icon="📅"
+          title="Session Reminder"
+          description={`Send ${lead?.name || "client"} a reminder about their upcoming session, including session details and any outstanding balance.`}
+          type="session_reminder"
+          disabled={upcomingSessions.length === 0}
+          disabledReason="No upcoming sessions scheduled."
+        />
+        <ActionCard
+          icon="📋"
+          title="Quote Follow-Up"
+          description={`Follow up on an open quote that's been waiting. Great for nudging leads to book.`}
+          type="quote_followup"
+          disabled={openQuotes.length === 0}
+          disabledReason="No open (Sent) quotes to follow up on."
+        />
+        <ActionCard
+          icon="💳"
+          title="Payment Reminder"
+          description={`Remind ${lead?.name || "client"} that their balance of $${balance.toFixed(2)} is due before the session.`}
+          type="payment_reminder"
+          disabled={balance === 0}
+          disabledReason="No outstanding balance."
+        />
+      </div>
+
+      {/* Auto-send info */}
+      <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: 16 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#0369a1", marginBottom: 6 }}>🤖 Automatic Daily Reminders</div>
+        <div style={{ fontSize: 12, color: "#0369a1", lineHeight: 1.6, marginBottom: 12 }}>
+          Vercel runs notifications automatically every day at 9 AM. Emails fire when:
+          sessions are 7 days or 48h away, quotes have been open 3 / 7 / 14 days, or
+          balance is due 7 or 3 days before a session.
+        </div>
+        <Btn small variant="secondary"
+          style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}
+          onClick={runAllCron}
+          disabled={loading}
+        >
+          {loading ? "Running..." : "▶ Run All Checks Now (all clients)"}
+        </Btn>
+        {autoStatus && (
+          <div style={{ marginTop: 10, fontSize: 12, color: autoStatus.error ? G.red : "#0369a1" }}>
+            {autoStatus.error ? `Error: ${autoStatus.error}` : `Checked all clients — ${autoStatus.sent} notification${autoStatus.sent !== 1 ? "s" : ""} sent.`}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function NSPBusinessSuite({ onSignOut, userEmail }) {
   const isMobile = useIsMobile();
   const initial = normalizeWorkspaceSnapshot(DEFAULT_DATA);
@@ -9405,6 +9596,16 @@ export default function NSPBusinessSuite({ onSignOut, userEmail }) {
         return <NotesTab notes={notes} setNotes={setNotes} emailActivity={emailActivity} />;
       case "files":
         return <FilesTab files={files} setFiles={setFiles} />;
+      case "notifications":
+        return (
+          <NotificationsTab
+            lead={lead}
+            workspaceId={workspaceId}
+            quotes={quotes}
+            schedule={schedule}
+            payments={payments}
+          />
+        );
       case "reports":
         return (
           <ReportsTab
