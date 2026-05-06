@@ -2429,9 +2429,17 @@ function QuotePreview({ quote, settings, onBack, onDownloadPdf }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 32, gap: 24 }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: G.teal, letterSpacing: "-.02em" }}>
-              {settings.businessName}
-            </div>
+            {settings.logoUrl ? (
+              <img
+                src={settings.logoUrl.startsWith("http") ? settings.logoUrl : `https://nsp-business-suite-wheat.vercel.app${settings.logoUrl}`}
+                alt={settings.businessName}
+                style={{ maxHeight: 60, width: "auto", display: "block", marginBottom: 8 }}
+              />
+            ) : (
+              <div style={{ fontSize: 22, fontWeight: 800, color: G.teal, letterSpacing: "-.02em" }}>
+                {settings.businessName}
+              </div>
+            )}
             <div style={{ fontSize: 12, color: "#666", lineHeight: 1.7, marginTop: 4 }}>
               {settings.address1 && (
                 <>
