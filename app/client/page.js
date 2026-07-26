@@ -1,6 +1,11 @@
 import { Suspense } from "react";
 import ClientPageContent from "./page-content";
 
+export const metadata = {
+  title: "Client Document",
+  robots: { index: false, follow: false },
+};
+
 function ClientFallback() {
   return (
     <div style={{ background: "#f4f4f5", minHeight: "100vh", padding: "24px 20px" }}>
